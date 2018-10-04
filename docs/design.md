@@ -14,6 +14,7 @@ Architecture
 Coils is consist of two components, an CNI plugin `coil` and the daemon `coild` as shown in the following figure:
 
 ![Coil Architecture](http://www.plantuml.com/plantuml/png/LP91RnCn48Nl_XLFuPALs21Qk4HHLD9AA0Ag2iIj5sSzIQruny4URm-8_uvtrvicDtlqlVV6JxwBeeEarYcZHUzq990qHWLgHFF14VJ9HWeT1QKkfhD7RsY6lmeu2sV19x5yGBuxUkPvuXJ9m3AE59XSDOEEQBnrXLJ0c-KnxSYHA61UORFz-J2UlWtI_jmBAs2rkd_ShjUJ5TvzjuSNsRX44sIg33reQZt_8ide1Q8m1Q5EftezU2mn_rZ1SkUFXEokC5hNZlPI69EXcmhRfoy_4EXFeYW5CwYDV-N2bQTb-hQ2DWPbWBqF_JrGZDWvtnodb5KT-lNgSyod2aolEMhY2pdbb4uo-Rb24qWBeIDvUV_CVQ3cNZegnyc7snkSAx_S4gl5aBqO2_-d57iX33Fu_V0NbjTRPySOxO5ROedN-63Iunq5iP6kXUYinkRhar9ZQILvo2YZrIAT5cy_Rebxbw9Gm9PpUwqMwrdzZXIc9ig2ZUUzFQH0GqRlrOXJTyGcjUu_)
+<!-- go to http://www.plantuml.com/plantuml/ and enter the above URL to edit the diagram. -->
 
 ### CNI plugin
 
