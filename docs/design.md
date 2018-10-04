@@ -1,45 +1,53 @@
 Notes on Coil design
 ====================
 
-Coil is a network management plugin for containers in the Kubernetes cluster.
-Coil provides pod network connectivity over nodes with BGP routing
+Coil is an IP address management (IPAM) tool that implements [CNI][] specifications.
+Kubernetes clusters that enable CNI can use Coil as a network plugin.
 
-Coil aims to reduce routes in the routing reflector, inspired by [Romana][].
-The advertise address block with network prefix instead of the pod's IP address.
-Each pods can find other pods' IP addresses by advertise block, and they can communicate over nodes.
+Overview
+--------
 
-Architecture
-------------
+Coil consists of three components, `coil`, `coild`, and `coilctl` as shown below:
 
-Coils is consist of two components, an CNI plugin `coil` and the daemon `coild` as shown in the following figure:
-
-![Coil Architecture](http://www.plantuml.com/plantuml/png/LP91RnCn48Nl_XLFuPALs21Qk4HHLD9AA0Ag2iIj5sSzIQruny4URm-8_uvtrvicDtlqlVV6JxwBeeEarYcZHUzq990qHWLgHFF14VJ9HWeT1QKkfhD7RsY6lmeu2sV19x5yGBuxUkPvuXJ9m3AE59XSDOEEQBnrXLJ0c-KnxSYHA61UORFz-J2UlWtI_jmBAs2rkd_ShjUJ5TvzjuSNsRX44sIg33reQZt_8ide1Q8m1Q5EftezU2mn_rZ1SkUFXEokC5hNZlPI69EXcmhRfoy_4EXFeYW5CwYDV-N2bQTb-hQ2DWPbWBqF_JrGZDWvtnodb5KT-lNgSyod2aolEMhY2pdbb4uo-Rb24qWBeIDvUV_CVQ3cNZegnyc7snkSAx_S4gl5aBqO2_-d57iX33Fu_V0NbjTRPySOxO5ROedN-63Iunq5iP6kXUYinkRhar9ZQILvo2YZrIAT5cy_Rebxbw9Gm9PpUwqMwrdzZXIc9ig2ZUUzFQH0GqRlrOXJTyGcjUu_)
+![Coil Architecture](http://www.plantuml.com/plantuml/svg/LP7DRjim48JlV8g1Up61oa6Jzb88Hk86A8osWP6WjrneSQqGfaYNN2g7ekzUwaUoVPCMCnzdTkyZgy2fiK8hLdiL2SIL5e4gLgws17KoaK9BGOYBwUB9QrhWhm1cuoBunCRLoF-MNjqokHH9mpWSAJYoSW4LKNbZHsLsdv77j2TBd6TBYSts-N7u-j5Rk-_EA86o_FQqNQyd53xyDFKRRsoYIQHb5ZqgQhnx8SxI2ud0z12AT2hMFUChbfzapjdw8o7J1GPqOUd0eqPdqQt4TlVm2u7-98eyoZHMeUEl-jLbsPr4P1_e9X07Gor1QHqeHegpfLobq-gytC6ryzss3ZuqYertKuoowFd5dEEpXAFtd6K2pu6rVtSvyB2qhFmYKGLIJ6Y9tpw-kco0SfrrS0wJcxjRp3Uvl13AiTjmaNz2E9zX_Gp-C3OUKs1lVNNCn1XDxHfo7A_bFQIJvyQScryRqHg5pVUT47tFgSnbdDpeGUAPQXEP0gQGUMFNAF4xKfW0OyZAkuEfKw3kdHvQiHNtv7Hgx7y0)
 <!-- go to http://www.plantuml.com/plantuml/ and enter the above URL to edit the diagram. -->
 
-### CNI plugin
+* `coil` is the CNI plugin.  It is installed in `/opt/cni/bin` directory.
+* `coild` is a background service that communicates with Kubernetes API server and etcd.
+* `coilctl` is a command-line tool to set or get Coil configurations and statuses.
 
-The CNI plugin is invoked when new pod is created to assign addresses to the pod by kubelet.
-The `coil` responsible to set-up new network for the pod.  It requests for new IP address of the pod to to `coild`.
-After new IP address is given by `coild`, `coil` creates veth, assign IP address to container, and set it's route as `/32` network into kernel.
-Note that the route set by `coil` is only used between node and pod.  The route is not advertise outside node.
+### How it works
 
-### Assigning IP Addresses and address blocks
+1. `coil` is invoked by `kubelet` when a new pod is created.
+2. `coil` communicates with `coild` to obtain a new IP address for the Pod.
+3. `coild` queries Pod information to API server, and IPAM configurations to etcd.
+4. `coild` assigns a new IP address for the Pod and returns it to `coil`.
+5. `coil` configures network links (veth) and in-host routing for the Pod.
 
-The `coild` responsible new IP address for the request from `coil`.
-It is a daemon program ran on the node to listen requests from `coil`.
+Address block
+-------------
 
-Address blocks assigned to the node are stored in etcd, and they are managed by `coild`.
-The `coild` assigns new address block to the node if no address blocks are assigned to the node, or IP addresses is fully used in the assigned block.
-The `coild` also consider Kubernetes cluster and node information by apiserver to assign address block.
+In order to reduce the number of routes in the system, Coil divides a large
+subnet into small fixed-size blocks called _address block__.  For example,
+if coil is configured to allocate IP addresses from `10.1.0.0/16`, it may
+divides the subnet into 4096 blocks of the size of `/28` (16 addresses).
 
-### Advertising routes
+This is inspired by [Romana][].
 
-Coil does not advertise the address directly.
-Coil utilizes BGP routing daemon such as BIRD.
-The kernel can hold additional routing tables.
-The `coild` stores the routing of the address block to it.
-BGP routing daemon lookups routes in that table, and advertise them to BGP network.
-The pods can connect to over nodes as the nodes communicate advertised address block each other.
+Each node has one or more address blocks.  `coild` is responsible for managing
+address blocks.  `coil` only receives a single IP address (not a subnet).
+
+Routing
+-------
+
+`coil` configures routing rules within a node.
+
+Unlike existing CNI plugins such as [Calico][] or [Romana][], Coil does not
+configure routes between nodes by itself.  Instead, it exports routing
+information to an unused kernel routing table to allow other programs
+like [BIRD][] can import them and advertise via BGP, RIP, or OSPF.
 
 [CNI]: https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/
+[Calico]: https://www.projectcalico.org/
 [Romana]: https://romana.io/
+[BIRD]: http://bird.network.cz/

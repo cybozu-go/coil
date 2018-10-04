@@ -10,7 +10,7 @@ Coil
 
 Coil is designed in favor of UNIX philosophy.  It is not tightly integrated
 with routing daemons like [BIRD][].  It does not implement
-[Kubernetes Network Policies][NetworkPolicy] by itself.
+[Kubernetes Network Policies][NetworkPolicy] either.
 
 Instead, users can choose their favorite routing daemons and/or network
 policy implementations.
