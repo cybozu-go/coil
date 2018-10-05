@@ -20,7 +20,7 @@ Status
 
 ### IP address assignments
 
-Key: `ip/<address-block>/<offset>/`
+Key: `ip/<address-block>/<offset>`
 
 Value: Container ID
 
@@ -35,7 +35,7 @@ Value:
 ```json
 {
     "free": ["10.11.0.64/27",...],
-    "node": {
+    "nodes": {
         "node1": ["10.11.0.0/27"],
         "node2": ["10.11.0.32/27"]
     }
