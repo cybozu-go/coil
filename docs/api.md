@@ -66,7 +66,7 @@ Release assigned addresses for the container.
 
 - HTTP status code: 200 OK
 - HTTP response header: Content-Type: application/json
-- HTTP response body: assigned ip address in JSON
+- HTTP response body: released ip address in JSON
 ```json
 {
   "addresses": ["<ip address>"],
