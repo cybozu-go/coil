@@ -37,7 +37,7 @@ func (m Model) AddPool(ctx context.Context, name string, pool *coil.AddressPool)
 	if !resp.Succeeded {
 		return ErrPoolExists
 	}
-	if !tresp.Responses[0].GetResponseTxn().Succeeded {
+	if !resp.Responses[0].GetResponseTxn().Succeeded {
 		return ErrUsedSubnet
 	}
 	return nil
@@ -49,15 +49,16 @@ func (m Model) AddSubnet(ctx context.Context, name string, n *net.IPNet) error {
 	skey := subnetKey(n)
 
 RETRY:
-	resp, err := m.etcd.Get(pkey)
+	resp, err := m.etcd.Get(ctx, pkey)
 	if err != nil {
 		return err
 	}
-	rev := resp.Header.ModRevision
 
 	if resp.Count == 0 {
 		return ErrNotFound
 	}
+
+	rev := resp.Kvs[0].ModRevision
 
 	p := new(coil.AddressPool)
 	err = json.Unmarshal(resp.Kvs[0].Value, p)
@@ -86,7 +87,7 @@ RETRY:
 	if err != nil {
 		return err
 	}
-	if !resp.Succeeded {
+	if !tresp.Succeeded {
 		goto RETRY
 	}
 	if !tresp.Responses[0].GetResponseTxn().Succeeded {
@@ -98,7 +99,7 @@ RETRY:
 // RemovePool removes pool.
 func (m Model) RemovePool(ctx context.Context, name string) error {
 	pkey := poolKey(name)
-	resp, err := m.etcd.Get(pkey)
+	resp, err := m.etcd.Get(ctx, pkey)
 	if err != nil {
 		return err
 	}
@@ -121,6 +122,6 @@ func (m Model) RemovePool(ctx context.Context, name string) error {
 		)
 	}
 
-	_, err := m.etcd.Txn(ctx).Then(ops...).Commit()
+	_, err = m.etcd.Txn(ctx).Then(ops...).Commit()
 	return err
 }
