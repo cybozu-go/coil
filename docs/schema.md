@@ -22,7 +22,7 @@ Status
 
 Key: `ip/<address-block>/<offset>/`
 
-Value: Pod ID
+Value: Container ID
 
 Key example: `ip/10.11.0.0/0`
 
