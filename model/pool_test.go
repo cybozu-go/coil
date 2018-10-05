@@ -2,7 +2,6 @@ package model
 
 import (
 	"context"
-	"errors"
 	"net"
 	"testing"
 
@@ -28,17 +27,110 @@ func testAddPool(t *testing.T) {
 
 	err = m.AddPool(context.Background(), "default", pool2)
 	if err != ErrPoolExists {
-		t.Fatal(errors.New("duplicate operation should be error"))
+		t.Fatal("duplicate operation should be error")
 	}
 
 	err = m.AddPool(context.Background(), "another", pool1)
 	if err != ErrUsedSubnet {
-		t.Fatal(errors.New("should be error: subnet already in use"))
+		t.Fatal("should be error: subnet already in use")
 	}
 
 	err = m.AddPool(context.Background(), "another", pool2)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func testAddSubnet(t *testing.T) {
+	t.Parallel()
+	m := newModel(t)
+	pool, err := makeAddressPool("10.11.0.0/16")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, subnet1, _ := net.ParseCIDR("10.12.0.0/24")
+	_, subnet2, _ := net.ParseCIDR("10.12.1.0/24")
+	_, subnet3, _ := net.ParseCIDR("10.12.2.0/30")
+
+	err = m.AddSubnet(context.Background(), "default", subnet1)
+	if err != ErrNotFound {
+		t.Error(err)
+	}
+
+	err = m.AddPool(context.Background(), "default", pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = m.AddSubnet(context.Background(), "default", subnet1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = m.AddSubnet(context.Background(), "default", subnet1)
+	if err != ErrUsedSubnet {
+		t.Error(err)
+	}
+
+	err = m.AddSubnet(context.Background(), "default", subnet2)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = m.AddSubnet(context.Background(), "default", subnet3)
+	if err == nil {
+		t.Error("should be validated")
+	}
+}
+
+func testRemovePool(t *testing.T) {
+	t.Parallel()
+	m := newModel(t)
+	pool, err := makeAddressPool("10.11.0.0/16")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, subnet1, _ := net.ParseCIDR("10.11.0.0/16")
+
+	err = m.RemovePool(context.Background(), "default")
+	if err != ErrNotFound {
+		t.Error(err)
+	}
+
+	err = m.AddPool(context.Background(), "default", pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = m.etcd.Put(context.Background(), blockKey("default", subnet1), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = m.RemovePool(context.Background(), "default")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := m.etcd.Get(context.Background(), subnetKey(subnet1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Count != 0 {
+		t.Error("resp.Count should be 0")
+	}
+
+	resp, err = m.etcd.Get(context.Background(), blockKey("default", subnet1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Count != 0 {
+		t.Error("resp.Count should be 0")
+	}
+
+	err = m.RemovePool(context.Background(), "default")
+	if err != ErrNotFound {
+		t.Error(err)
 	}
 }
 
@@ -57,4 +149,6 @@ func makeAddressPool(subnets ...string) (*coil.AddressPool, error) {
 
 func TestPool(t *testing.T) {
 	t.Run("AddPool", testAddPool)
+	t.Run("AddSubnet", testAddSubnet)
+	t.Run("RemovePool", testRemovePool)
 }

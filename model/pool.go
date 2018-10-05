@@ -67,6 +67,10 @@ RETRY:
 	}
 
 	p.Subnets = append(p.Subnets, n)
+	err = p.Validate()
+	if err != nil {
+		return err
+	}
 	data, err := json.Marshal(p)
 	if err != nil {
 		return err
