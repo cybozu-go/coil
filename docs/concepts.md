@@ -24,7 +24,7 @@ An address pool has following properties:
 * Name
 
     The name of this pool.  This must be unique.
-    `default` pool is always available.
+    `default` pool must be created.
 
     Addresses in the `default` pool may be allocated to Pods in any namespace.
 
@@ -34,8 +34,6 @@ An address pool has following properties:
 
     The size of address blocks from this pool.
     The number will be interpreted as an exponent of 2.
-
-    Default is `0`, i.e. 2^0 == 1.
 
 ## Routing
 

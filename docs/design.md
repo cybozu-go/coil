@@ -9,12 +9,13 @@ Overview
 
 Coil consists of three components, `coil`, `coild`, and `coilctl` as shown below:
 
-![Coil Architecture](http://www.plantuml.com/plantuml/svg/LP7DRjim48JlV8g1Up61oa6Jzb88Hk86A8osWP6WjrneSQqGfaYNN2g7ekzUwaUoVPCMCnzdTkyZgy2fiK8hLdiL2SIL5e4gLgws17KoaK9BGOYBwUB9QrhWhm1cuoBunCRLoF-MNjqokHH9mpWSAJYoSW4LKNbZHsLsdv77j2TBd6TBYSts-N7u-j5Rk-_EA86o_FQqNQyd53xyDFKRRsoYIQHb5ZqgQhnx8SxI2ud0z12AT2hMFUChbfzapjdw8o7J1GPqOUd0eqPdqQt4TlVm2u7-98eyoZHMeUEl-jLbsPr4P1_e9X07Gor1QHqeHegpfLobq-gytC6ryzss3ZuqYertKuoowFd5dEEpXAFtd6K2pu6rVtSvyB2qhFmYKGLIJ6Y9tpw-kco0SfrrS0wJcxjRp3Uvl13AiTjmaNz2E9zX_Gp-C3OUKs1lVNNCn1XDxHfo7A_bFQIJvyQScryRqHg5pVUT47tFgSnbdDpeGUAPQXEP0gQGUMFNAF4xKfW0OyZAkuEfKw3kdHvQiHNtv7Hgx7y0)
+![Coil Architecture](http://www.plantuml.com/plantuml/svg/RL9DRnen5BpxLupe1KjTeYRj9K8eeP4gr3P2gNhBnQmVYuMngVqCXwh_lJQBMVfniv_cOppF3v5LuBIpGYjMAnK9nAqMWLfMhhC4jJUHme626BVUsARrZeEtbeA4YXYkOZYYqVxecjb0liVOI1mLjniuhod-3rsS2p0ZMqlAGMaTA4Qih6-tsIsQpkt8SHJYAk7eEGkEy5C0bqUCWaziN8Tyj_JgnicbI1h6OKl1aPMZFhsnPwG01ibjMf4bphEnn7pnyjIVFf-evLo84fXEFpulPhCgXJTVJBVXkKrKGLfcq9EYdNVVY3Fq2Y9GZT2aVIwW4781xsJEUV1RGbONwAKRIsi-OqfBjnABvUDN1FgHAF8PfZ59-qbjyauYiWzq4uY3eGFLHYbUyDD261RLivQ-LBNsOQVOU5SpJ9jGmZUN4Eyb71rpa2fSaNMbVMCP-K6Y3QIOS23Ul7rrcG3b2hLdzfERkriC2xbQJyvvyfxqw_WbXFDCECtWrwVfVKwHdy0cqbzVvs0Kvf-MGlHlhkckz7F4HuaNwana2gYkkO8_fSJt-C-FRRrRcou5ElaKqPQjU22dqyx-1W00)
 <!-- go to http://www.plantuml.com/plantuml/ and enter the above URL to edit the diagram. -->
 
 * `coil` is the CNI plugin.  It is installed in `/opt/cni/bin` directory.
 * `coild` is a background service that communicates with Kubernetes API server and etcd.
 * `coilctl` is a command-line tool to set or get Coil configurations and statuses.
+* `coil-controller` is a house-keeper by watching node existence.
 
 ### How it works
 
@@ -36,6 +37,13 @@ This is inspired by [Romana][].
 
 Each node has one or more address blocks.  `coild` is responsible for managing
 address blocks.  `coil` only receives a single IP address (not a subnet).
+
+House-keeping
+-------------
+
+When nodes are removed from kubernetes cluster, address blocks assigned to the nodes need to be returned to the available address pool.
+
+`coil-controller` watches kube-apiserver to find removed nodes to implement this house-keeping.
 
 Routing
 -------
