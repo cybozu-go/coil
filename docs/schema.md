@@ -16,7 +16,13 @@ Value: JSON with these fields
 | block_size | int   | true     | Size of address block in this pool. Exponent of 2 |
 
 Status
---------
+------
+
+### Existing subnets
+
+Key: `subnet/<subnet-network-address>`
+
+Example: `subnet/10.11.0.0`
 
 ### IP address assignments
 
