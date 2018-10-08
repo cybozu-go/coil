@@ -13,7 +13,7 @@ with routing daemons like [BIRD][].  It does not implement
 [Kubernetes Network Policies][NetworkPolicy] either.
 
 Instead, users can choose their favorite routing daemons and/or network
-policy implementations.
+policy implementations for use with coil.
 
 **Project Status**: Initial development.
 
@@ -26,6 +26,14 @@ Planned Features
 ----------------
 
 * CNI IPAM implementation
+
+* Address pools
+
+    An address pool is a pool of allocatable IP addresses.  In addition to
+    the _default_ pool, users can define arbitrary address pools.
+
+    Pods in a specific Kubernetes namespace will obtain IP addresses from
+    the address pool whose name matches the namespace when such a pool exists.
 
 * Address block
 
@@ -47,13 +55,16 @@ This repository contains these programs:
 * `coil`: [CNI][] plugin.
 * `coilctl`: CLI tool to configure coil IPAM.
 * `coild`: A background service to manage IP address.
+* `coil-controller`: watches kubernetes resources for coil.
 
 `coil` should be installed in `/opt/cni/bin` directory.
 
-`coild` should run as [`DaemonSet`](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/) container.
-
 `coilctl` directly communicates with etcd.
 Therefore it can be installed any host that can connect to etcd cluster.
+
+`coild` should run as [`DaemonSet`](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/) container.
+
+`coil-controller` should be deployed as [`Deployment`](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) resource.
 
 Documentation
 -------------

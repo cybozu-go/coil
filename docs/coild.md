@@ -1,6 +1,10 @@
 `coild`
 =======
 
+`coild` runs on all nodes to accept requests from `coil` CNI plugin.
+
+It has the following command-line options:
+
 Option           | Default value                                 | Description
 ------           | -------------                                 | -----------
 `etcd-endpoints` | `http://127.0.0.1:2379,http://127.0.0.1:4001` | comma-separated URLs of the backend etcd

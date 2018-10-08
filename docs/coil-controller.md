@@ -1,6 +1,10 @@
 `coil-controller`
 =================
 
+`coil-controller` watches Kubernetes Nodes to house-keep coil resources.
+
+It has the following command-line options:
+
 Option           | Default value  | Description
 ------           | -------------  | -----------
 `etcd-endpoints` |                | comma-separated URLs of the backend etcd

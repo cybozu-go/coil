@@ -1,5 +1,5 @@
-REST API
-========
+`coild` REST API
+================
 
 - [POST /](#post)
 - [GET /\<container-id\>](#get)

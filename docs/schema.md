@@ -2,18 +2,18 @@ Etcd Schema
 ===========
 
 Configurations
-----------------
+--------------
 
 ### Address pool object
 
 Key: `pool/<name>`
 
-Value: JSON with these fields
+Value: JSON with these fields:
 
-| Name       | Type  | Required | Description                                       |
-|:-----------|:------|:---------|:--------------------------------------------------|
-| subnets    | array | true     | List of subnets                                   |
-| block_size | int   | true     | Size of address block in this pool. Exponent of 2 |
+Name       | Type  | Required | Description
+---------- | ----- | -------- | -----------
+subnets    | array | true     | List of subnets.
+block_size | int   | true     | Size of address block in this pool. Exponent of 2.
 
 Status
 ------
