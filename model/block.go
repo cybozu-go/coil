@@ -39,7 +39,7 @@ RETRY:
 		}
 	}
 	if len(bkey) == 0 {
-		return nil, ErrFullBlock
+		return nil, ErrOutOfBlocks
 	}
 
 	first := ba.FreeList[0]
@@ -113,8 +113,10 @@ RETRY:
 	}
 	tresp, err := m.etcd.Txn(ctx).
 		If(clientv3.Compare(clientv3.ModRevision(bkey), "=", rev)).
-		Then(clientv3.OpPut(bkey, string(output))).
-		Commit()
+		Then(
+			clientv3.OpPut(bkey, string(output)),
+			clientv3.OpDelete(ipKeyPrefix(block), clientv3.WithPrefix()),
+		).Commit()
 	if err != nil {
 		return err
 	}
