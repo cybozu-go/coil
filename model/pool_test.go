@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"net"
-	"reflect"
 	"testing"
 
 	"github.com/cybozu-go/coil"
+	"github.com/google/go-cmp/cmp"
 )
 
 func testAddPool(t *testing.T) {
@@ -37,7 +37,7 @@ func testAddPool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(pool, pool1) {
+	if !cmp.Equal(pool, pool1) {
 		t.Fatalf("pool != poo1; %v != %v", pool, pool1)
 	}
 

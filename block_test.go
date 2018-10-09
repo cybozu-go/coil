@@ -3,8 +3,9 @@ package coil
 import (
 	"encoding/json"
 	"net"
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func testBlockAssignmentMarshalJSON(t *testing.T) {
@@ -41,10 +42,10 @@ func testBlockAssignmentMarshalJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(res.FreeList, freeList) {
+	if !cmp.Equal(res.FreeList, freeList) {
 		t.Errorf("res.FreeList != freeList: %v != %v", res.FreeList, freeList)
 	}
-	if !reflect.DeepEqual(res.Nodes, nodes) {
+	if !cmp.Equal(res.Nodes, nodes) {
 		t.Errorf("res.Nodes != nodes: %v != %v", res.Nodes, nodes)
 	}
 }
@@ -77,7 +78,7 @@ func testBlockAssignmentReleaseBlock(t *testing.T) {
 
 	expected := BlockAssignment{[]*net.IPNet{ipNet1, ipNet2, ipNet3}, make(map[string][]*net.IPNet)}
 
-	if !reflect.DeepEqual(expected, ba) {
+	if !cmp.Equal(expected, ba) {
 		t.Errorf("expected: %v,\n actual: %v", expected, ba)
 	}
 
@@ -101,7 +102,7 @@ func testBlockAssignmentReleaseBlock(t *testing.T) {
 		"node1": {ipNet1, ipNet3},
 	}}
 
-	if !reflect.DeepEqual(expected, ba) {
+	if !cmp.Equal(expected, ba) {
 		t.Errorf("expected: %v,\n actual: %v", expected, ba)
 	}
 
@@ -114,7 +115,7 @@ func testBlockAssignmentReleaseBlock(t *testing.T) {
 		"node1": {ipNet3},
 	}}
 
-	if !reflect.DeepEqual(expected, ba) {
+	if !cmp.Equal(expected, ba) {
 		t.Errorf("expected: %v,\n actual: %v", expected, ba)
 	}
 }

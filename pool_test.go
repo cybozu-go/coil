@@ -3,8 +3,9 @@ package coil
 import (
 	"encoding/json"
 	"net"
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func testAddressPoolValidate(t *testing.T) {
@@ -93,7 +94,7 @@ func testAddressPoolMarshalJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(res.Subnets, subnets) {
+	if !cmp.Equal(res.Subnets, subnets) {
 		t.Errorf("res.Subnets != subnets: %v != %v", res.Subnets, subnets)
 	}
 }
