@@ -15,6 +15,8 @@ github.com/coreos/pkg v0.0.0-20180108230652-97fdf19511ea h1:n2Ltr3SrfQlf/9nOna1D
 github.com/coreos/pkg v0.0.0-20180108230652-97fdf19511ea/go.mod h1:E3G3o1h8I7cfcXa63jLwjI0eiQQMgzzUDFVpN/nH/eA=
 github.com/cybozu-go/etcdutil v1.1.0 h1:Ku3W9EF9CetnjDapO9IrjFsIuHxb9lHLYwpnida8MeE=
 github.com/cybozu-go/etcdutil v1.1.0/go.mod h1:QCC06XzVuOtrRSNO1iQRBgRpOCXvmAXEDhRso+z702g=
+github.com/cybozu-go/netutil v1.2.0 h1:UBO0+hB43zd5mIXRfD195eBMHvgWlHP2mYuQ2F5Yxtg=
+github.com/cybozu-go/netutil v1.2.0/go.mod h1:Wx92iF1dPrtuSzLUMEidtrKTFiDWpLcsYvbQ1lHSmxY=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible h1:7qlOGliEKZXTDg6OTjfoBKDXWrumCAMpl/TFQ4/5kLM=

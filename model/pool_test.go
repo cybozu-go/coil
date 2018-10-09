@@ -2,7 +2,9 @@ package model
 
 import (
 	"context"
+	"encoding/json"
 	"net"
+	"reflect"
 	"testing"
 
 	"github.com/cybozu-go/coil"
@@ -23,6 +25,20 @@ func testAddPool(t *testing.T) {
 	err = m.AddPool(context.Background(), "default", pool1)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	resp, err := m.etcd.Get(context.Background(), poolKey("default"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pool := new(coil.AddressPool)
+	err = json.Unmarshal(resp.Kvs[0].Value, pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(pool, pool1) {
+		t.Fatalf("pool != poo1; %v != %v", pool, pool1)
 	}
 
 	err = m.AddPool(context.Background(), "default", pool2)

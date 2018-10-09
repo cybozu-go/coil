@@ -14,7 +14,6 @@ func (m Model) AssignBlock(ctx context.Context, node, poolName string) (*net.IPN
 	bkeyPrefix := blockKeyPrefix(poolName)
 RETRY:
 	gresp, err := m.etcd.Get(ctx, bkeyPrefix, clientv3.WithPrefix())
-	rev := gresp.Kvs[0].ModRevision
 	if err != nil {
 		return nil, err
 	}
@@ -24,6 +23,7 @@ RETRY:
 
 	var ba coil.BlockAssignment
 	var bkey string
+	var rev int64
 	for _, kv := range gresp.Kvs {
 		var b coil.BlockAssignment
 		err = json.Unmarshal(kv.Value, &b)
@@ -33,6 +33,7 @@ RETRY:
 		if len(b.FreeList) != 0 {
 			ba = b
 			bkey = string(kv.Key)
+			rev = kv.ModRevision
 			break
 		}
 	}

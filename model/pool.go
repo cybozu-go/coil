@@ -18,8 +18,15 @@ func (m Model) AddPool(ctx context.Context, name string, pool *coil.AddressPool)
 		return err
 	}
 
+	emptyAssign := coil.EmptyAssignment(pool.Subnets[0], pool.BlockSize)
+	assigns, err := json.Marshal(emptyAssign)
+	if err != nil {
+		return err
+	}
+
 	pkey := poolKey(name)
 	skey := subnetKey(pool.Subnets[0])
+	bkey := blockKey(name, pool.Subnets[0])
 	resp, err := m.etcd.Txn(ctx).
 		If(clientv3util.KeyMissing(pkey)).
 		Then(
@@ -28,6 +35,7 @@ func (m Model) AddPool(ctx context.Context, name string, pool *coil.AddressPool)
 				[]clientv3.Op{
 					clientv3.OpPut(pkey, string(data)),
 					clientv3.OpPut(skey, ""),
+					clientv3.OpPut(bkey, string(assigns)),
 				},
 				nil)).
 		Commit()
@@ -47,6 +55,7 @@ func (m Model) AddPool(ctx context.Context, name string, pool *coil.AddressPool)
 func (m Model) AddSubnet(ctx context.Context, name string, n *net.IPNet) error {
 	pkey := poolKey(name)
 	skey := subnetKey(n)
+	bkey := blockKey(name, n)
 
 RETRY:
 	resp, err := m.etcd.Get(ctx, pkey)
@@ -76,6 +85,12 @@ RETRY:
 		return err
 	}
 
+	emptyAssign := coil.EmptyAssignment(n, p.BlockSize)
+	assigns, err := json.Marshal(emptyAssign)
+	if err != nil {
+		return err
+	}
+
 	tresp, err := m.etcd.Txn(ctx).
 		If(clientv3.Compare(clientv3.ModRevision(pkey), "=", rev)).
 		Then(
@@ -84,6 +99,7 @@ RETRY:
 				[]clientv3.Op{
 					clientv3.OpPut(pkey, string(data)),
 					clientv3.OpPut(skey, ""),
+					clientv3.OpPut(bkey, string(assigns)),
 				},
 				nil,
 			)).
