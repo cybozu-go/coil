@@ -100,6 +100,25 @@ RETRY:
 	return nil
 }
 
+// GetPool gets pool
+func (m Model) GetPool(ctx context.Context, name string) (*coil.AddressPool, error) {
+	pkey := poolKey(name)
+	resp, err := m.etcd.Get(ctx, pkey)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Count == 0 {
+		return nil, ErrNotFound
+	}
+	p := new(coil.AddressPool)
+	err = json.Unmarshal(resp.Kvs[0].Value, p)
+	if err != nil {
+		return nil, err
+	}
+	return p,nil
+}
+
 // RemovePool removes pool.
 func (m Model) RemovePool(ctx context.Context, name string) error {
 	pkey := poolKey(name)

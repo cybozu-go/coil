@@ -27,3 +27,7 @@ func ipKey(block *net.IPNet, offset int) string {
 func blockKey(pool string, subnet *net.IPNet) string {
 	return fmt.Sprintf("%s%s/%s", keyBlock, pool, subnet.IP.String())
 }
+
+func blockKeyPrefix(pool string) string {
+	return fmt.Sprintf("%s%s/", keyBlock, pool)
+}
