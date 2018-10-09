@@ -2,10 +2,16 @@ package model
 
 import (
 	"context"
+	"net"
+
 	"github.com/coreos/etcd/clientv3"
 	"github.com/cybozu-go/netutil"
-	"net"
 )
+
+// GetAllocatedIPs TODO
+func (m Model) GetAllocatedIPs(ctx context.Context, block *net.IPNet) (map[string]net.IP, error) {
+	return nil, nil
+}
 
 // AllocateIP allocates new IP address for container from AddressBlock
 // Multiple goroutines cannot use this concurrently.

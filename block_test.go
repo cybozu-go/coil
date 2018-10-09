@@ -50,6 +50,7 @@ func testBlockAssignmentMarshalJSON(t *testing.T) {
 }
 
 func testBlockAssignmentReleaseBlock(t *testing.T) {
+	t.Parallel()
 	_, ipNet1, err := net.ParseCIDR("10.11.0.0/27")
 	if err != nil {
 		t.Fatal(err)
@@ -119,6 +120,7 @@ func testBlockAssignmentReleaseBlock(t *testing.T) {
 }
 
 func testEmptyAssignment(t *testing.T) {
+	t.Parallel()
 	_, subnet, _ := net.ParseCIDR("10.20.0.0/24")
 	assignment := EmptyAssignment(subnet, 5)
 	free := []string{
