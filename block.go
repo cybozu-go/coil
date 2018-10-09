@@ -96,21 +96,22 @@ func (ba *BlockAssignment) FindBlock(node string, block *net.IPNet) int {
 
 // ReleaseBlock move target block to freeList from target node
 func (ba *BlockAssignment) ReleaseBlock(node string, block *net.IPNet) error {
-	ba.FreeList = append(ba.FreeList, block)
-
 	idx := ba.FindBlock(node, block)
 	if idx == -1 {
 		return ErrBlockNotFound
 	}
-	newBlocks := make([]*net.IPNet, idx, len(ba.Nodes[node])-1)
-	copy(newBlocks, ba.Nodes[node][0:idx])
-	newBlocks = append(newBlocks, ba.Nodes[node][idx+1:]...)
 
-	if len(newBlocks) == 0 {
+	ba.FreeList = append(ba.FreeList, block)
+
+	blist := ba.Nodes[node]
+
+	if len(blist) == 1 {
 		delete(ba.Nodes, node)
-	} else {
-		ba.Nodes[node] = newBlocks
+		return nil
 	}
 
+	newList := blist[0 : len(blist)-1]
+	copy(newList[idx:], blist[idx+1:])
+	ba.Nodes[node] = newList
 	return nil
 }
