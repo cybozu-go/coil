@@ -15,7 +15,7 @@ Coil consists of three components, `coil`, `coild`, and `coilctl` as shown below
 * `coil` is the CNI plugin.  It is installed in `/opt/cni/bin` directory.
 * `coild` is a background service that communicates with Kubernetes API server and etcd.
 * `coilctl` is a command-line tool to set or get Coil configurations and statuses.
-* `coil-controller` is a house-keeper by watching node existence.
+* `coil-controller` watches API server for house-keeping.
 
 ### How it works
 
@@ -41,9 +41,21 @@ address blocks.  `coil` only receives a single IP address (not a subnet).
 House-keeping
 -------------
 
-When nodes are removed from kubernetes cluster, address blocks assigned to the nodes need to be returned to the available address pool.
+Coil need to reclaim IP addresses and address blocks when they are no longer used.
 
-`coil-controller` watches kube-apiserver to find removed nodes to implement this house-keeping.
+When a node is removed from Kubernetes cluster, `coil-controller` will reclaim
+IP addresses and address blocks kept for that node.
+
+When a Pod is removed, `coild` will free the IP address for the Pod.  It will *not*
+return address blocks to the pool at the same time to avoid complex concurrency
+control.
+
+When `coild` starts or restarts, it will first examine which address blocks and
+IP addresses are kept for the node by examining etcd database.  It then queries
+the API server to obtain the currently running Pods, and reclaim IP addresses
+kept for missing Pods.  If no IP addresses are kept for an address block, `coild`
+will return it to the pool.  Once `coild` completes this house-keeping, it starts
+accepting REST API requests.
 
 Routing
 -------
