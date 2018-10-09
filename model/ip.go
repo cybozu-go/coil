@@ -3,14 +3,30 @@ package model
 import (
 	"context"
 	"net"
+	"strconv"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/cybozu-go/netutil"
 )
 
-// GetAllocatedIPs TODO
+// GetAllocatedIPs returns allocated IP addresses for a block
 func (m Model) GetAllocatedIPs(ctx context.Context, block *net.IPNet) (map[string]net.IP, error) {
-	return nil, nil
+	prefix := ipKeyPrefix(block)
+	resp, err := m.etcd.Get(ctx, prefix, clientv3.WithPrefix())
+	if err != nil {
+		return nil, err
+	}
+	ips := make(map[string]net.IP)
+	for _, kv := range resp.Kvs {
+		offsetStr := string(kv.Key[len(prefix):])
+		offset, err := strconv.Atoi(offsetStr)
+		if err != nil {
+			return nil, err
+		}
+		ip := netutil.IntToIP4(netutil.IP4ToInt(block.IP) + uint32(offset))
+		ips[string(kv.Value)] = ip
+	}
+	return ips, nil
 }
 
 // AllocateIP allocates new IP address for container from AddressBlock
