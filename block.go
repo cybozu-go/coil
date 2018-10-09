@@ -3,7 +3,6 @@ package coil
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 
 	"github.com/cybozu-go/netutil"
@@ -18,12 +17,11 @@ type BlockAssignment struct {
 	Nodes    map[string][]*net.IPNet `json:"nodes"`
 }
 
+// EmptyAssignment returns an empty block assignment for ipnet and blockSize.
 func EmptyAssignment(ipnet *net.IPNet, blockSize int) BlockAssignment {
 	ones, bits := ipnet.Mask.Size()
-	freeCount := 2 << (uint)((bits-ones)-blockSize-1)
-	blockLength := 2 << (uint)(blockSize-1)
-	// fmt.Printf("ones=%d, bits=%d, blockSize=%d, freeCount=%d", ones, bits, blockSize, freeCount)
-	fmt.Printf("len=%d\n", freeCount)
+	freeCount := 1 << (uint)((bits-ones)-blockSize)
+	blockLength := 1 << (uint)(blockSize)
 
 	var v BlockAssignment
 	v.Nodes = make(map[string][]*net.IPNet)
