@@ -1,6 +1,7 @@
 package model
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log"
@@ -9,6 +10,32 @@ import (
 	"github.com/coreos/etcd/clientv3"
 	"github.com/cybozu-go/coil"
 )
+
+// GetMyBlocks retrieves all acquired blocks for a node.
+// The return value is a map whose keys are pool names.
+func (m Model) GetMyBlocks(ctx context.Context, node string) (map[string][]*net.IPNet, error) {
+	resp, err := m.etcd.Get(ctx, keyBlock, clientv3.WithPrefix())
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make(map[string][]*net.IPNet)
+	for _, kv := range resp.Kvs {
+		ba := new(coil.BlockAssignment)
+		err = json.Unmarshal(kv.Value, ba)
+		if err != nil {
+			return nil, err
+		}
+
+		blocks := ba.Nodes[node]
+		if len(blocks) > 0 {
+			t := kv.Key[len(keyBlock):]
+			poolName := string(t[0:bytes.IndexByte(t, '/')])
+			ret[poolName] = append(ret[poolName], blocks...)
+		}
+	}
+	return ret, nil
+}
 
 // AcquireBlock acquires a block from the free list for node.
 func (m Model) AcquireBlock(ctx context.Context, node, poolName string) (*net.IPNet, error) {
