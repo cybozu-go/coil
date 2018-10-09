@@ -10,7 +10,7 @@ import (
 	"github.com/cybozu-go/coil"
 )
 
-// AcquireBlock assign block to target node
+// AcquireBlock acquires a block from the free list for node.
 func (m Model) AcquireBlock(ctx context.Context, node, poolName string) (*net.IPNet, error) {
 	bkeyPrefix := blockKeyPrefix(poolName)
 RETRY:
@@ -64,6 +64,7 @@ RETRY:
 	return first, nil
 }
 
+// ReleaseBlock releases a block and returns it to the free list.
 func (m Model) ReleaseBlock(ctx context.Context, node, poolName string, block *net.IPNet) error {
 	pool, err := m.GetPool(ctx, poolName)
 	if err != nil {
