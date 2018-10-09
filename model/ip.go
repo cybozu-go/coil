@@ -10,6 +10,7 @@ import (
 )
 
 // GetAllocatedIPs returns allocated IP addresses for a block
+// The return value is a map whose keys are container IDs.
 func (m Model) GetAllocatedIPs(ctx context.Context, block *net.IPNet) (map[string]net.IP, error) {
 	prefix := ipKeyPrefix(block)
 	resp, err := m.etcd.Get(ctx, prefix, clientv3.WithPrefix())
