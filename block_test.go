@@ -85,6 +85,37 @@ func testBlockAssignmentReleaseBlock(t *testing.T) {
 		t.Fatal("should return ErrBlockNotFound")
 	}
 
+	nodes = make(map[string][]*net.IPNet)
+	nodes["node1"] = []*net.IPNet{ipNet1, ipNet2, ipNet3}
+	ba = BlockAssignment{
+		Nodes: nodes,
+	}
+
+	err = ba.ReleaseBlock("node1", ipNet2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected = BlockAssignment{[]*net.IPNet{ipNet2}, map[string][]*net.IPNet{
+		"node1": {ipNet1, ipNet3},
+	}}
+
+	if !reflect.DeepEqual(expected, ba) {
+		t.Errorf("expected: %v,\n actual: %v", expected, ba)
+	}
+
+	err = ba.ReleaseBlock("node1", ipNet1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected = BlockAssignment{[]*net.IPNet{ipNet2, ipNet1}, map[string][]*net.IPNet{
+		"node1": {ipNet3},
+	}}
+
+	if !reflect.DeepEqual(expected, ba) {
+		t.Errorf("expected: %v,\n actual: %v", expected, ba)
+	}
 }
 
 func testEmptyAssignment(t *testing.T) {
