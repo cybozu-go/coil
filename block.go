@@ -20,8 +20,8 @@ type BlockAssignment struct {
 // EmptyAssignment returns an empty block assignment for ipnet and blockSize.
 func EmptyAssignment(ipnet *net.IPNet, blockSize int) BlockAssignment {
 	ones, bits := ipnet.Mask.Size()
-	freeCount := 1 << (uint)((bits-ones)-blockSize)
-	blockLength := 1 << (uint)(blockSize)
+	freeCount := 1 << uint((bits-ones)-blockSize)
+	blockLength := 1 << uint(blockSize)
 
 	var v BlockAssignment
 	v.Nodes = make(map[string][]*net.IPNet)
@@ -30,7 +30,7 @@ func EmptyAssignment(ipnet *net.IPNet, blockSize int) BlockAssignment {
 	base := netutil.IP4ToInt(ipnet.IP)
 	mask := net.CIDRMask(bits-blockSize, bits)
 	for i := 0; i < freeCount; i++ {
-		ip := netutil.IntToIP4(base + (uint32)(blockLength*i))
+		ip := netutil.IntToIP4(base + uint32(blockLength*i))
 		v.FreeList[i] = &net.IPNet{IP: ip, Mask: mask}
 	}
 	return v
