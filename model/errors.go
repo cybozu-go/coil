@@ -12,7 +12,7 @@ var (
 	// ErrUsedSubnet is returned when the subnet is already in use.
 	ErrUsedSubnet = errors.New("subnet in use")
 
-	// ErrFullBlock is returned when target freeList is full
+	// ErrFullBlock is returned when target freeList is empty.
 	ErrFullBlock = errors.New("block is full")
 
 	// ErrNotFound is returned when a key does not exist.

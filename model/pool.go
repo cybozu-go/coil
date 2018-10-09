@@ -116,7 +116,7 @@ func (m Model) GetPool(ctx context.Context, name string) (*coil.AddressPool, err
 	if err != nil {
 		return nil, err
 	}
-	return p,nil
+	return p, nil
 }
 
 // RemovePool removes pool.
