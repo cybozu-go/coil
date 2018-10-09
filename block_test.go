@@ -87,7 +87,29 @@ func testBlockAssignmentReleaseBlock(t *testing.T) {
 
 }
 
+func testEmptyAssignment(t *testing.T) {
+	_, subnet, _ := net.ParseCIDR("10.20.0.0/24")
+	assignment := EmptyAssignment(subnet, 5)
+	free := []string{
+		"10.20.0.0/27", "10.20.0.32/27", "10.20.0.64/27", "10.20.0.96/27",
+		"10.20.0.128/27", "10.20.0.160/27", "10.20.0.192/27", "10.20.0.224/27",
+	}
+
+	if len(assignment.FreeList) != len(free) {
+		t.Fatalf("len(assignment.FreeList) != len(free), %d != %d", len(assignment.FreeList), len(free))
+	}
+
+	t.Log(assignment.FreeList)
+	for i, ipnet := range assignment.FreeList {
+		if ipnet.String() != free[i] {
+			t.Errorf("ipnet.String() != free[i]: %s != %s", ipnet.String(), free[i])
+		}
+
+	}
+}
+
 func TestBlock(t *testing.T) {
 	t.Run("Marshaler", testBlockAssignmentMarshalJSON)
 	t.Run("Release", testBlockAssignmentReleaseBlock)
+	t.Run("EmptyAssignment", testEmptyAssignment)
 }
