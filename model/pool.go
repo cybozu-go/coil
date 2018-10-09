@@ -17,18 +17,18 @@ var (
 )
 
 // AddPool adds a new address pool.
-// pool must be valid and should have only one subnet.
 // name must match this regexp: ^[a-z][a-z0-9_.-]*$
-func (m Model) AddPool(ctx context.Context, name string, pool *coil.AddressPool) error {
+func (m Model) AddPool(ctx context.Context, name string, subnet *net.IPNet, blockSize int) error {
 	if !poolNamePattern.MatchString(name) {
 		return errors.New("invalid pool name: " + name)
+	}
+	pool := coil.AddressPool{
+		Subnets:   []*net.IPNet{subnet},
+		BlockSize: blockSize,
 	}
 	err := pool.Validate()
 	if err != nil {
 		return err
-	}
-	if len(pool.Subnets) != 1 {
-		return errors.New("no subnet in pool")
 	}
 
 	data, err := json.Marshal(pool)
@@ -36,15 +36,15 @@ func (m Model) AddPool(ctx context.Context, name string, pool *coil.AddressPool)
 		return err
 	}
 
-	emptyAssign := coil.EmptyAssignment(pool.Subnets[0], pool.BlockSize)
+	emptyAssign := coil.EmptyAssignment(subnet, pool.BlockSize)
 	assigns, err := json.Marshal(emptyAssign)
 	if err != nil {
 		return err
 	}
 
 	pkey := poolKey(name)
-	skey := subnetKey(pool.Subnets[0])
-	bkey := blockKey(name, pool.Subnets[0])
+	skey := subnetKey(subnet)
+	bkey := blockKey(name, subnet)
 	resp, err := m.etcd.Txn(ctx).
 		If(clientv3util.KeyMissing(pkey)).
 		Then(

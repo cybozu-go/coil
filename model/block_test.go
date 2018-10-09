@@ -100,12 +100,8 @@ func testAcquireBlock(t *testing.T) {
 
 	m := newModel(t)
 
-	pool, err := makeAddressPool("10.11.0.0/16")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = m.AddPool(context.Background(), "default", pool)
+	_, subnet, _ := net.ParseCIDR("10.11.0.0/16")
+	err := m.AddPool(context.Background(), "default", subnet, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,12 +134,8 @@ func testReleaseBlock(t *testing.T) {
 
 	m := newModel(t)
 
-	pool, err := makeAddressPool("10.11.0.0/16")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = m.AddPool(context.Background(), "default", pool)
+	_, subnet, _ := net.ParseCIDR("10.11.0.0/16")
+	err := m.AddPool(context.Background(), "default", subnet, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
