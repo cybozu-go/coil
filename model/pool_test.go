@@ -22,6 +22,15 @@ func testAddPool(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	err = m.AddPool(context.Background(), "!invalid name", pool1)
+	if err == nil {
+		t.Fatal("pool name must be validated")
+	}
+	err = m.AddPool(context.Background(), "default", &coil.AddressPool{})
+	if err == nil {
+		t.Fatal("pool must be validated")
+	}
+
 	err = m.AddPool(context.Background(), "default", pool1)
 	if err != nil {
 		t.Fatal(err)

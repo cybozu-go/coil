@@ -3,16 +3,34 @@ package model
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
+	"regexp"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/clientv3/clientv3util"
 	"github.com/cybozu-go/coil"
 )
 
+var (
+	poolNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_.-]*$`)
+)
+
 // AddPool adds a new address pool.
-// pool must be validated and should have only one subnet.
+// pool must be valid and should have only one subnet.
+// name must match this regexp: ^[a-z][a-z0-9_.-]*$
 func (m Model) AddPool(ctx context.Context, name string, pool *coil.AddressPool) error {
+	if !poolNamePattern.MatchString(name) {
+		return errors.New("invalid pool name: " + name)
+	}
+	err := pool.Validate()
+	if err != nil {
+		return err
+	}
+	if len(pool.Subnets) != 1 {
+		return errors.New("no subnet in pool")
+	}
+
 	data, err := json.Marshal(pool)
 	if err != nil {
 		return err
