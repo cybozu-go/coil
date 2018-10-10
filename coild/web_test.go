@@ -15,8 +15,8 @@ func testGetStatus(t *testing.T) {
 	t.Parallel()
 	mockDB := model.NewMock()
 	server := NewServer(mockDB)
-	server.containerIPs = map[string][]net.IP{
-		"container-1": {net.ParseIP("10.0.0.1")},
+	server.podIPs = map[string][]net.IP{
+		"default/pod-1": {net.ParseIP("10.0.0.1")},
 	}
 
 	_, subnet1, _ := net.ParseCIDR("10.0.0.0/27")
@@ -38,10 +38,10 @@ func testGetStatus(t *testing.T) {
 	if !cmp.Equal(st.AddressBlocks["default"], []string{"10.0.0.0/27"}) {
 		t.Error(`expected: []string{"10.0.0.0/27"}, actual:`, st.AddressBlocks)
 	}
-	if !cmp.Equal(st.Containers, map[string][]string{
-		"container-1": {"10.0.0.1"},
+	if !cmp.Equal(st.Pods, map[string][]string{
+		"default/pod-1": {"10.0.0.1"},
 	}) {
-		t.Error(`expected: "container-1": {"10.0.0.1"}, actual:`, st.Containers)
+		t.Error(`expected: "default/pod-1": {"10.0.0.1"}, actual:`, st.Pods)
 	}
 	if st.Status != http.StatusOK {
 		t.Error("expected: 200, actual:", st.Status)

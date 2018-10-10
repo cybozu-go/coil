@@ -22,7 +22,7 @@ func (m *mock) GetAllocatedIPs(ctx context.Context, block *net.IPNet) (map[strin
 	return nil, nil
 }
 
-func (m *mock) AllocateIP(ctx context.Context, block *net.IPNet, containerID string) (net.IP, error) {
+func (m *mock) AllocateIP(ctx context.Context, block *net.IPNet, key string) (net.IP, error) {
 	if m.offset > 2 {
 		return nil, errors.New("no more IP")
 	}

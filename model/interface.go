@@ -10,14 +10,14 @@ import (
 // Model defines interfaces to access coil database.
 type Model interface {
 	// GetAllocatedIPs returns allocated IP addresses for a block
-	// The return value is a map whose keys are container IDs.
+	// The return value is a map whose keys are those passed to AllocateIP().
 	GetAllocatedIPs(ctx context.Context, block *net.IPNet) (map[string]net.IP, error)
 
-	// AllocateIP allocates new IP address for container from AddressBlock
+	// AllocateIP allocates new IP address from AddressBlock
 	// Multiple goroutines cannot use this concurrently.
 	//
 	// When no more IP address can be allocated in block, ErrBlockIsFull will be returned.
-	AllocateIP(ctx context.Context, block *net.IPNet, containerID string) (net.IP, error)
+	AllocateIP(ctx context.Context, block *net.IPNet, key string) (net.IP, error)
 
 	// FreeIP deletes allocated IP
 	FreeIP(ctx context.Context, block *net.IPNet, ip net.IP) error

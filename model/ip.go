@@ -28,7 +28,7 @@ func (m etcdModel) GetAllocatedIPs(ctx context.Context, block *net.IPNet) (map[s
 	return ips, nil
 }
 
-func (m etcdModel) AllocateIP(ctx context.Context, block *net.IPNet, containerID string) (net.IP, error) {
+func (m etcdModel) AllocateIP(ctx context.Context, block *net.IPNet, key string) (net.IP, error) {
 	resp, err := m.etcd.Get(ctx, ipKeyPrefix(block), clientv3.WithPrefix(), clientv3.WithKeysOnly())
 	if err != nil {
 		return nil, err
@@ -42,12 +42,12 @@ func (m etcdModel) AllocateIP(ctx context.Context, block *net.IPNet, containerID
 
 	offset := -1
 	for i := 0; i < blockSize; i++ {
-		key := ipKey(block, i)
-		if allocated[key] {
+		k := ipKey(block, i)
+		if allocated[k] {
 			continue
 		}
 		offset = i
-		_, err = m.etcd.Put(ctx, key, containerID)
+		_, err = m.etcd.Put(ctx, k, key)
 		if err != nil {
 			return nil, err
 		}

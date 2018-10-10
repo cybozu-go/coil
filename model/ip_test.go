@@ -18,7 +18,7 @@ func testAllocateIP(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < 4; i++ {
-		_, err := m.AllocateIP(context.Background(), block, "container-"+strconv.Itoa(i))
+		_, err := m.AllocateIP(context.Background(), block, "default/pod-"+strconv.Itoa(i))
 		if err != nil {
 			t.Error(err)
 		}
@@ -29,16 +29,16 @@ func testAllocateIP(t *testing.T) {
 	}
 
 	expected := map[string]net.IP{
-		"container-0": net.ParseIP("10.11.0.0"),
-		"container-1": net.ParseIP("10.11.0.1"),
-		"container-2": net.ParseIP("10.11.0.2"),
-		"container-3": net.ParseIP("10.11.0.3"),
+		"default/pod-0": net.ParseIP("10.11.0.0"),
+		"default/pod-1": net.ParseIP("10.11.0.1"),
+		"default/pod-2": net.ParseIP("10.11.0.2"),
+		"default/pod-3": net.ParseIP("10.11.0.3"),
 	}
 	if !cmp.Equal(ips, expected) {
 		t.Errorf("!cmd.Equal(ips, expected): %+v, %+v", ips, expected)
 	}
 
-	_, err = m.AllocateIP(context.Background(), block, "container-x")
+	_, err = m.AllocateIP(context.Background(), block, "default/pod-x")
 	if err != ErrBlockIsFull {
 		t.Error(err)
 	}
@@ -48,7 +48,7 @@ func testAllocateIP(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = m.AllocateIP(context.Background(), block, "container-y")
+	_, err = m.AllocateIP(context.Background(), block, "default/pod-y")
 	if err != nil {
 		t.Error(err)
 	}

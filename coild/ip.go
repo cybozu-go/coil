@@ -1,20 +1,23 @@
 package coild
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 
 	"github.com/cybozu-go/coil/model"
 )
 
-func (s *Server) determinePoolName(containerID string) (string, error) {
+func (s *Server) determinePoolName(ctx context.Context, podNS string) (string, error) {
 	return "default", nil
 }
 
 func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 	input := struct {
-		ContainerID string `json:"container-id"`
+		PodNS       string `json:"pod-namespace"`
+		PodName     string `json:"pod-name"`
 		AddressType string `json:"address-type"`
 	}{}
 
@@ -23,12 +26,16 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 		renderError(r.Context(), w, BadRequest(err.Error()))
 		return
 	}
-	if len(input.ContainerID) == 0 {
-		renderError(r.Context(), w, BadRequest("no container ID"))
+	if len(input.PodNS) == 0 {
+		renderError(r.Context(), w, BadRequest("no pod namespace"))
+		return
+	}
+	if len(input.PodName) == 0 {
+		renderError(r.Context(), w, BadRequest("no pod name"))
 		return
 	}
 
-	poolName, err := s.determinePoolName(input.ContainerID)
+	poolName, err := s.determinePoolName(r.Context(), input.PodNS)
 	if err != nil {
 		renderError(r.Context(), w, InternalServerError(err))
 		return
@@ -38,9 +45,10 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 	defer s.mu.Unlock()
 
 	bl := s.addressBlocks[poolName]
+	podKey := fmt.Sprintf("%s/%s", input.PodNS, input.PodName)
 RETRY:
 	for _, block := range bl {
-		ip, err := s.db.AllocateIP(r.Context(), block, input.ContainerID)
+		ip, err := s.db.AllocateIP(r.Context(), block, podKey)
 		if err == model.ErrBlockIsFull {
 			continue
 		}
@@ -56,7 +64,7 @@ RETRY:
 			Addresses: []string{ip.String()},
 			Status:    http.StatusOK,
 		}
-		s.containerIPs[input.ContainerID] = append(s.containerIPs[input.ContainerID], ip)
+		s.podIPs[podKey] = append(s.podIPs[podKey], ip)
 		renderJSON(w, resp, http.StatusOK)
 		return
 	}
@@ -75,8 +83,8 @@ RETRY:
 	goto RETRY
 }
 
-func (s *Server) handleIPGet(w http.ResponseWriter, r *http.Request, containerID string) {
+func (s *Server) handleIPGet(w http.ResponseWriter, r *http.Request, podKey string) {
 }
 
-func (s *Server) handleIPDelete(w http.ResponseWriter, r *http.Request, containerID string) {
+func (s *Server) handleIPDelete(w http.ResponseWriter, r *http.Request, podKey string) {
 }

@@ -22,17 +22,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	containerID := r.URL.Path[4:]
-	if len(containerID) == 0 {
+	podKey := r.URL.Path[4:]
+	if len(podKey) == 0 {
 		renderError(r.Context(), w, APIErrBadRequest)
 		return
 	}
 
 	switch r.Method {
 	case http.MethodGet:
-		s.handleIPGet(w, r, containerID)
+		s.handleIPGet(w, r, podKey)
 	case http.MethodDelete:
-		s.handleIPDelete(w, r, containerID)
+		s.handleIPDelete(w, r, podKey)
 	default:
 		renderError(r.Context(), w, APIErrBadMethod)
 	}

@@ -28,9 +28,12 @@ Example: `subnet/10.11.0.0`
 
 Key: `ip/<address-block>/<offset>`
 
-Value: Container ID
+Value: `<pod-namespace>/<pod-name>`
 
-Key example: `ip/10.11.0.0/0`
+#### example
+
+- key: `ip/10.11.0.0/0`
+- value: `default/pod-1`
 
 ### Address block assignments
 
