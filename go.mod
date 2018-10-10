@@ -16,7 +16,7 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/api v0.0.0-20181009084535-e3c5c37695fb // indirect
-	k8s.io/apimachinery v0.0.0-20181009084401-76721d167b70
-	k8s.io/client-go v9.0.0+incompatible
+	k8s.io/api v0.0.0-20180904230853-4e7be11eab3f // indirect
+	k8s.io/apimachinery v0.0.0-20180904193909-def12e63c512
+	k8s.io/client-go v2.0.0-alpha.0.0.20181010045704-56e7a63b5e38+incompatible
 )
