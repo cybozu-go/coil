@@ -3,23 +3,48 @@ package model
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
+	"regexp"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/clientv3/clientv3util"
 	"github.com/cybozu-go/coil"
 )
 
+var (
+	poolNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_.-]*$`)
+)
+
 // AddPool adds a new address pool.
-// pool must be validated and should have only one subnet.
-func (m Model) AddPool(ctx context.Context, name string, pool *coil.AddressPool) error {
+// name must match this regexp: ^[a-z][a-z0-9_.-]*$
+func (m Model) AddPool(ctx context.Context, name string, subnet *net.IPNet, blockSize int) error {
+	if !poolNamePattern.MatchString(name) {
+		return errors.New("invalid pool name: " + name)
+	}
+	pool := coil.AddressPool{
+		Subnets:   []*net.IPNet{subnet},
+		BlockSize: blockSize,
+	}
+	err := pool.Validate()
+	if err != nil {
+		return err
+	}
+
 	data, err := json.Marshal(pool)
 	if err != nil {
 		return err
 	}
 
+	emptyAssign := coil.EmptyAssignment(subnet, pool.BlockSize)
+	assigns, err := json.Marshal(emptyAssign)
+	if err != nil {
+		return err
+	}
+
 	pkey := poolKey(name)
-	skey := subnetKey(pool.Subnets[0])
+	skey := subnetKey(subnet)
+	bkey := blockKey(name, subnet)
 	resp, err := m.etcd.Txn(ctx).
 		If(clientv3util.KeyMissing(pkey)).
 		Then(
@@ -28,6 +53,7 @@ func (m Model) AddPool(ctx context.Context, name string, pool *coil.AddressPool)
 				[]clientv3.Op{
 					clientv3.OpPut(pkey, string(data)),
 					clientv3.OpPut(skey, ""),
+					clientv3.OpPut(bkey, string(assigns)),
 				},
 				nil)).
 		Commit()
@@ -47,6 +73,7 @@ func (m Model) AddPool(ctx context.Context, name string, pool *coil.AddressPool)
 func (m Model) AddSubnet(ctx context.Context, name string, n *net.IPNet) error {
 	pkey := poolKey(name)
 	skey := subnetKey(n)
+	bkey := blockKey(name, n)
 
 RETRY:
 	resp, err := m.etcd.Get(ctx, pkey)
@@ -76,6 +103,12 @@ RETRY:
 		return err
 	}
 
+	emptyAssign := coil.EmptyAssignment(n, p.BlockSize)
+	assigns, err := json.Marshal(emptyAssign)
+	if err != nil {
+		return err
+	}
+
 	tresp, err := m.etcd.Txn(ctx).
 		If(clientv3.Compare(clientv3.ModRevision(pkey), "=", rev)).
 		Then(
@@ -84,6 +117,7 @@ RETRY:
 				[]clientv3.Op{
 					clientv3.OpPut(pkey, string(data)),
 					clientv3.OpPut(skey, ""),
+					clientv3.OpPut(bkey, string(assigns)),
 				},
 				nil,
 			)).
@@ -98,6 +132,25 @@ RETRY:
 		return ErrUsedSubnet
 	}
 	return nil
+}
+
+// GetPool gets pool
+func (m Model) GetPool(ctx context.Context, name string) (*coil.AddressPool, error) {
+	pkey := poolKey(name)
+	resp, err := m.etcd.Get(ctx, pkey)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Count == 0 {
+		return nil, ErrNotFound
+	}
+	p := new(coil.AddressPool)
+	err = json.Unmarshal(resp.Kvs[0].Value, p)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 // RemovePool removes pool.

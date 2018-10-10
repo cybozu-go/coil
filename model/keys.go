@@ -24,6 +24,14 @@ func ipKey(block *net.IPNet, offset int) string {
 	return fmt.Sprintf("%s%s/%d", keyIP, block.IP.String(), offset)
 }
 
+func ipKeyPrefix(block *net.IPNet) string {
+	return fmt.Sprintf("%s%s/", keyIP, block.IP.String())
+}
+
 func blockKey(pool string, subnet *net.IPNet) string {
 	return fmt.Sprintf("%s%s/%s", keyBlock, pool, subnet.IP.String())
+}
+
+func blockKeyPrefix(pool string) string {
+	return fmt.Sprintf("%s%s/", keyBlock, pool)
 }
