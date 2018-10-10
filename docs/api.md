@@ -1,9 +1,10 @@
 `coild` REST API
 ================
 
-- [POST /](#post)
-- [GET /\<container-id\>](#get)
-- [DELETE /\<container-id\>](#delete)
+- [GET /status](#status)
+- [POST /ip](#post)
+- [GET /ip/\<container-id\>](#get)
+- [DELETE /ip/\<container-id\>](#delete)
 
 ## Failure response format
 
@@ -11,6 +12,27 @@ Failure response body is a JSON object with these fields:
 
 - `status`: HTTP status code
 - `error`: Error message
+
+## <a name="status" />`GET /status`
+
+Obtain `coild` status.
+
+### Successful response
+
+- HTTP status code: 200 OK
+- HTTP response header: Content-Type: application/json
+- HTTP response body example:
+
+```json
+{
+  "address-blocks": ["10.20.30.16/28", "10.20.30.48/28"],
+  "containers": {
+      "container-1": ["10.20.30.16"],
+      "container-2": ["10.20.30.18"]
+  },
+  "status": 200
+}
+```
 
 ## <a name="post" />`POST /`
 
