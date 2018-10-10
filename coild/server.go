@@ -2,11 +2,14 @@ package coild
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/cybozu-go/coil/model"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -56,6 +59,65 @@ func (s *Server) Init(ctx context.Context) error {
 		return err
 	}
 	s.nodeName = pod.Spec.NodeName
+
+	// retrieve blocks acquired previously
+	blocks, err := s.db.GetMyBlocks(ctx, s.nodeName)
+	if err != nil {
+		return err
+	}
+	s.addressBlocks = blocks
+
+	// check IP address allocation status
+	for _, v := range blocks {
+		for _, block := range v {
+			ips, err := s.db.GetAllocatedIPs(ctx, block)
+			if err != nil {
+				return err
+			}
+
+			for podNSName, ip := range ips {
+				sl := strings.SplitN(podNSName, "/", 2)
+				if len(sl) != 2 {
+					return fmt.Errorf("invalid pod ns/name: %s", podNSName)
+				}
+				pod, err = clientset.CoreV1().Pods(sl[0]).Get(sl[1], metav1.GetOptions{
+					IncludeUninitialized: true,
+				})
+				if err == nil && ip.String() == pod.Status.PodIP {
+					s.podIPs[podNSName] = []net.IP{ip}
+					continue
+				}
+
+				// free ip when it is not used any longer or the pod is not found.
+				if err == nil || errors.IsNotFound(err) {
+					err = s.db.FreeIP(ctx, block, ip)
+					if err != nil {
+						return err
+					}
+					continue
+				}
+				return err
+			}
+		}
+	}
+
+	// release unused address blocks to the pool
+	for poolName, v := range blocks {
+		for _, block := range v {
+			ips, err := s.db.GetAllocatedIPs(ctx, block)
+			if err != nil {
+				return err
+			}
+			if len(ips) != 0 {
+				continue
+			}
+
+			err = s.db.ReleaseBlock(ctx, s.nodeName, poolName, block)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	return nil
 }

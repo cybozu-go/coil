@@ -40,6 +40,7 @@ type Model interface {
 	AddSubnet(ctx context.Context, name string, n *net.IPNet) error
 
 	// GetPool gets pool
+	// If named pool does not exist, ErrNotFound will be returned.
 	GetPool(ctx context.Context, name string) (*coil.AddressPool, error)
 
 	// RemovePool removes pool.

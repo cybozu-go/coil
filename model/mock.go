@@ -10,12 +10,26 @@ import (
 )
 
 type mock struct {
+	globalPool  *coil.AddressPool
+	defaultPool *coil.AddressPool
+
 	offset uint32
 }
 
 // NewMock returns a mock model for testing.
 func NewMock() Model {
-	return &mock{}
+	_, gsubnet, _ := net.ParseCIDR("99.88.77.0/28")
+	_, lsubnet, _ := net.ParseCIDR("10.10.0.0/16")
+	return &mock{
+		globalPool: &coil.AddressPool{
+			Subnets:   []*net.IPNet{gsubnet},
+			BlockSize: 0,
+		},
+		defaultPool: &coil.AddressPool{
+			Subnets:   []*net.IPNet{lsubnet},
+			BlockSize: 5,
+		},
+	}
 }
 
 func (m *mock) GetAllocatedIPs(ctx context.Context, block *net.IPNet) (map[string]net.IP, error) {
@@ -41,7 +55,15 @@ func (m *mock) GetMyBlocks(ctx context.Context, node string) (map[string][]*net.
 }
 
 func (m *mock) AcquireBlock(ctx context.Context, node, poolName string) (*net.IPNet, error) {
-	return nil, nil
+	switch poolName {
+	case "global":
+		_, block, _ := net.ParseCIDR("99.88.77.3/32")
+		return block, nil
+	case "default":
+		_, block, _ := net.ParseCIDR("10.10.0.32/27")
+		return block, nil
+	}
+	return nil, ErrNotFound
 }
 
 func (m *mock) ReleaseBlock(ctx context.Context, node, poolName string, block *net.IPNet) error {
@@ -57,7 +79,13 @@ func (m *mock) AddSubnet(ctx context.Context, name string, n *net.IPNet) error {
 }
 
 func (m *mock) GetPool(ctx context.Context, name string) (*coil.AddressPool, error) {
-	return nil, nil
+	switch name {
+	case "global":
+		return m.globalPool, nil
+	case "default":
+		return m.defaultPool, nil
+	}
+	return nil, ErrNotFound
 }
 
 func (m *mock) RemovePool(ctx context.Context, name string) error {

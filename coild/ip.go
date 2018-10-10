@@ -3,15 +3,23 @@ package coild
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net"
 	"net/http"
 
 	"github.com/cybozu-go/coil/model"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func (s *Server) determinePoolName(ctx context.Context, podNS string) (string, error) {
-	return "default", nil
+	_, err := s.db.GetPool(ctx, podNS)
+	switch err {
+	case nil:
+		return podNS, nil
+	case model.ErrNotFound:
+		return "default", nil
+	default:
+		return "", err
+	}
 }
 
 func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
@@ -41,14 +49,18 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	podNSName := types.NamespacedName{
+		Namespace: input.PodNS,
+		Name:      input.PodName,
+	}.String()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	bl := s.addressBlocks[poolName]
-	podKey := fmt.Sprintf("%s/%s", input.PodNS, input.PodName)
 RETRY:
 	for _, block := range bl {
-		ip, err := s.db.AllocateIP(r.Context(), block, podKey)
+		ip, err := s.db.AllocateIP(r.Context(), block, podNSName)
 		if err == model.ErrBlockIsFull {
 			continue
 		}
@@ -64,7 +76,7 @@ RETRY:
 			Addresses: []string{ip.String()},
 			Status:    http.StatusOK,
 		}
-		s.podIPs[podKey] = append(s.podIPs[podKey], ip)
+		s.podIPs[podNSName] = append(s.podIPs[podNSName], ip)
 		renderJSON(w, resp, http.StatusOK)
 		return
 	}
