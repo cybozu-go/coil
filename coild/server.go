@@ -68,13 +68,14 @@ func (s *Server) Init(ctx context.Context) error {
 	s.addressBlocks = blocks
 
 	// check IP address allocation status
-	for _, v := range blocks {
+	for poolName, v := range blocks {
 		for _, block := range v {
 			ips, err := s.db.GetAllocatedIPs(ctx, block)
 			if err != nil {
 				return err
 			}
 
+			freed := 0
 			for podNSName, ip := range ips {
 				sl := strings.SplitN(podNSName, "/", 2)
 				if len(sl) != 2 {
@@ -94,27 +95,18 @@ func (s *Server) Init(ctx context.Context) error {
 					if err != nil {
 						return err
 					}
+					freed++
 					continue
 				}
 				return err
 			}
-		}
-	}
 
-	// release unused address blocks to the pool
-	for poolName, v := range blocks {
-		for _, block := range v {
-			ips, err := s.db.GetAllocatedIPs(ctx, block)
-			if err != nil {
-				return err
-			}
-			if len(ips) != 0 {
-				continue
-			}
-
-			err = s.db.ReleaseBlock(ctx, s.nodeName, poolName, block)
-			if err != nil {
-				return err
+			// release unused address block to the pool
+			if len(ips) == freed {
+				err = s.db.ReleaseBlock(ctx, s.nodeName, poolName, block)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
