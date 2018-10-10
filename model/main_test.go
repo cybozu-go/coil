@@ -68,10 +68,10 @@ func newEtcdClient(prefix string) (*clientv3.Client, error) {
 	return etcdutil.NewClient(cfg)
 }
 
-func newModel(t *testing.T) Model {
+func newModel(t *testing.T) etcdModel {
 	etcd, err := newEtcdClient(t.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
-	return Model{etcd}
+	return etcdModel{etcd}
 }

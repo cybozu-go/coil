@@ -3,31 +3,59 @@ package coild
 import (
 	"context"
 	"net"
+	"os"
 	"sync"
-)
 
-// Model defines interfaces to access coil database.
-type Model interface {
-}
+	"github.com/cybozu-go/coil/model"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+)
 
 // Server keeps coild internal status.
 type Server struct {
-	db Model
+	db       model.Model
+	podName  string
+	nodeName string
 
 	mu            sync.Mutex
-	addressBlocks []*net.IPNet
+	addressBlocks map[string][]*net.IPNet
 	containerIPs  map[string][]net.IP
 }
 
 // NewServer creates a new Server.
-func NewServer(db Model) *Server {
+func NewServer(db model.Model) *Server {
 	return &Server{
-		db:           db,
-		containerIPs: make(map[string][]net.IP),
+		db:            db,
+		addressBlocks: make(map[string][]*net.IPNet),
+		containerIPs:  make(map[string][]net.IP),
 	}
 }
 
 // Init loads status data from the database.
 func (s *Server) Init(ctx context.Context) error {
+	n, err := os.Hostname()
+	if err != nil {
+		return err
+	}
+	s.podName = n
+
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return err
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
+	pod, err := clientset.CoreV1().Pods("").Get(n, metav1.GetOptions{
+		IncludeUninitialized: true,
+	})
+	if err != nil {
+		return err
+	}
+	s.nodeName = pod.Spec.NodeName
+
 	return nil
 }

@@ -25,7 +25,9 @@ Obtain `coild` status.
 
 ```json
 {
-  "address-blocks": ["10.20.30.16/28", "10.20.30.48/28"],
+  "address-blocks": {
+      "default": ["10.20.30.16/28", "10.20.30.48/28"]
+  },
   "containers": {
       "container-1": ["10.20.30.16"],
       "container-2": ["10.20.30.18"]
@@ -34,7 +36,7 @@ Obtain `coild` status.
 }
 ```
 
-## <a name="post" />`POST /`
+## <a name="post" />`POST /ip`
 
 Request a new IP address for the container.
 Input must be a JSON object with these fields:
@@ -59,7 +61,7 @@ Input must be a JSON object with these fields:
 - No avaiable IP addresses: 503 Service Unavailable
 - Other error: 500 Internal Server Error
 
-## <a name="get" />`GET /<container-id>`
+## <a name="get" />`GET /ip/<container-id>`
 
 Get assigned addresses for the container.
 
@@ -80,7 +82,7 @@ Get assigned addresses for the container.
 - No addresses was assigned to the container: 404 Not Found
 - Other error: 500 Internal Server Error
 
-## <a name="delete" />`DELETE /<container-id>`
+## <a name="delete" />`DELETE /ip/<container-id>`
 
 Release assigned addresses for the container.
 

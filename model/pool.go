@@ -16,9 +16,7 @@ var (
 	poolNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_.-]*$`)
 )
 
-// AddPool adds a new address pool.
-// name must match this regexp: ^[a-z][a-z0-9_.-]*$
-func (m Model) AddPool(ctx context.Context, name string, subnet *net.IPNet, blockSize int) error {
+func (m etcdModel) AddPool(ctx context.Context, name string, subnet *net.IPNet, blockSize int) error {
 	if !poolNamePattern.MatchString(name) {
 		return errors.New("invalid pool name: " + name)
 	}
@@ -69,8 +67,7 @@ func (m Model) AddPool(ctx context.Context, name string, subnet *net.IPNet, bloc
 	return nil
 }
 
-// AddSubnet adds a subnet to an existing pool.
-func (m Model) AddSubnet(ctx context.Context, name string, n *net.IPNet) error {
+func (m etcdModel) AddSubnet(ctx context.Context, name string, n *net.IPNet) error {
 	pkey := poolKey(name)
 	skey := subnetKey(n)
 	bkey := blockKey(name, n)
@@ -134,8 +131,7 @@ RETRY:
 	return nil
 }
 
-// GetPool gets pool
-func (m Model) GetPool(ctx context.Context, name string) (*coil.AddressPool, error) {
+func (m etcdModel) GetPool(ctx context.Context, name string) (*coil.AddressPool, error) {
 	pkey := poolKey(name)
 	resp, err := m.etcd.Get(ctx, pkey)
 	if err != nil {
@@ -153,8 +149,7 @@ func (m Model) GetPool(ctx context.Context, name string) (*coil.AddressPool, err
 	return p, nil
 }
 
-// RemovePool removes pool.
-func (m Model) RemovePool(ctx context.Context, name string) error {
+func (m etcdModel) RemovePool(ctx context.Context, name string) error {
 	pkey := poolKey(name)
 	resp, err := m.etcd.Get(ctx, pkey)
 	if err != nil {

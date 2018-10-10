@@ -5,7 +5,7 @@ import (
 )
 
 type status struct {
-	AddressBlocks []string            `json:"address-blocks"`
+	AddressBlocks map[string][]string `json:"address-blocks"`
 	Containers    map[string][]string `json:"containers"`
 	Status        int                 `json:"status"`
 }
@@ -17,14 +17,19 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	st := status{
-		Containers: make(map[string][]string),
-		Status:     http.StatusOK,
+		AddressBlocks: make(map[string][]string),
+		Containers:    make(map[string][]string),
+		Status:        http.StatusOK,
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, ab := range s.addressBlocks {
-		st.AddressBlocks = append(st.AddressBlocks, ab.String())
+	for k, v := range s.addressBlocks {
+		bl := make([]string, len(v))
+		for i, block := range v {
+			bl[i] = block.String()
+		}
+		st.AddressBlocks[k] = bl
 	}
 	for k, v := range s.containerIPs {
 		ips := make([]string, len(v))
