@@ -57,6 +57,11 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if _, ok := s.podIPs[podNSName]; ok {
+		renderError(r.Context(), w, APIErrConflict)
+		return
+	}
+
 	bl := s.addressBlocks[poolName]
 RETRY:
 	for _, block := range bl {
@@ -76,7 +81,7 @@ RETRY:
 			Addresses: []string{ip.String()},
 			Status:    http.StatusOK,
 		}
-		s.podIPs[podNSName] = append(s.podIPs[podNSName], ip)
+		s.podIPs[podNSName] = ip
 		renderJSON(w, resp, http.StatusOK)
 		return
 	}

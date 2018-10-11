@@ -23,7 +23,7 @@ type Server struct {
 
 	mu            sync.Mutex
 	addressBlocks map[string][]*net.IPNet
-	podIPs        map[string][]net.IP
+	podIPs        map[string]net.IP
 }
 
 // NewServer creates a new Server.
@@ -31,7 +31,7 @@ func NewServer(db model.Model) *Server {
 	return &Server{
 		db:            db,
 		addressBlocks: make(map[string][]*net.IPNet),
-		podIPs:        make(map[string][]net.IP),
+		podIPs:        make(map[string]net.IP),
 	}
 }
 
@@ -85,7 +85,7 @@ func (s *Server) Init(ctx context.Context) error {
 					IncludeUninitialized: true,
 				})
 				if err == nil && ip.String() == pod.Status.PodIP {
-					s.podIPs[podNSName] = []net.IP{ip}
+					s.podIPs[podNSName] = ip
 					continue
 				}
 

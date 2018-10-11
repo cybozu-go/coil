@@ -30,9 +30,9 @@ Obtain `coild` status.
       "global": ["1.1.1.0/24"]
   },
   "pods": {
-      "default/pod1": ["10.20.30.16"],
-      "another/pod1": ["10.20.30.18"],
-      "global/pod1": ["1.1.1.1"]
+      "default/pod1": "10.20.30.16",
+      "another/pod1": "10.20.30.18",
+      "global/pod1": "1.1.1.1"
   },
   "status": 200
 }
@@ -61,8 +61,9 @@ Input must be a JSON object with these fields:
 
 ### Failure responses
 
-- No avaiable IP addresses: 503 Service Unavailable
-- Other error: 500 Internal Server Error
+- 409 Conflict: when an IP address has been allocated to the pod.
+- 503 Service Unavailable: no avaiable IP addresses.
+- 500 Internal Server Error: other reasons.
 
 ## <a name="get" />`GET /ip/<pod-namespace>/<pod-name>`
 
@@ -82,8 +83,8 @@ Get assigned addresses for the pod.
 
 ### Failure responses
 
-- No addresses was assigned to the pod: 404 Not Found
-- Other error: 500 Internal Server Error
+- 404 Not Found: no addresses was assigned to the pod.
+- 500 Internal Server Error: other reasons.
 
 ## <a name="delete" />`DELETE /ip/<pod-namespace>/<pod-name>`
 
@@ -103,5 +104,5 @@ Release assigned addresses for the pod.
 
 ### Failure responses
 
-- No addresses was assigned to the pod: 404 Not Found
-- Other error: 500 Internal Server Error
+- 404 Not Found: no addresses was assigned to the pod.
+- 500 Internal Server Error: other reasons.

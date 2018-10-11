@@ -6,7 +6,7 @@ import (
 
 type status struct {
 	AddressBlocks map[string][]string `json:"address-blocks"`
-	Pods          map[string][]string `json:"pods"`
+	Pods          map[string]string   `json:"pods"`
 	Status        int                 `json:"status"`
 }
 
@@ -18,7 +18,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 	st := status{
 		AddressBlocks: make(map[string][]string),
-		Pods:          make(map[string][]string),
+		Pods:          make(map[string]string),
 		Status:        http.StatusOK,
 	}
 	s.mu.Lock()
@@ -32,11 +32,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		st.AddressBlocks[k] = bl
 	}
 	for k, v := range s.podIPs {
-		ips := make([]string, len(v))
-		for i, a := range v {
-			ips[i] = a.String()
-		}
-		st.Pods[k] = ips
+		st.Pods[k] = v.String()
 	}
 
 	renderJSON(w, st, http.StatusOK)
