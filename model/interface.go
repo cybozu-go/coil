@@ -27,6 +27,8 @@ type Model interface {
 	GetMyBlocks(ctx context.Context, node string) (map[string][]*net.IPNet, error)
 
 	// AcquireBlock acquires a block from the free list for node.
+	//
+	// When the pool has no more free blocks, ErrOutOfBlocks will be returned.
 	AcquireBlock(ctx context.Context, node, poolName string) (*net.IPNet, error)
 
 	// ReleaseBlock releases a block and returns it to the free list.
@@ -39,7 +41,8 @@ type Model interface {
 	// AddSubnet adds a subnet to an existing pool.
 	AddSubnet(ctx context.Context, name string, n *net.IPNet) error
 
-	// GetPool gets pool
+	// GetPool gets pool.
+	//
 	// If named pool does not exist, ErrNotFound will be returned.
 	GetPool(ctx context.Context, name string) (*coil.AddressPool, error)
 

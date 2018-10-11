@@ -31,6 +31,11 @@ func (s *Server) determinePoolName(ctx context.Context, podNS string) (string, e
 }
 
 func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		renderError(r.Context(), w, APIErrBadMethod)
+		return
+	}
+
 	input := struct {
 		PodNS       string `json:"pod-namespace"`
 		PodName     string `json:"pod-name"`

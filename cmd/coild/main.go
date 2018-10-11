@@ -55,8 +55,9 @@ func main() {
 	cmd.Go(func(ctx context.Context) error {
 		return subMain(ctx, server)
 	})
+	cmd.Stop()
 	err = cmd.Wait()
-	if !cmd.IsSignaled(err) && err != nil {
+	if err != nil && !cmd.IsSignaled(err) {
 		log.ErrorExit(err)
 	}
 }
