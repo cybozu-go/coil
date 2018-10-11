@@ -12,10 +12,16 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func testNewServer() *Server {
+	mockDB := model.NewMock()
+	s := NewServer(mockDB, 119, 30)
+	s.dryRun = true
+	return s
+}
+
 func testGetStatus(t *testing.T) {
 	t.Parallel()
-	mockDB := model.NewMock()
-	server := NewServer(mockDB, defaultTableID, defaultProtocolID)
+	server := testNewServer()
 	server.podIPs = map[string]net.IP{
 		"default/pod-1": net.ParseIP("10.0.0.1"),
 	}
@@ -59,8 +65,7 @@ func testGetStatus(t *testing.T) {
 
 func testIPNew(t *testing.T) {
 	t.Parallel()
-	mockDB := model.NewMock()
-	server := NewServer(mockDB, defaultTableID, defaultProtocolID)
+	server := testNewServer()
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/ip", nil)
@@ -129,8 +134,7 @@ func testIPNew(t *testing.T) {
 
 func testIPGet(t *testing.T) {
 	t.Parallel()
-	mockDB := model.NewMock()
-	server := NewServer(mockDB, defaultTableID, defaultProtocolID)
+	server := testNewServer()
 	server.podIPs = map[string]net.IP{
 		"default/pod-1": net.ParseIP("10.0.0.1"),
 	}
@@ -166,8 +170,7 @@ func testIPGet(t *testing.T) {
 
 func testIPDelete(t *testing.T) {
 	t.Parallel()
-	mockDB := model.NewMock()
-	server := NewServer(mockDB, defaultTableID, defaultProtocolID)
+	server := testNewServer()
 	server.podIPs = map[string]net.IP{
 		"default/pod-1": net.ParseIP("10.0.0.1"),
 	}
@@ -221,8 +224,7 @@ func testIP(t *testing.T) {
 
 func testNotFound(t *testing.T) {
 	t.Parallel()
-	mockDB := model.NewMock()
-	server := NewServer(mockDB, defaultTableID, defaultProtocolID)
+	server := testNewServer()
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/notfound", nil)

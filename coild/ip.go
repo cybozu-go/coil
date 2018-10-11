@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/cybozu-go/cmd"
 	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/log"
 	"k8s.io/apimachinery/pkg/types"
@@ -71,6 +72,7 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 
 	bl := s.addressBlocks[poolName]
 RETRY:
+	fields := cmd.FieldsFromContext(r.Context())
 	for _, block := range bl {
 		ip, err := s.db.AllocateIP(r.Context(), block, podNSName)
 		if err == model.ErrBlockIsFull {
@@ -87,11 +89,19 @@ RETRY:
 		}
 		s.podIPs[podNSName] = ip
 		renderJSON(w, resp, http.StatusOK)
+
+		fields["pod"] = podNSName
+		fields["pool"] = poolName
+		fields["ip"] = ip.String()
+		log.Info("allocate an address", fields)
 		return
 	}
 
 	block, err := s.db.AcquireBlock(r.Context(), s.nodeName, poolName)
 	if err == model.ErrOutOfBlocks {
+		fields[log.FnError] = err
+		fields["pool"] = poolName
+		log.Error("no more blocks in pool", fields)
 		renderError(r.Context(), w, APIError{
 			Status:  http.StatusServiceUnavailable,
 			Message: "no more blocks in pool " + poolName,
@@ -101,6 +111,20 @@ RETRY:
 	if err != nil {
 		renderError(r.Context(), w, InternalServerError(err))
 		return
+	}
+
+	fields["pool"] = poolName
+	fields["block"] = block.String()
+	log.Info("acquired new block", fields)
+
+	if !s.dryRun {
+		err = addBlockRouting(s.tableID, s.protocolID, block)
+		if err != nil {
+			fields[log.FnError] = err
+			log.Critical("failed to add a block to routing table", fields)
+			renderError(r.Context(), w, InternalServerError(err))
+			return
+		}
 	}
 
 	newAddressBlocks := make([]*net.IPNet, len(bl)+1)
@@ -150,10 +174,10 @@ OUTER:
 		}
 	}
 
+	fields := cmd.FieldsFromContext(r.Context())
 	if block == nil {
-		log.Critical("orphaned IP address", map[string]interface{}{
-			"ip": ip.String(),
-		})
+		fields["ip"] = ip.String()
+		log.Critical("orphaned IP address", fields)
 		renderError(r.Context(), w, InternalServerError(errors.New("orphaned IP address")))
 		return
 	}
@@ -172,4 +196,8 @@ OUTER:
 	}
 
 	renderJSON(w, resp, http.StatusOK)
+
+	fields["pod"] = podKey
+	fields["ip"] = ip.String()
+	log.Info("free an address", fields)
 }

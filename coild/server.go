@@ -17,26 +17,29 @@ import (
 
 // Server keeps coild internal status.
 type Server struct {
-	db       model.Model
+	db         model.Model
+	tableID    int
+	protocolID int
+
 	podName  string
 	nodeName string
+
+	// skip routing table edit for testing
+	dryRun bool
 
 	mu            sync.Mutex
 	addressBlocks map[string][]*net.IPNet
 	podIPs        map[string]net.IP
-
-	tableID    int
-	protocolID int
 }
 
 // NewServer creates a new Server.
 func NewServer(db model.Model, tableID, protocolID int) *Server {
 	return &Server{
 		db:            db,
-		addressBlocks: make(map[string][]*net.IPNet),
-		podIPs:        make(map[string]net.IP),
 		tableID:       tableID,
 		protocolID:    protocolID,
+		addressBlocks: make(map[string][]*net.IPNet),
+		podIPs:        make(map[string]net.IP),
 	}
 }
 
@@ -70,7 +73,6 @@ func (s *Server) Init(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	s.addressBlocks = blocks
 
 	// check IP address allocation status
 	for poolName, v := range blocks {
@@ -114,6 +116,25 @@ func (s *Server) Init(ctx context.Context) error {
 				}
 			}
 		}
+	}
+
+	// re-retrieve blocks afer released some.
+	blocks, err = s.db.GetMyBlocks(ctx, s.nodeName)
+	if err != nil {
+		return err
+	}
+	s.addressBlocks = blocks
+
+	var flatBlocks []*net.IPNet
+	for _, v := range blocks {
+		for _, b := range v {
+			flatBlocks = append(flatBlocks, b)
+		}
+	}
+
+	err = syncRoutingTable(s.tableID, s.protocolID, flatBlocks)
+	if err != nil {
+		return err
 	}
 
 	return nil
