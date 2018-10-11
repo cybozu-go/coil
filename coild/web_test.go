@@ -86,10 +86,7 @@ func testIPNew(t *testing.T) {
 		t.Error("http status should be 400, actual:", resp.StatusCode)
 	}
 
-	response := struct {
-		Address string `json:"address"`
-		Status  int    `json:"status"`
-	}{}
+	response := addressInfo{}
 
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest("POST", "/ip",
@@ -130,10 +127,96 @@ func testIPNew(t *testing.T) {
 	}
 }
 
+func testIPGet(t *testing.T) {
+	t.Parallel()
+	mockDB := model.NewMock()
+	server := NewServer(mockDB)
+	server.podIPs = map[string]net.IP{
+		"default/pod-1": net.ParseIP("10.0.0.1"),
+	}
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/ip/foo/bar", nil)
+	server.ServeHTTP(w, r)
+	resp := w.Result()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Error("http status should be 404, actual:", resp.StatusCode)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest("GET", "/ip/default/pod-1", nil)
+	server.ServeHTTP(w, r)
+	resp = w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Error("http status should be 200, actual:", resp.StatusCode)
+	}
+
+	response := addressInfo{}
+	err := json.NewDecoder(resp.Body).Decode(&response)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if net.ParseIP(response.Address).IsUnspecified() {
+		t.Error("invalid IP address:", response.Address)
+	}
+	if response.Status != http.StatusOK {
+		t.Error("invalid status:", response.Status)
+	}
+}
+
+func testIPDelete(t *testing.T) {
+	t.Parallel()
+	mockDB := model.NewMock()
+	server := NewServer(mockDB)
+	server.podIPs = map[string]net.IP{
+		"default/pod-1": net.ParseIP("10.0.0.1"),
+	}
+	_, subnet1, _ := net.ParseCIDR("10.0.0.0/27")
+	server.addressBlocks = map[string][]*net.IPNet{
+		"default": {subnet1},
+	}
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("DELETE", "/ip/foo/bar", nil)
+	server.ServeHTTP(w, r)
+	resp := w.Result()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Error("http status should be 404, actual:", resp.StatusCode)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest("DELETE", "/ip/default/pod-1", nil)
+	server.ServeHTTP(w, r)
+	resp = w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Error("http status should be 200, actual:", resp.StatusCode)
+	}
+
+	response := addressInfo{}
+	err := json.NewDecoder(resp.Body).Decode(&response)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if net.ParseIP(response.Address).IsUnspecified() {
+		t.Error("invalid IP address:", response.Address)
+	}
+	if response.Status != http.StatusOK {
+		t.Error("invalid status:", response.Status)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest("DELETE", "/ip/default/pod-1", nil)
+	server.ServeHTTP(w, r)
+	resp = w.Result()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Error("http status should be 404, actual:", resp.StatusCode)
+	}
+}
+
 func testIP(t *testing.T) {
 	t.Run("new", testIPNew)
-	//t.Run("get", testIPGet)
-	//t.Run("delete", testIPDelete)
+	t.Run("get", testIPGet)
+	t.Run("delete", testIPDelete)
 }
 
 func testNotFound(t *testing.T) {

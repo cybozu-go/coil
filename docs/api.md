@@ -63,12 +63,12 @@ Input must be a JSON object with these fields:
 
 - 400 Bad Request: input JSON data is invalid.
 - 409 Conflict: when an IP address has been allocated to the pod.
-- 503 Service Unavailable: no avaiable IP addresses.
+- 503 Service Unavailable: no available IP addresses.
 - 500 Internal Server Error: other reasons.
 
 ## <a name="get" />`GET /ip/<pod-namespace>/<pod-name>`
 
-Get assigned addresses for the pod.
+Get assigned address for the pod.
 
 ### Successful response
 
@@ -77,19 +77,19 @@ Get assigned addresses for the pod.
 - HTTP response body: assigned ip address in JSON
 ```json
 {
-  "addresses": ["<ip address>"],
+  "address": "<ip address>",
   "status": 200
 }
 ```
 
 ### Failure responses
 
-- 404 Not Found: no addresses was assigned to the pod.
+- 404 Not Found: address was not assigned to the pod.
 - 500 Internal Server Error: other reasons.
 
 ## <a name="delete" />`DELETE /ip/<pod-namespace>/<pod-name>`
 
-Release assigned addresses for the pod.
+Release assigned address for the pod.
 
 ### Successful response
 
@@ -98,12 +98,12 @@ Release assigned addresses for the pod.
 - HTTP response body: released ip address in JSON
 ```json
 {
-  "addresses": ["<ip address>"],
+  "address": "<ip address>",
   "status": 200
 }
 ```
 
 ### Failure responses
 
-- 404 Not Found: no addresses was assigned to the pod.
+- 404 Not Found: address was not assigned to the pod.
 - 500 Internal Server Error: other reasons.

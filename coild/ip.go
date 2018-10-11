@@ -3,12 +3,19 @@ package coild
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 
 	"github.com/cybozu-go/coil/model"
+	"github.com/cybozu-go/log"
 	"k8s.io/apimachinery/pkg/types"
 )
+
+type addressInfo struct {
+	Address string `json:"address"`
+	Status  int    `json:"status"`
+}
 
 func (s *Server) determinePoolName(ctx context.Context, podNS string) (string, error) {
 	_, err := s.db.GetPool(ctx, podNS)
@@ -74,10 +81,7 @@ RETRY:
 			return
 		}
 
-		resp := struct {
-			Address string `json:"address"`
-			Status  int    `json:"status"`
-		}{
+		resp := addressInfo{
 			Address: ip.String(),
 			Status:  http.StatusOK,
 		}
@@ -108,7 +112,64 @@ RETRY:
 }
 
 func (s *Server) handleIPGet(w http.ResponseWriter, r *http.Request, podKey string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	ip, ok := s.podIPs[podKey]
+	if !ok {
+		renderError(r.Context(), w, APIErrNotFound)
+		return
+	}
+
+	resp := addressInfo{
+		Address: ip.String(),
+		Status:  http.StatusOK,
+	}
+
+	renderJSON(w, resp, http.StatusOK)
 }
 
 func (s *Server) handleIPDelete(w http.ResponseWriter, r *http.Request, podKey string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	ip, ok := s.podIPs[podKey]
+	if !ok {
+		renderError(r.Context(), w, APIErrNotFound)
+		return
+	}
+
+	var block *net.IPNet
+OUTER:
+	for _, blocks := range s.addressBlocks {
+		for _, b := range blocks {
+			if b.Contains(ip) {
+				block = b
+				break OUTER
+			}
+		}
+	}
+
+	if block == nil {
+		log.Critical("orphaned IP address", map[string]interface{}{
+			"ip": ip.String(),
+		})
+		renderError(r.Context(), w, InternalServerError(errors.New("orphaned IP address")))
+		return
+	}
+
+	err := s.db.FreeIP(r.Context(), block, ip)
+	if err != nil {
+		renderError(r.Context(), w, InternalServerError(err))
+		return
+	}
+
+	delete(s.podIPs, podKey)
+
+	resp := addressInfo{
+		Address: ip.String(),
+		Status:  http.StatusOK,
+	}
+
+	renderJSON(w, resp, http.StatusOK)
 }
