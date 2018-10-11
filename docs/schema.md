@@ -6,7 +6,7 @@ Configurations
 
 ### Address pool object
 
-Key: `pool/<name>`
+Key: `<prefix>/pool/<name>`
 
 Value: JSON with these fields:
 
@@ -20,13 +20,13 @@ Status
 
 ### Existing subnets
 
-Key: `subnet/<subnet-network-address>`
+Key: `<prefix>/subnet/<subnet-network-address>`
 
 Example: `subnet/10.11.0.0`
 
 ### IP address assignments
 
-Key: `ip/<address-block>/<offset>`
+Key: `<prefix>/ip/<address-block>/<offset>`
 
 Value: `<pod-namespace>/<pod-name>`
 
@@ -37,7 +37,7 @@ Value: `<pod-namespace>/<pod-name>`
 
 ### Address block assignments
 
-Key: `block/<pool>/<subnet-network-address>`
+Key: `<prefix>/block/<pool>/<subnet-network-address>`
 
 Value:
 

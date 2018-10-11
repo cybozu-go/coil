@@ -24,14 +24,19 @@ type Server struct {
 	mu            sync.Mutex
 	addressBlocks map[string][]*net.IPNet
 	podIPs        map[string]net.IP
+
+	tableID    int
+	protocolID int
 }
 
 // NewServer creates a new Server.
-func NewServer(db model.Model) *Server {
+func NewServer(db model.Model, tableID, protocolID int) *Server {
 	return &Server{
 		db:            db,
 		addressBlocks: make(map[string][]*net.IPNet),
 		podIPs:        make(map[string]net.IP),
+		tableID:       tableID,
+		protocolID:    protocolID,
 	}
 }
 
