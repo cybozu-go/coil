@@ -42,6 +42,7 @@ func addRoutes() error {
 		Dst:       subnet,
 		Table:     119,
 		LinkIndex: dev.Attrs().Index,
+		Protocol:  30, // For coil
 	}
 	return h.RouteAdd(r)
 }
