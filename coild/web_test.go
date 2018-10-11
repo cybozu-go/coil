@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/cybozu-go/coil/model"
@@ -15,8 +16,8 @@ func testGetStatus(t *testing.T) {
 	t.Parallel()
 	mockDB := model.NewMock()
 	server := NewServer(mockDB)
-	server.podIPs = map[string][]net.IP{
-		"default/pod-1": {net.ParseIP("10.0.0.1")},
+	server.podIPs = map[string]net.IP{
+		"default/pod-1": net.ParseIP("10.0.0.1"),
 	}
 
 	_, subnet1, _ := net.ParseCIDR("10.0.0.0/27")
@@ -38,10 +39,10 @@ func testGetStatus(t *testing.T) {
 	if !cmp.Equal(st.AddressBlocks["default"], []string{"10.0.0.0/27"}) {
 		t.Error(`expected: []string{"10.0.0.0/27"}, actual:`, st.AddressBlocks)
 	}
-	if !cmp.Equal(st.Pods, map[string][]string{
-		"default/pod-1": {"10.0.0.1"},
+	if !cmp.Equal(st.Pods, map[string]string{
+		"default/pod-1": "10.0.0.1",
 	}) {
-		t.Error(`expected: "default/pod-1": {"10.0.0.1"}, actual:`, st.Pods)
+		t.Error(`expected: "default/pod-1": "10.0.0.1", actual:`, st.Pods)
 	}
 	if st.Status != http.StatusOK {
 		t.Error("expected: 200, actual:", st.Status)
@@ -56,6 +57,101 @@ func testGetStatus(t *testing.T) {
 	}
 }
 
+func testIPNew(t *testing.T) {
+	t.Parallel()
+	mockDB := model.NewMock()
+	server := NewServer(mockDB)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("POST", "/ip", nil)
+	server.ServeHTTP(w, r)
+	resp := w.Result()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Error("http status should be 400, actual:", resp.StatusCode)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest("POST", "/ip", strings.NewReader(`{"pod-name": "aaa"}`))
+	server.ServeHTTP(w, r)
+	resp = w.Result()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Error("http status should be 400, actual:", resp.StatusCode)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest("POST", "/ip", strings.NewReader(`{"pod-namespace": "aaa"}`))
+	server.ServeHTTP(w, r)
+	resp = w.Result()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Error("http status should be 400, actual:", resp.StatusCode)
+	}
+
+	response := struct {
+		Address string `json:"address"`
+		Status  int    `json:"status"`
+	}{}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest("POST", "/ip",
+		strings.NewReader(`{"pod-namespace": "aaa", "pod-name": "bbb"}`))
+	server.ServeHTTP(w, r)
+	resp = w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Error("http status should be 200, actual:", resp.StatusCode)
+	}
+
+	err := json.NewDecoder(resp.Body).Decode(&response)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if net.ParseIP(response.Address).IsUnspecified() {
+		t.Error("invalid IP address:", response.Address)
+	}
+	if response.Status != http.StatusOK {
+		t.Error("invalid status:", response.Status)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest("POST", "/ip",
+		strings.NewReader(`{"pod-namespace": "aaa", "pod-name": "bbb"}`))
+	server.ServeHTTP(w, r)
+	resp = w.Result()
+	if resp.StatusCode != http.StatusConflict {
+		t.Error("http status should be 409, actual:", resp.StatusCode)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest("POST", "/ip",
+		strings.NewReader(`{"pod-namespace": "aaa", "pod-name": "ccc"}`))
+	server.ServeHTTP(w, r)
+	resp = w.Result()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Error("http status should be 503, actual:", resp.StatusCode)
+	}
+}
+
+func testIP(t *testing.T) {
+	t.Run("new", testIPNew)
+	//t.Run("get", testIPGet)
+	//t.Run("delete", testIPDelete)
+}
+
+func testNotFound(t *testing.T) {
+	t.Parallel()
+	mockDB := model.NewMock()
+	server := NewServer(mockDB)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("POST", "/notfound", nil)
+	server.ServeHTTP(w, r)
+	resp := w.Result()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Error("http status should be 404, actual:", resp.StatusCode)
+	}
+}
+
 func TestServeHTTP(t *testing.T) {
 	t.Run("status", testGetStatus)
+	t.Run("ip", testIP)
+	t.Run("notfound", testNotFound)
 }

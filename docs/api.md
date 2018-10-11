@@ -54,13 +54,14 @@ Input must be a JSON object with these fields:
 - HTTP response body: new assigned ip address in JSON
 ```json
 {
-  "addresses": ["<ip address>"],
+  "address": "<ip address>",
   "status": 200
 }
 ```
 
 ### Failure responses
 
+- 400 Bad Request: input JSON data is invalid.
 - 409 Conflict: when an IP address has been allocated to the pod.
 - 503 Service Unavailable: no avaiable IP addresses.
 - 500 Internal Server Error: other reasons.

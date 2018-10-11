@@ -2,7 +2,6 @@ package model
 
 import (
 	"context"
-	"errors"
 	"net"
 
 	"github.com/cybozu-go/coil"
@@ -13,7 +12,8 @@ type mock struct {
 	globalPool  *coil.AddressPool
 	defaultPool *coil.AddressPool
 
-	offset uint32
+	offset          uint32
+	availableBlocks int
 }
 
 // NewMock returns a mock model for testing.
@@ -29,6 +29,7 @@ func NewMock() Model {
 			Subnets:   []*net.IPNet{lsubnet},
 			BlockSize: 5,
 		},
+		availableBlocks: 1,
 	}
 }
 
@@ -37,8 +38,8 @@ func (m *mock) GetAllocatedIPs(ctx context.Context, block *net.IPNet) (map[strin
 }
 
 func (m *mock) AllocateIP(ctx context.Context, block *net.IPNet, key string) (net.IP, error) {
-	if m.offset > 2 {
-		return nil, errors.New("no more IP")
+	if m.offset != 0 {
+		return nil, ErrBlockIsFull
 	}
 
 	newIP := netutil.IntToIP4(netutil.IP4ToInt(block.IP) + m.offset)
@@ -55,11 +56,17 @@ func (m *mock) GetMyBlocks(ctx context.Context, node string) (map[string][]*net.
 }
 
 func (m *mock) AcquireBlock(ctx context.Context, node, poolName string) (*net.IPNet, error) {
+	if m.availableBlocks == 0 {
+		return nil, ErrOutOfBlocks
+	}
+
 	switch poolName {
 	case "global":
+		m.availableBlocks--
 		_, block, _ := net.ParseCIDR("99.88.77.3/32")
 		return block, nil
 	case "default":
+		m.availableBlocks--
 		_, block, _ := net.ParseCIDR("10.10.0.32/27")
 		return block, nil
 	}

@@ -75,11 +75,11 @@ RETRY:
 		}
 
 		resp := struct {
-			Addresses []string `json:"addresses"`
-			Status    int      `json:"status"`
+			Address string `json:"address"`
+			Status  int    `json:"status"`
 		}{
-			Addresses: []string{ip.String()},
-			Status:    http.StatusOK,
+			Address: ip.String(),
+			Status:  http.StatusOK,
 		}
 		s.podIPs[podNSName] = ip
 		renderJSON(w, resp, http.StatusOK)
@@ -87,6 +87,13 @@ RETRY:
 	}
 
 	block, err := s.db.AcquireBlock(r.Context(), s.nodeName, poolName)
+	if err == model.ErrOutOfBlocks {
+		renderError(r.Context(), w, APIError{
+			Status:  http.StatusServiceUnavailable,
+			Message: "no more blocks in pool " + poolName,
+			Err:     err,
+		})
+	}
 	if err != nil {
 		renderError(r.Context(), w, InternalServerError(err))
 		return
