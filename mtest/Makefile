@@ -68,13 +68,7 @@ $(OUTPUT)/vault: $(VAULT_ARCHIVE)
 
 $(OUTPUT)/cke $(OUTPUT)/ckecli:
 	mkdir -p $(OUTPUT)
-	cd ..; gofail enable && \
-		if GOBIN=$(realpath $(OUTPUT)) go get github.com/cybozu-go/cke/cmd/$(notdir $@); then \
-			gofail disable; \
-		else \
-			gofail disable; \
-			exit 1; \
-		fi
+	cd ..; GOBIN=$(realpath $(OUTPUT)) go get github.com/cybozu-go/cke/cmd/$(notdir $@)
 
 $(OUTPUT)/kubectl:
 	mkdir -p $(OUTPUT)
@@ -146,7 +140,6 @@ clean:
 setup:
 	GO111MODULE=off go get -u \
 		github.com/onsi/ginkgo/ginkgo \
-		github.com/coreos/gofail \
 		github.com/cybozu-go/placemat/...
 
 .PHONY:	all clean setup test

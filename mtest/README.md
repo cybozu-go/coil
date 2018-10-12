@@ -1,4 +1,4 @@
-How to manually run CKE using placemat
+How to manually run coil using placemat
 ======================================
 
 1. Run `make setup`
@@ -11,12 +11,4 @@ How to manually run CKE using placemat
     ```
 
 4. Run `/data/setup-cke.sh` on `host1`.
-5. Run `cke` on `host1`.
-6. Copy `/data/cluster.yml` to `$HOME`, edit the copy, and load it by:
-
-    ```console
-    $ /data/ckecli constraints set control-plane-count 1
-    $ /data/ckecli cluster set $HOME/cluster.yml
-    ```
-
-7. To stop placemat, run `sudo pkill placemat`.
+5. To stop placemat, run `sudo pkill placemat`.
