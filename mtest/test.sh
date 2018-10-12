@@ -8,7 +8,7 @@ echo "placemat PID: $PLACEMAT_PID"
 fin() {
     chmod 600 ./mtest_key
     echo "-------- host1: cke log"
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./mtest_key cybozu@${HOST1} sudo journalctl -u cke.service --no-pager
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./mtest_key cybozu@${HOST1} sudo journalctl -u my-cke.service --no-pager
     sudo kill $PLACEMAT_PID
     echo "waiting for placemat to terminate..."
     while true; do

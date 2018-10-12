@@ -18,7 +18,7 @@ func TestMtest(t *testing.T) {
 		t.Skip("no SSH_PRIVKEY envvar")
 	}
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Multi-host test for cke")
+	RunSpecs(t, "Multi-host test for coil")
 }
 
 var _ = BeforeSuite(func() {
