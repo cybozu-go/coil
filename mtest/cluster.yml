@@ -1,0 +1,72 @@
+# placemat config file
+kind: Network
+name: ext-net
+type: external
+use-nat: true
+address: @BRIDGE_ADDRESS@/24
+---
+kind: DataFolder
+name: data
+files:
+  - name: cke
+    file: cke
+  - name: ckecli
+    file: ckecli
+  - name: cluster.yml
+    file: cke-cluster.yml
+  - name: etcd
+    file: etcd
+  - name: etcdctl
+    file: etcdctl
+  - name: vault
+    file: vault
+  - name: kubectl
+    file: kubectl
+  - name: setup-cke.sh
+    file: setup-cke.sh
+---
+kind: Image
+name: coreos
+file: ../@COREOS_IMAGE@
+---
+kind: Node
+name: host1
+interfaces:
+  - ext-net
+cpu: 1
+memory: 3G
+ignition: host1.ign
+volumes:
+  - kind: image
+    name: root
+    image: coreos
+    copy-on-write: true
+  - kind: vvfat
+    name: data
+    folder: data
+---
+kind: Node
+name: node1
+interfaces:
+  - ext-net
+cpu: 1
+memory: 3G
+ignition: node1.ign
+volumes:
+  - kind: image
+    name: root
+    image: coreos
+    copy-on-write: true
+---
+kind: Node
+name: node2
+interfaces:
+  - ext-net
+cpu: 1
+memory: 3G
+ignition: node2.ign
+volumes:
+  - kind: image
+    name: root
+    image: coreos
+    copy-on-write: true
