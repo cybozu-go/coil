@@ -24,18 +24,16 @@ SSH_PRIVKEY := ./mtest_key
 OUTPUT := ./output
 COREOS_IMAGE := coreos_production_qemu_image.img
 CKECLI := $(OUTPUT)/ckecli
-KUBECTL := $(OUTPUT)/kubectl
-CKECLUSTER := $(OUTPUT)/cke-cluster.yml
 CKECONFIG := $(OUTPUT)/cke.yml
+KUBECTL := $(OUTPUT)/kubectl
 COILIMAGE := $(OUTPUT)/coil.img
 
-export SSH_PRIVKEY CKECLI CKECLUSTER CKECONFIG COILIMAGE KUBECTL
+export SSH_PRIVKEY CKECLI CKECONFIG COILIMAGE KUBECTL
 
 GENERATED_FILES = \
 	$(COILIMAGE) \
 	$(OUTPUT)/etcd  $(OUTPUT)/etcdctl \
 	$(OUTPUT)/vault \
-	$(OUTPUT)/cke $(OUTPUT)/ckecli \
 	$(OUTPUT)/kubectl \
 	$(OUTPUT)/cluster.yml \
 	$(OUTPUT)/host1.ign \
@@ -75,10 +73,6 @@ $(OUTPUT)/vault: $(VAULT_ARCHIVE)
 	mkdir -p $(OUTPUT)
 	unzip $< -d $(OUTPUT)
 	touch $@
-
-$(OUTPUT)/cke $(OUTPUT)/ckecli:
-	mkdir -p $(OUTPUT)
-	cd ..; GOBIN=$(realpath $(OUTPUT)) go get github.com/cybozu-go/cke/cmd/$(notdir $@)
 
 $(OUTPUT)/kubectl:
 	mkdir -p $(OUTPUT)

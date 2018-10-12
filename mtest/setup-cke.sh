@@ -1,7 +1,7 @@
 #!/bin/sh -e
 
 VAULT=/data/vault
-CKECLI=/data/ckecli
+CKECLI=/opt/bin/ckecli
 
 if [ ! -f /usr/bin/jq ]; then
     echo "please wait; cloud-init will install jq."
@@ -79,8 +79,14 @@ install_kubectl_config() {
     $CKECLI kubernetes issue >$HOME/.kube/config
 }
 
+install_ckecli() {
+    docker run --rm -u root:root --entrypoint /usr/local/cke/install-tools \
+           -v /opt/bin:/host \
+           quay.io/cybozu/cke:0
+}
+
 run_cke() {
-    sudo systemd-run --unit=my-cke.service /data/cke -interval 2s
+    docker run -d --net=host -v /etc/cke:/etc/cke:ro quay.io/cybozu/cke:0 -interval 2s
 }
 
 setup_cke() {
@@ -88,12 +94,13 @@ setup_cke() {
     $CKECLI cluster set /data/cluster.yml
 }
 
-
 install_cke_configs
 run_etcd
 sleep 1
+install_ckecli
 run_vault
 run_cke
+sleep 1
 setup_cke
 install_kubectl_config
 

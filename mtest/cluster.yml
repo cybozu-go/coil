@@ -8,10 +8,6 @@ address: @BRIDGE_ADDRESS@/24
 kind: DataFolder
 name: data
 files:
-  - name: cke
-    file: cke
-  - name: ckecli
-    file: ckecli
   - name: cluster.yml
     file: cke-cluster.yml
   - name: etcd
