@@ -42,6 +42,8 @@ GENERATED_FILES = \
 	$(OUTPUT)/cke-cluster.yml \
 	$(OUTPUT)/cke.yml \
 	$(OUTPUT)/setup-cke.sh \
+	$(OUTPUT)/bird-node1.conf \
+	$(OUTPUT)/bird-node2.conf \
 	$(COREOS_IMAGE) \
 
 all: test
@@ -49,7 +51,7 @@ all: test
 $(OUTPUT)/coil.img:
 	rm -rf tmpbin
 	mkdir tmpbin
-	cd ..; GOBIN=$(shell pwd)/tmpbin CGO_ENABLED=0 go install ./...
+	cd ..; GOBIN=$(shell pwd)/tmpbin CGO_ENABLED=0 go install -mod=vendor ./...
 	sudo podman build --rm=false -f Dockerfile -t quay.io/cybozu/coil:latest tmpbin
 	mkdir -p $(OUTPUT)
 	sudo podman save -o $@ quay.io/cybozu/coil:latest
@@ -83,6 +85,20 @@ $(OUTPUT)/setup-cke.sh: setup-cke.sh
 	mkdir -p $(OUTPUT)
 	cp $< $@
 	chmod a+x $@
+
+$(OUTPUT)/bird-node1.conf: bird.conf
+	mkdir -p $(OUTPUT)
+	sed -e 's/@ASN@/64601/' \
+		-e 's/@PEER_ASN@/64602/' \
+		-e 's/@PEER_ADDRESS@/$(NODE2)/' \
+		$< > $@
+
+$(OUTPUT)/bird-node2.conf: bird.conf
+	mkdir -p $(OUTPUT)
+	sed -e 's/@ASN@/64602/' \
+		-e 's/@PEER_ASN@/64601/' \
+		-e 's/@PEER_ADDRESS@/$(NODE1)/' \
+		$< > $@
 
 $(OUTPUT)/cluster.yml: cluster.yml
 	mkdir -p $(OUTPUT)

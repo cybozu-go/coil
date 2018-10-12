@@ -19,7 +19,7 @@
   "networkd": {
     "units": [{
       "name": "00-eth0.network",
-      "contents": "[Match]\nName=eth0\n\n[Network]\nAddress=@NODE_ADDRESS@\nGateway=@BRIDGE_ADDRESS@\nDNS=8.8.8.8\nDNS=1.1.1.1"
+      "contents": "[Match]\nName=eth0\n\n[Network]\nAddress=@NODE_ADDRESS@/24\nGateway=@BRIDGE_ADDRESS@\nDNS=8.8.8.8\nDNS=1.1.1.1"
     }]
   },
   "passwd": {
@@ -45,16 +45,26 @@
         "name": "locksmithd.service"
       },
       {
-        "name": "var-lib-docker.mount",
+        "name": "data.mount",
         "enable": true,
-        "contents": "[Mount]\nWhat=/dev/vdb\nWhere=/var/lib/docker\nType=ext4\n\n[Install]\nWantedBy=local-fs.target"
+        "contents": "[Mount]\nWhat=/dev/vdb1\nWhere=/data\nType=vfat\nOptions=ro\n\n[Install]\nWantedBy=local-fs.target"
+      },
+      {
+        "name": "bird.service",
+        "enable": true,
+        "contents": "[Unit]\nWants=data.mount network-online.target\nAfter=data.mount network.target network-online.target\n\n[Service]\nSlice=machine.slice\nType=simple\nKillMode=mixed\nRestart=on-failure\nExecStart=/usr/bin/rkt run --insecure-options=image --volume run,kind=empty,readOnly=false --volume etc,kind=host,source=/data/bird.conf,readOnly=true --net=host docker://quay.io/cybozu/bird:2.0 --readonly-rootfs=true --caps-retain=CAP_NET_ADMIN,CAP_NET_BIND_SERVICE,CAP_NET_RAW --name bird --mount volume=run,target=/run/bird --mount volume=etc,target=/etc/bird/bird.conf\n\n[Install]\nWantedBy=multi-user.target\n"
       },
       {
         "name": "docker.service",
         "dropins": [{
           "name": "10-docker-opts.conf",
-          "contents": "[Service]\nEnvironment=DOCKER_OPTS=\"--storage-driver=overlay2 --bridge=none --iptables=false --ip-masq=false\"\n"
+          "contents": "[Service]\nEnvironment=DOCKER_OPTS=\"--bridge=none --iptables=false --ip-masq=false\"\n"
         }]
+      },
+      {
+        "name": "load-coil.service",
+        "enable": true,
+        "contents": "[Unit]\nWants=data.mount\nAfter=data.mount docker.socket\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/docker load -i /data/coil.img\n\n[Install]\nWantedBy=multi-user.target\n"
       }
     ]
   }

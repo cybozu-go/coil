@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"testing"
 	"time"
 
@@ -35,27 +34,12 @@ var _ = BeforeSuite(func() {
 		execSafeAt(h, "sync")
 	}
 
-	// load coil container images
-	data, err := ioutil.ReadFile(coilImagePath)
-	if err != nil {
-		panic(err)
-	}
-	err = execAtWithInput(node1, data, "docker", "load")
-	if err != nil {
-		panic(err)
-	}
-	err = execAtWithInput(node2, data, "docker", "load")
-	if err != nil {
-		panic(err)
-	}
-
-	// wait cke
+	// setup Kubernetes with CKE
 	_, stderr, err := execAt(host1, "/data/setup-cke.sh")
 	if err != nil {
 		fmt.Println("err!!!", string(stderr))
 		panic(err)
 	}
-
 	Eventually(func() error {
 		stdout, _, err := kubectl("get", "nodes", "-o=json")
 		if err != nil {
