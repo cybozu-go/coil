@@ -11,9 +11,7 @@ import (
 	"github.com/cybozu-go/coil"
 )
 
-// GetMyBlocks retrieves all acquired blocks for a node.
-// The return value is a map whose keys are pool names.
-func (m Model) GetMyBlocks(ctx context.Context, node string) (map[string][]*net.IPNet, error) {
+func (m etcdModel) GetMyBlocks(ctx context.Context, node string) (map[string][]*net.IPNet, error) {
 	resp, err := m.etcd.Get(ctx, keyBlock, clientv3.WithPrefix())
 	if err != nil {
 		return nil, err
@@ -37,8 +35,7 @@ func (m Model) GetMyBlocks(ctx context.Context, node string) (map[string][]*net.
 	return ret, nil
 }
 
-// AcquireBlock acquires a block from the free list for node.
-func (m Model) AcquireBlock(ctx context.Context, node, poolName string) (*net.IPNet, error) {
+func (m etcdModel) AcquireBlock(ctx context.Context, node, poolName string) (*net.IPNet, error) {
 	bkeyPrefix := blockKeyPrefix(poolName)
 RETRY:
 	gresp, err := m.etcd.Get(ctx, bkeyPrefix, clientv3.WithPrefix())
@@ -91,8 +88,7 @@ RETRY:
 	return first, nil
 }
 
-// ReleaseBlock releases a block and returns it to the free list.
-func (m Model) ReleaseBlock(ctx context.Context, node, poolName string, block *net.IPNet) error {
+func (m etcdModel) ReleaseBlock(ctx context.Context, node, poolName string, block *net.IPNet) error {
 	pool, err := m.GetPool(ctx, poolName)
 	if err != nil {
 		return err

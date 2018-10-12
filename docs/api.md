@@ -1,9 +1,10 @@
 `coild` REST API
 ================
 
-- [POST /](#post)
-- [GET /\<container-id\>](#get)
-- [DELETE /\<container-id\>](#delete)
+- [GET /status](#status)
+- [POST /ip](#post)
+- [GET /ip/\<pod-namespace\>/\<pod-name\>](#get)
+- [DELETE /ip/\<pod-namespace\>/\<pod-name\>](#delete)
 
 ## Failure response format
 
@@ -12,12 +13,38 @@ Failure response body is a JSON object with these fields:
 - `status`: HTTP status code
 - `error`: Error message
 
-## <a name="post" />`POST /`
+## <a name="status" />`GET /status`
 
-Request a new IP address for the container.
+Obtain `coild` status.
+
+### Successful response
+
+- HTTP status code: 200 OK
+- HTTP response header: Content-Type: application/json
+- HTTP response body example:
+
+```json
+{
+  "address-blocks": {
+      "default": ["10.20.30.16/28", "10.20.30.48/28"],
+      "global": ["1.1.1.0/24"]
+  },
+  "pods": {
+      "default/pod1": "10.20.30.16",
+      "another/pod1": "10.20.30.18",
+      "global/pod1": "1.1.1.1"
+  },
+  "status": 200
+}
+```
+
+## <a name="post" />`POST /ip`
+
+Request a new IP address for the pod.
 Input must be a JSON object with these fields:
 
-- `container-id` ... Container ID
+- `pod-namespace` ... Pod namespace
+- `pod-name` ... Pod name
 - `address-type` (optional) ... `"ipv4"` or `"ipv6"` (default is `"ipv4"`)
 
 ### Successful response
@@ -27,19 +54,21 @@ Input must be a JSON object with these fields:
 - HTTP response body: new assigned ip address in JSON
 ```json
 {
-  "addresses": ["<ip address>"],
+  "address": "<ip address>",
   "status": 200
 }
 ```
 
 ### Failure responses
 
-- No avaiable IP addresses: 503 Service Unavailable
-- Other error: 500 Internal Server Error
+- 400 Bad Request: input JSON data is invalid.
+- 409 Conflict: when an IP address has been allocated to the pod.
+- 503 Service Unavailable: no available IP addresses.
+- 500 Internal Server Error: other reasons.
 
-## <a name="get" />`GET /<container-id>`
+## <a name="get" />`GET /ip/<pod-namespace>/<pod-name>`
 
-Get assigned addresses for the container.
+Get assigned address for the pod.
 
 ### Successful response
 
@@ -48,19 +77,19 @@ Get assigned addresses for the container.
 - HTTP response body: assigned ip address in JSON
 ```json
 {
-  "addresses": ["<ip address>"],
+  "address": "<ip address>",
   "status": 200
 }
 ```
 
 ### Failure responses
 
-- No addresses was assigned to the container: 404 Not Found
-- Other error: 500 Internal Server Error
+- 404 Not Found: address was not assigned to the pod.
+- 500 Internal Server Error: other reasons.
 
-## <a name="delete" />`DELETE /<container-id>`
+## <a name="delete" />`DELETE /ip/<pod-namespace>/<pod-name>`
 
-Release assigned addresses for the container.
+Release assigned address for the pod.
 
 ### Successful response
 
@@ -69,12 +98,12 @@ Release assigned addresses for the container.
 - HTTP response body: released ip address in JSON
 ```json
 {
-  "addresses": ["<ip address>"],
+  "address": "<ip address>",
   "status": 200
 }
 ```
 
 ### Failure responses
 
-- No addresses was assigned to the container: 404 Not Found
-- Other error: 500 Internal Server Error
+- 404 Not Found: address was not assigned to the pod.
+- 500 Internal Server Error: other reasons.

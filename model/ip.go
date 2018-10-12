@@ -9,9 +9,7 @@ import (
 	"github.com/cybozu-go/netutil"
 )
 
-// GetAllocatedIPs returns allocated IP addresses for a block
-// The return value is a map whose keys are container IDs.
-func (m Model) GetAllocatedIPs(ctx context.Context, block *net.IPNet) (map[string]net.IP, error) {
+func (m etcdModel) GetAllocatedIPs(ctx context.Context, block *net.IPNet) (map[string]net.IP, error) {
 	prefix := ipKeyPrefix(block)
 	resp, err := m.etcd.Get(ctx, prefix, clientv3.WithPrefix())
 	if err != nil {
@@ -30,9 +28,7 @@ func (m Model) GetAllocatedIPs(ctx context.Context, block *net.IPNet) (map[strin
 	return ips, nil
 }
 
-// AllocateIP allocates new IP address for container from AddressBlock
-// Multiple goroutines cannot use this concurrently.
-func (m Model) AllocateIP(ctx context.Context, block *net.IPNet, containerID string) (net.IP, error) {
+func (m etcdModel) AllocateIP(ctx context.Context, block *net.IPNet, key string) (net.IP, error) {
 	resp, err := m.etcd.Get(ctx, ipKeyPrefix(block), clientv3.WithPrefix(), clientv3.WithKeysOnly())
 	if err != nil {
 		return nil, err
@@ -46,12 +42,12 @@ func (m Model) AllocateIP(ctx context.Context, block *net.IPNet, containerID str
 
 	offset := -1
 	for i := 0; i < blockSize; i++ {
-		key := ipKey(block, i)
-		if allocated[key] {
+		k := ipKey(block, i)
+		if allocated[k] {
 			continue
 		}
 		offset = i
-		_, err = m.etcd.Put(ctx, key, containerID)
+		_, err = m.etcd.Put(ctx, k, key)
 		if err != nil {
 			return nil, err
 		}
@@ -63,8 +59,7 @@ func (m Model) AllocateIP(ctx context.Context, block *net.IPNet, containerID str
 	return netutil.IntToIP4(netutil.IP4ToInt(block.IP) + uint32(offset)), nil
 }
 
-// FreeIP deletes allocated IP
-func (m Model) FreeIP(ctx context.Context, block *net.IPNet, ip net.IP) error {
+func (m etcdModel) FreeIP(ctx context.Context, block *net.IPNet, ip net.IP) error {
 	offset := netutil.IP4ToInt(ip) - netutil.IP4ToInt(block.IP)
 	_, err := m.etcd.Delete(ctx, ipKey(block, int(offset)))
 	return err
