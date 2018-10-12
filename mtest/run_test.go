@@ -3,6 +3,7 @@ package mtest
 import (
 	"bytes"
 	"errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -98,6 +99,26 @@ func execSafeAt(host string, args ...string) string {
 	stdout, _, err := execAt(host, args...)
 	ExpectWithOffset(1, err).To(Succeed())
 	return string(stdout)
+}
+
+func execAtWithInput(host string, input []byte, args ...string) error {
+	client := sshClients[host]
+	sess, err := client.NewSession()
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	go func() {
+		w, err := sess.StdinPipe()
+		if err != nil {
+			panic(err)
+		}
+		io.Copy(w, bytes.NewReader(input))
+		w.Close()
+	}()
+
+	return sess.Run(strings.Join(args, " "))
 }
 
 func localTempFile(body string) *os.File {

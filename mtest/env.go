@@ -14,5 +14,6 @@ var (
 	kubectlPath    = os.Getenv("KUBECTL")
 	ckeClusterPath = os.Getenv("CKECLUSTER")
 	ckeConfigPath  = os.Getenv("CKECONFIG")
+	coilImagePath  = os.Getenv("COILIMAGE")
 	debug          = os.Getenv("DEBUG") == "1"
 )

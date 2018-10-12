@@ -27,11 +27,13 @@ CKECLI := $(OUTPUT)/ckecli
 KUBECTL := $(OUTPUT)/kubectl
 CKECLUSTER := $(OUTPUT)/cke-cluster.yml
 CKECONFIG := $(OUTPUT)/cke.yml
+COILIMAGE := $(OUTPUT)/coil.img
 
-export SSH_PRIVKEY CKECLI CKECLUSTER CKECONFIG KUBECTL
+export SSH_PRIVKEY CKECLI CKECLUSTER CKECONFIG COILIMAGE KUBECTL
 
-
-GENERATED_FILES = $(OUTPUT)/etcd  $(OUTPUT)/etcdctl \
+GENERATED_FILES = \
+	$(COILIMAGE) \
+	$(OUTPUT)/etcd  $(OUTPUT)/etcdctl \
 	$(OUTPUT)/vault \
 	$(OUTPUT)/cke $(OUTPUT)/ckecli \
 	$(OUTPUT)/kubectl \
@@ -45,6 +47,14 @@ GENERATED_FILES = $(OUTPUT)/etcd  $(OUTPUT)/etcdctl \
 	$(COREOS_IMAGE) \
 
 all: test
+
+$(OUTPUT)/coil.img:
+	rm -rf tmpbin
+	mkdir tmpbin
+	cd ..; GOBIN=$(shell pwd)/tmpbin CGO_ENABLED=0 go install ./...
+	sudo podman build --rm=false -f Dockerfile -t quay.io/cybozu/coil:latest tmpbin
+	mkdir -p $(OUTPUT)
+	sudo podman save -o $@ quay.io/cybozu/coil:latest
 
 $(MANAGEMENT_ETCD_ARCHIVE):
 	curl -sSLf -o $@ https://github.com/coreos/etcd/releases/download/v$(MANAGEMENT_ETCD_VERSION)/etcd-v$(MANAGEMENT_ETCD_VERSION)-linux-amd64.tar.gz

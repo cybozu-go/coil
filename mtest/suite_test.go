@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"testing"
 	"time"
 
@@ -34,6 +35,20 @@ var _ = BeforeSuite(func() {
 		execSafeAt(h, "sync")
 	}
 
+	// load coil container images
+	data, err := ioutil.ReadFile(coilImagePath)
+	if err != nil {
+		panic(err)
+	}
+	err = execAtWithInput(node1, data, "docker", "load")
+	if err != nil {
+		panic(err)
+	}
+	err = execAtWithInput(node2, data, "docker", "load")
+	if err != nil {
+		panic(err)
+	}
+
 	// wait cke
 	_, stderr, err := execAt(host1, "/data/setup-cke.sh")
 	if err != nil {
@@ -60,7 +75,7 @@ var _ = BeforeSuite(func() {
 			}
 		}
 		return nil
-	})
+	}).Should(Succeed())
 
 	fmt.Println("Begin tests...")
 })
