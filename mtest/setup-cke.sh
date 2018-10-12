@@ -76,7 +76,7 @@ EOF
 
 install_kubectl_config() {
     mkdir -p $HOME/.kube
-    /data/ckecli kubernetes issue >$HOME/.kube/config
+    $CKECLI kubernetes issue >$HOME/.kube/config
 }
 
 run_cke() {
@@ -84,8 +84,8 @@ run_cke() {
 }
 
 setup_cke() {
-    /data/ckecli constraints set control-plane-count 1
-    /data/ckecli cluster set /data/cluster.yml
+    $CKECLI constraints set control-plane-count 1
+    $CKECLI cluster set /data/cluster.yml
 }
 
 
