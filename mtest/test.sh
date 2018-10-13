@@ -21,8 +21,6 @@ fin() {
 }
 trap fin INT TERM HUP 0
 
-GOFLAGS=-mod=vendor
-export GOFLAGS
 $GINKGO -v
 RET=$?
 
