@@ -32,9 +32,9 @@ List all address blocks assigned to a node.
 
 ## Options
 
-Option           | Default value          | Description
-------           | -------------          | -----------
-`config-file`    | `/etc/coil/config.yml` | Location of the config file.
+Option      | Default value         | Description
+------      | -------------         | -----------
+`config`    | `$HOME/.coilctl.yaml` | Location of the config file.
 
 ## Config file
 
