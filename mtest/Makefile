@@ -31,7 +31,7 @@ COILIMAGE := $(OUTPUT)/coil.img
 export SSH_PRIVKEY CKECLI CKECONFIG COILIMAGE KUBECTL
 
 GENERATED_FILES = \
-	$(COILIMAGE) \
+	$(COILIMAGE) $(OUTPUT)/coilctl \
 	$(OUTPUT)/etcd  $(OUTPUT)/etcdctl \
 	$(OUTPUT)/vault \
 	$(OUTPUT)/kubectl \
@@ -42,6 +42,7 @@ GENERATED_FILES = \
 	$(OUTPUT)/cke-cluster.yml \
 	$(OUTPUT)/cke.yml \
 	$(OUTPUT)/setup-cke.sh \
+	$(OUTPUT)/setup-coil.sh \
 	$(OUTPUT)/bird-node1.conf \
 	$(OUTPUT)/bird-node2.conf \
 	$(COREOS_IMAGE) \
@@ -55,6 +56,9 @@ $(OUTPUT)/coil.img:
 	sudo podman build --rm=false -f Dockerfile -t quay.io/cybozu/coil:latest tmpbin
 	mkdir -p $(OUTPUT)
 	sudo podman save -o $@ quay.io/cybozu/coil:latest
+
+$(OUTPUT)/coilctl: $(OUTPUT)/coil.img
+	cp tmpbin/coilctl $(OUTPUT)
 
 $(MANAGEMENT_ETCD_ARCHIVE):
 	curl -sSLf -o $@ https://github.com/coreos/etcd/releases/download/v$(MANAGEMENT_ETCD_VERSION)/etcd-v$(MANAGEMENT_ETCD_VERSION)-linux-amd64.tar.gz
@@ -82,6 +86,11 @@ $(OUTPUT)/kubectl:
 	chmod a+x $@
 
 $(OUTPUT)/setup-cke.sh: setup-cke.sh
+	mkdir -p $(OUTPUT)
+	cp $< $@
+	chmod a+x $@
+
+$(OUTPUT)/setup-coil.sh: setup-coil.sh
 	mkdir -p $(OUTPUT)
 	cp $< $@
 	chmod a+x $@
