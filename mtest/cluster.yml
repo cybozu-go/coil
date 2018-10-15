@@ -21,6 +21,22 @@ files:
   - name: setup-cke.sh
     file: setup-cke.sh
 ---
+kind: DataFolder
+name: node1
+files:
+  - name: bird.conf
+    file: bird-node1.conf
+  - name: coil.img
+    file: coil.img
+---
+kind: DataFolder
+name: node2
+files:
+  - name: bird.conf
+    file: bird-node2.conf
+  - name: coil.img
+    file: coil.img
+---
 kind: Image
 name: coreos
 file: ../@COREOS_IMAGE@
@@ -53,6 +69,9 @@ volumes:
     name: root
     image: coreos
     copy-on-write: true
+  - kind: vvfat
+    name: data
+    folder: node1
 ---
 kind: Node
 name: node2
@@ -66,3 +85,6 @@ volumes:
     name: root
     image: coreos
     copy-on-write: true
+  - kind: vvfat
+    name: data
+    folder: node2
