@@ -85,6 +85,10 @@ func (m *mock) AddSubnet(ctx context.Context, name string, n *net.IPNet) error {
 	return nil
 }
 
+func (m *mock) ListPools(ctx context.Context) (map[string]*coil.AddressPool, error) {
+	return nil, nil
+}
+
 func (m *mock) GetPool(ctx context.Context, name string) (*coil.AddressPool, error) {
 	switch name {
 	case "global":

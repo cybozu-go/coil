@@ -30,6 +30,7 @@ import (
 	"github.com/cybozu-go/etcdutil"
 	"github.com/cybozu-go/log"
 	homedir "github.com/mitchellh/go-homedir"
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -45,7 +46,7 @@ var rootCmd = &cobra.Command{
 
 It directly communicates with etcd.  You need to prepare a
 configuration YAML to supply etcd connection parameters.
-The default location of YAML is "$HOME/.coilctl.yaml".`,
+The default location of YAML is "$HOME/.coilctl.yml".`,
 
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		err := mycmd.LogConfig{}.Apply()
@@ -70,7 +71,7 @@ func init() {
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.coilctl.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.coilctl.yml)")
 
 	// etcd connection parameters
 	etcdConfig = coil.NewEtcdConfig()
@@ -101,5 +102,8 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	viper.ReadInConfig()
-	viper.Unmarshal(etcdConfig)
+	yamlTagOption := func(c *mapstructure.DecoderConfig) {
+		c.TagName = "yaml"
+	}
+	viper.Unmarshal(etcdConfig, yamlTagOption)
 }

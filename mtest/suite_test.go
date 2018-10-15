@@ -61,5 +61,7 @@ var _ = BeforeSuite(func() {
 		return nil
 	}).Should(Succeed())
 
+	execSafeAt(host1, "/data/setup-coil.sh")
+
 	fmt.Println("Begin tests...")
 })

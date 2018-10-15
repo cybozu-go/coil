@@ -131,6 +131,29 @@ RETRY:
 	return nil
 }
 
+func (m etcdModel) ListPools(ctx context.Context) (map[string]*coil.AddressPool, error) {
+	resp, err := m.etcd.Get(ctx, keyPool, clientv3.WithPrefix())
+	if err != nil {
+		return nil, err
+	}
+	if resp.Count == 0 {
+		return nil, nil
+	}
+
+	pools := make(map[string]*coil.AddressPool)
+	for _, v := range resp.Kvs {
+		name := v.Key[len(keyPool):]
+		pool := new(coil.AddressPool)
+		err = json.Unmarshal(v.Value, pool)
+		if err != nil {
+			return nil, err
+		}
+		pools[string(name)] = pool
+	}
+
+	return pools, nil
+}
+
 func (m etcdModel) GetPool(ctx context.Context, name string) (*coil.AddressPool, error) {
 	pkey := poolKey(name)
 	resp, err := m.etcd.Get(ctx, pkey)

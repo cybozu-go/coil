@@ -110,4 +110,8 @@ CKE has been initialized. use kubectl to manage a kubernetes cluster as:
 
     $ /data/kubectl api-resources
 
+Run setup-coil.sh to setup etcd certificates for Coil.
+
+    $ /data/setup-coil.sh
+
 EOF

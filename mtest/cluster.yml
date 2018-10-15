@@ -18,8 +18,12 @@ files:
     file: vault
   - name: kubectl
     file: kubectl
+  - name: coilctl
+    file: coilctl
   - name: setup-cke.sh
     file: setup-cke.sh
+  - name: setup-coil.sh
+    file: setup-coil.sh
 ---
 kind: DataFolder
 name: node1

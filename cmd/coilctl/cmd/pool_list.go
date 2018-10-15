@@ -22,44 +22,34 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"net"
-	"os"
+	"sort"
+	"strings"
 
 	mycmd "github.com/cybozu-go/cmd"
+	"github.com/cybozu-go/coil"
 	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/etcdutil"
 	"github.com/cybozu-go/log"
 	"github.com/spf13/cobra"
 )
 
-var showParams struct {
-	JSON   bool
-	Name   string
-	Subnet *net.IPNet
+func showPool(name string, p *coil.AddressPool) {
+	subnets := make([]string, len(p.Subnets))
+	for i, subnet := range p.Subnets {
+		subnets[i] = subnet.String()
+	}
+	fmt.Printf(`%s:
+    Subnets: %s
+    Size: %d
+`, name, strings.Join(subnets, ", "), p.BlockSize)
 }
 
-// poolShowCmd represents the show command
-var poolShowCmd = &cobra.Command{
-	Use:   "show NAME SUBNET",
-	Short: "shows block assignment information of a subnet",
-	Long:  `Shows block assignment information of a subnet`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 2 {
-			return errors.New("requires 2 argument")
-		}
-
-		_, subnet, err := net.ParseCIDR(args[1])
-		if err != nil {
-			return err
-		}
-
-		showParams.Name = args[0]
-		showParams.Subnet = subnet
-		return nil
-	},
+// poolListCmd represents the list command
+var poolListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "list pool names and subnets",
+	Long:  `list pool names and subnets`,
 	Run: func(cmd *cobra.Command, args []string) {
 		etcd, err := etcdutil.NewClient(etcdConfig)
 		if err != nil {
@@ -69,20 +59,21 @@ var poolShowCmd = &cobra.Command{
 
 		m := model.NewEtcdModel(etcd)
 		mycmd.Go(func(ctx context.Context) error {
-			ba, err := m.GetAssignments(ctx, showParams.Name, showParams.Subnet)
+			pools, err := m.ListPools(ctx)
 			if err != nil {
 				return err
 			}
-			if showParams.JSON {
-				return json.NewEncoder(os.Stdout).Encode(ba)
+
+			names := make([]string, 0, len(pools))
+			for k := range pools {
+				names = append(names, k)
+			}
+			sort.Strings(names)
+
+			for _, n := range names {
+				showPool(n, pools[n])
 			}
 
-			free := len(ba.FreeList)
-			total := free
-			for _, v := range ba.Nodes {
-				total = total + len(v)
-			}
-			fmt.Printf("free blocks: %d out of %d\n", free, total)
 			return nil
 		})
 		mycmd.Stop()
@@ -94,6 +85,5 @@ var poolShowCmd = &cobra.Command{
 }
 
 func init() {
-	poolCmd.AddCommand(poolShowCmd)
-	poolShowCmd.Flags().BoolVar(&showParams.JSON, "json", false, "show in JSON")
+	poolCmd.AddCommand(poolListCmd)
 }

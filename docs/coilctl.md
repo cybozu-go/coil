@@ -26,6 +26,10 @@ Add a subnet to an existing address pool.
 
 Show address block usage of `SUBNET`.
 
+### `pool list`
+
+List all pool names and their subnets.
+
 ### `node blocks NODE`
 
 List all address blocks assigned to a node.

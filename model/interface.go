@@ -41,6 +41,9 @@ type Model interface {
 	// AddSubnet adds a subnet to an existing pool.
 	AddSubnet(ctx context.Context, name string, n *net.IPNet) error
 
+	// ListPools lists all pools.
+	ListPools(ctx context.Context) (map[string]*coil.AddressPool, error)
+
 	// GetPool gets pool.
 	//
 	// If named pool does not exist, ErrNotFound will be returned.
