@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2018-10-15
+### Added
+- AddPFlags method for github.com/spf13/pflag package.
+
 ## [1.2.2] - 2018-10-10
 ### Changed
 - Update Go module dependencies (#9).
@@ -25,7 +29,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 This is the first release.
 
-[Unreleased]: https://github.com/cybozu-go/etcdutil/compare/v1.2.2...HEAD
+[Unreleased]: https://github.com/cybozu-go/etcdutil/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/cybozu-go/etcdutil/compare/v1.2.2...v1.3.0
 [1.2.2]: https://github.com/cybozu-go/etcdutil/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/cybozu-go/etcdutil/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/cybozu-go/etcdutil/compare/v1.1.0...v1.2.0
