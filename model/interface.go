@@ -46,6 +46,9 @@ type Model interface {
 	// If named pool does not exist, ErrNotFound will be returned.
 	GetPool(ctx context.Context, name string) (*coil.AddressPool, error)
 
+	// GetAssignments returns block assignment information of a subnet.
+	GetAssignments(ctx context.Context, name string, subnet *net.IPNet) (*coil.BlockAssignment, error)
+
 	// RemovePool removes pool.
 	RemovePool(ctx context.Context, name string) error
 }

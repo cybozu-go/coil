@@ -21,23 +21,59 @@
 package cmd
 
 import (
-	"fmt"
+	"context"
+	"errors"
+	"net"
 
+	mycmd "github.com/cybozu-go/cmd"
+	"github.com/cybozu-go/coil/model"
+	"github.com/cybozu-go/etcdutil"
+	"github.com/cybozu-go/log"
 	"github.com/spf13/cobra"
 )
+
+var addSubnetParams struct {
+	Name   string
+	Subnet *net.IPNet
+}
 
 // poolAddSubnetCmd represents the add-subnet command
 var poolAddSubnetCmd = &cobra.Command{
 	Use:   "add-subnet NAME SUBNET",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "adds a subnet to an existing pool",
+	Long: `Adds a subnet to an existing pool.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+The subnet size must be larger than the SIZE given when the pool was created.`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) != 2 {
+			return errors.New("requires 2 argument")
+		}
+
+		_, subnet, err := net.ParseCIDR(args[1])
+		if err != nil {
+			return err
+		}
+
+		addSubnetParams.Name = args[0]
+		addSubnetParams.Subnet = subnet
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("create called")
+		etcd, err := etcdutil.NewClient(etcdConfig)
+		if err != nil {
+			log.ErrorExit(err)
+		}
+		defer etcd.Close()
+
+		m := model.NewEtcdModel(etcd)
+		mycmd.Go(func(ctx context.Context) error {
+			return m.AddSubnet(ctx, addSubnetParams.Name, addSubnetParams.Subnet)
+		})
+		mycmd.Stop()
+		err = mycmd.Wait()
+		if err != nil {
+			log.ErrorExit(err)
+		}
 	},
 }
 

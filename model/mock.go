@@ -95,6 +95,10 @@ func (m *mock) GetPool(ctx context.Context, name string) (*coil.AddressPool, err
 	return nil, ErrNotFound
 }
 
+func (m *mock) GetAssignments(ctx context.Context, name string, n *net.IPNet) (*coil.BlockAssignment, error) {
+	return nil, nil
+}
+
 func (m *mock) RemovePool(ctx context.Context, name string) error {
 	return nil
 }

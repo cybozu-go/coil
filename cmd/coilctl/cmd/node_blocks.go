@@ -21,36 +21,53 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
+	mycmd "github.com/cybozu-go/cmd"
+	"github.com/cybozu-go/coil/model"
+	"github.com/cybozu-go/etcdutil"
+	"github.com/cybozu-go/log"
 	"github.com/spf13/cobra"
 )
 
-// blocksCmd represents the blocks command
-var blocksCmd = &cobra.Command{
-	Use:   "blocks",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+// nodeBlocksCmd represents the blocks command
+var nodeBlocksCmd = &cobra.Command{
+	Use:   "blocks NODE",
+	Short: "List all address blocks assigned to a node",
+	Long:  `List all address blocks assigned to a node.`,
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("blocks called")
+		node := args[0]
+
+		etcd, err := etcdutil.NewClient(etcdConfig)
+		if err != nil {
+			log.ErrorExit(err)
+		}
+		defer etcd.Close()
+
+		m := model.NewEtcdModel(etcd)
+		mycmd.Go(func(ctx context.Context) error {
+			blocks, err := m.GetMyBlocks(ctx, node)
+			if err != nil {
+				return err
+			}
+			for k, v := range blocks {
+				fmt.Printf("pool: %s\n", k)
+				for _, block := range v {
+					fmt.Printf("    %v\n", block)
+				}
+			}
+			return nil
+		})
+		mycmd.Stop()
+		err = mycmd.Wait()
+		if err != nil {
+			log.ErrorExit(err)
+		}
 	},
 }
 
 func init() {
-	nodeCmd.AddCommand(blocksCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// blocksCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// blocksCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	nodeCmd.AddCommand(nodeBlocksCmd)
 }

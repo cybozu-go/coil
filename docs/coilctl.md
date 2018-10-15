@@ -26,19 +26,22 @@ Add a subnet to an existing address pool.
 
 Show address block usage of `SUBNET`.
 
-### `node blocks`
+### `node blocks NODE`
 
 List all address blocks assigned to a node.
 
 ## Options
 
-Option      | Default value         | Description
-------      | -------------         | -----------
-`config`    | `$HOME/.coilctl.yaml` | Location of the config file.
+The options are specified in [cybozu-go/etcdutil](https://github.com/cybozu-go/etcdutil), and not shown below will use default values of the etcdutil.
+
+Option        | Default value        | Description
+------        | -------------        | -----------
+`config`      | `$HOME/.coilctl.yml` | Location of the config file.
+`etcd-prefix` | `/coil/`             | prefix for etcd keys
 
 ## Config file
 
-`coilctl` can read configurations from a YAML specified in `-config-file` option.
+`coilctl` can read configurations from a YAML specified in `--config` option. Settings in config file have precedence over command line options.
 
 The config file format is specified in [cybozu-go/etcdutil](https://github.com/cybozu-go/etcdutil), and not shown below will use default values of the etcdutil.
 
@@ -53,4 +56,12 @@ endpoints:
   - http://127.0.0.1:2379
 username: coil
 password: xxxxx
+```
+
+### `completion`
+
+Generate bash completion rules.
+
+```console
+$ eval $(coilctl completion)
 ```

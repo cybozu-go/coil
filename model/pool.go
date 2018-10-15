@@ -149,6 +149,24 @@ func (m etcdModel) GetPool(ctx context.Context, name string) (*coil.AddressPool,
 	return p, nil
 }
 
+func (m etcdModel) GetAssignments(ctx context.Context, name string, subnet *net.IPNet) (*coil.BlockAssignment, error) {
+	bkey := blockKey(name, subnet)
+	resp, err := m.etcd.Get(ctx, bkey)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Count == 0 {
+		return nil, ErrNotFound
+	}
+	ba := new(coil.BlockAssignment)
+	err = json.Unmarshal(resp.Kvs[0].Value, ba)
+	if err != nil {
+		return nil, err
+	}
+	return ba, nil
+}
+
 func (m etcdModel) RemovePool(ctx context.Context, name string) error {
 	pkey := poolKey(name)
 	resp, err := m.etcd.Get(ctx, pkey)

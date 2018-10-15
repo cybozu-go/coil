@@ -21,26 +21,79 @@
 package cmd
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
+	"os"
 
+	mycmd "github.com/cybozu-go/cmd"
+	"github.com/cybozu-go/coil/model"
+	"github.com/cybozu-go/etcdutil"
+	"github.com/cybozu-go/log"
 	"github.com/spf13/cobra"
 )
+
+var showParams struct {
+	JSON   bool
+	Name   string
+	Subnet *net.IPNet
+}
 
 // poolShowCmd represents the create command
 var poolShowCmd = &cobra.Command{
 	Use:   "show NAME SUBNET",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "shows block assignment information of a subnet",
+	Long:  `Shows block assignment information of a subnet`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) != 2 {
+			return errors.New("requires 2 argument")
+		}
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+		_, subnet, err := net.ParseCIDR(args[1])
+		if err != nil {
+			return err
+		}
+
+		showParams.Name = args[0]
+		showParams.Subnet = subnet
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("create called")
+		etcd, err := etcdutil.NewClient(etcdConfig)
+		if err != nil {
+			log.ErrorExit(err)
+		}
+		defer etcd.Close()
+
+		m := model.NewEtcdModel(etcd)
+		mycmd.Go(func(ctx context.Context) error {
+			ba, err := m.GetAssignments(ctx, showParams.Name, showParams.Subnet)
+			if err != nil {
+				return err
+			}
+			if showParams.JSON {
+				return json.NewEncoder(os.Stdout).Encode(ba)
+			}
+
+			free := len(ba.FreeList)
+			total := free
+			for _, v := range ba.Nodes {
+				total = total + len(v)
+			}
+			fmt.Printf("free blocks: %d out of %d\n", free, total)
+			return nil
+		})
+		mycmd.Stop()
+		err = mycmd.Wait()
+		if err != nil {
+			log.ErrorExit(err)
+		}
 	},
 }
 
 func init() {
 	poolCmd.AddCommand(poolShowCmd)
+	poolShowCmd.Flags().BoolVar(&showParams.JSON, "json", false, "show in JSON")
 }

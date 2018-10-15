@@ -37,9 +37,11 @@ import (
 var (
 	namePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
-	flgName   string
-	flgSubnet *net.IPNet
-	flgSize   int
+	createParams struct {
+		Name   string
+		Subnet *net.IPNet
+		Size   int
+	}
 )
 
 // poolCreateCmd represents the create command
@@ -83,9 +85,9 @@ The other pools are pods running in the namespace of the same name.`,
 			}
 		}
 
-		flgName = args[0]
-		flgSubnet = subnet
-		flgSize = size
+		createParams.Name = args[0]
+		createParams.Subnet = subnet
+		createParams.Size = size
 		return nil
 	},
 
@@ -98,7 +100,7 @@ The other pools are pods running in the namespace of the same name.`,
 
 		m := model.NewEtcdModel(etcd)
 		mycmd.Go(func(ctx context.Context) error {
-			return m.AddPool(ctx, flgName, flgSubnet, flgSize)
+			return m.AddPool(ctx, createParams.Name, createParams.Subnet, createParams.Size)
 		})
 		mycmd.Stop()
 		err = mycmd.Wait()
