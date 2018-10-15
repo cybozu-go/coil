@@ -21,6 +21,7 @@
 package cmd
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -74,6 +75,8 @@ func init() {
 	// etcd connection parameters
 	etcdConfig = coil.NewEtcdConfig()
 	etcdConfig.AddPFlags(rootCmd.PersistentFlags())
+
+	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 }
 
 // initConfig reads in config file and ENV variables if set.
