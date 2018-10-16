@@ -43,6 +43,11 @@ func main() {
 	flag.Parse()
 	cmd.LogConfig{}.Apply()
 
+	err := coild.ResolveEtcdEndpoints(cfg)
+	if err != nil {
+		log.ErrorExit(err)
+	}
+
 	etcd, err := etcdutil.NewClient(cfg)
 	if err != nil {
 		log.ErrorExit(err)

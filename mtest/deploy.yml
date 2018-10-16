@@ -43,6 +43,20 @@ data:
 
 ---
 
+# This Endpoints is for coild to dynamically resolve etcd endpoints.
+kind: Endpoints
+apiVersion: v1
+metadata:
+  name: cke-etcd
+  namespace: kube-system
+subsets:
+  - addresses:
+      - ip: 10.0.0.101
+    ports:
+      - port: 2379
+
+---
+
 # This manifest installs the coild as well as CNI plugins and
 # network config on each node.
 kind: DaemonSet
@@ -90,7 +104,7 @@ spec:
           image: quay.io/cybozu/coil:dev
           command:
             - /coild
-            - "-etcd-endpoints=https://10.0.0.101:2379"
+            - "-etcd-endpoints=@cke-etcd"
             - "-etcd-tls-ca=/coil-secrets/cacert"
             - "-etcd-tls-cert=/coil-secrets/cert"
             - "-etcd-tls-key=/coil-secrets/key"
