@@ -53,6 +53,14 @@ The default location of YAML is "$HOME/.coilctl.yml".`,
 		if err != nil {
 			log.ErrorExit(err)
 		}
+
+		yamlTagOption := func(c *mapstructure.DecoderConfig) {
+			c.TagName = "yaml"
+		}
+		viper.Unmarshal(etcdConfig, yamlTagOption)
+		log.Debug("etcd-config", map[string]interface{}{
+			"config": fmt.Sprintf("%+v", etcdConfig),
+		})
 	},
 }
 
@@ -76,7 +84,14 @@ func init() {
 	// etcd connection parameters
 	etcdConfig = coil.NewEtcdConfig()
 	etcdConfig.AddPFlags(rootCmd.PersistentFlags())
+	for _, key := range []string{"prefix", "endpoints", "timeout", "username", "password"} {
+		viper.BindPFlag(key, rootCmd.PersistentFlags().Lookup("etcd-"+key))
+	}
+	for _, key := range []string{"tls-ca", "tls-cert", "tls-key"} {
+		viper.BindPFlag(key+"-file", rootCmd.PersistentFlags().Lookup("etcd-"+key))
+	}
 
+	// add flags for logging
 	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 }
 
@@ -102,8 +117,4 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	viper.ReadInConfig()
-	yamlTagOption := func(c *mapstructure.DecoderConfig) {
-		c.TagName = "yaml"
-	}
-	viper.Unmarshal(etcdConfig, yamlTagOption)
 }

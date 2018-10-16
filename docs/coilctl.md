@@ -34,38 +34,48 @@ List all pool names and their subnets.
 
 List all address blocks assigned to a node.
 
-## Options
-
-The options are specified in [cybozu-go/etcdutil](https://github.com/cybozu-go/etcdutil), and not shown below will use default values of the etcdutil.
-
-Option        | Default value        | Description
-------        | -------------        | -----------
-`config`      | `$HOME/.coilctl.yml` | Location of the config file.
-`etcd-prefix` | `/coil/`             | prefix for etcd keys
-
-## Config file
-
-`coilctl` can read configurations from a YAML specified in `--config` option. Settings in config file have precedence over command line options.
-
-The config file format is specified in [cybozu-go/etcdutil](https://github.com/cybozu-go/etcdutil), and not shown below will use default values of the etcdutil.
-
-Name     | Type   | Required | Description
--------- | ------ | -------- | -----------
-`prefix` | string | No       | Key prefix of etcd objects.  Default is `/coil/`.
-
-### Example
-
-```yaml
-endpoints:
-  - http://127.0.0.1:2379
-username: coil
-password: xxxxx
-```
-
 ### `completion`
 
 Generate bash completion rules.
 
 ```console
 $ eval $(coilctl completion)
+```
+
+## Options
+
+Options may be specified with command-line flags or configuration files.
+Command-line flags take precedence over configuration files because of [`viper.Get`](https://godoc.org/github.com/spf13/viper#Get) specification.
+
+### Command-line flags
+
+Flags for etcd connection are defined in [cybozu-go/etcdutil](https://github.com/cybozu-go/etcdutil#command-line-flags).
+
+Flags for logging are defined in [cybozu-go/cmd](https://github.com/cybozu-go/cmd#command-line-options).
+
+Following flags override the above specifications:
+
+Flag            | Default value        | Description
+--------------- | -------------------- | -----------
+`--config`      | `$HOME/.coilctl.yml` | Location of the config file.
+`--etcd-prefix` | `/coil/`             | prefix for etcd keys.
+
+### Config file
+
+`coilctl` can read etcd connection parameters from a configuration file.
+The format is defined in [cybozu-go/etcdutil](https://github.com/cybozu-go/etcdutil#yamljson-configuration-file).
+
+Following parameters override this specification:
+
+Name     | Type   | Default  | Description
+-------- | ------ | -------- | -----------
+`prefix` | string | `/coil/` | prefix for etcd keys.
+
+Example:
+
+```yaml
+endpoints:
+  - http://127.0.0.1:2379
+username: coil
+password: xxxxx
 ```
