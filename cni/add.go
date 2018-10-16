@@ -152,7 +152,7 @@ func Add(args *skel.CmdArgs) error {
 	result := &current.Result{}
 	result.Interfaces = []*current.Interface{hostInterface, containerInterface}
 	result.IPs = []*current.IPConfig{
-		&current.IPConfig{
+		{
 			Version:   "4",
 			Interface: current.Int(1),
 			Address:   net.IPNet{IP: ip, Mask: net.CIDRMask(32, 32)},
