@@ -75,7 +75,7 @@ spec:
         beta.kubernetes.io/os: linux
       hostNetwork: true
       tolerations:
-        # Make sure calico-node gets scheduled on all nodes.
+        # Make sure coil gets scheduled on all nodes.
         - effect: NoSchedule
           operator: Exists
         # Mark the pod as a critical add-on for rescheduling.
@@ -84,13 +84,8 @@ spec:
         - effect: NoExecute
           operator: Exists
       serviceAccountName: coil-node
-      # Minimize downtime during a rolling upgrade or deletion; tell Kubernetes to do a "force
-      # deletion": https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods.
       terminationGracePeriodSeconds: 0
       containers:
-        # Runs calico/node container on each Kubernetes node.  This
-        # container programs network policy and routes on each
-        # host.
         - name: coild
           image: quay.io/cybozu/coil:dev
           command:
@@ -100,11 +95,14 @@ spec:
             - "-etcd-tls-cert=/coil-secrets/cert"
             - "-etcd-tls-key=/coil-secrets/key"
           env:
-            # Set noderef for node controller.
             - name: COIL_NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: COIL_NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
           securityContext:
             privileged: true
           resources:

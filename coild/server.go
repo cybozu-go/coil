@@ -9,11 +9,18 @@ import (
 	"sync"
 
 	"github.com/cybozu-go/coil/model"
+	"github.com/cybozu-go/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
+
+type missingEnvvar string
+
+func (e missingEnvvar) Error() string {
+	return "missing environment variable: " + string(e)
+}
 
 // Server keeps coild internal status.
 type Server struct {
@@ -21,8 +28,8 @@ type Server struct {
 	tableID    int
 	protocolID int
 
-	podName  string
 	nodeName string
+	nodeIP   string
 
 	// skip routing table edit for testing
 	dryRun bool
@@ -54,21 +61,13 @@ func (s *Server) Init(ctx context.Context) error {
 		return err
 	}
 
-	n, err := os.Hostname()
-	if err != nil {
-		return err
-	}
-	s.podName = n
-
 	s.nodeName = os.Getenv("COIL_NODE_NAME")
-	if len(s.nodeName) == 0 {
-		pod, err := clientset.CoreV1().Pods("").Get(n, metav1.GetOptions{
-			IncludeUninitialized: true,
-		})
-		if err != nil {
-			return err
-		}
-		s.nodeName = pod.Spec.NodeName
+	if s.nodeName == "" {
+		return missingEnvvar("COIL_NODE_NAME")
+	}
+	s.nodeIP = os.Getenv("COIL_NODE_IP")
+	if s.nodeIP == "" {
+		return missingEnvvar("COIL_NODE_IP")
 	}
 
 	// retrieve blocks acquired previously
@@ -114,6 +113,10 @@ func (s *Server) Init(ctx context.Context) error {
 			// release unused address block to the pool
 			if len(ips) == freed {
 				err = s.db.ReleaseBlock(ctx, s.nodeName, poolName, block)
+				log.Info("release a unused address block", map[string]interface{}{
+					"pool":  poolName,
+					"block": block.String(),
+				})
 				if err != nil {
 					return err
 				}
