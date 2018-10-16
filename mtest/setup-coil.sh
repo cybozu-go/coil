@@ -27,9 +27,10 @@ EOF
     $KUBECTL create -f - <<EOF
 apiVersion: v1
 kind: Secret
+type: Opaque
 metadata:
   name: coil-etcd-secrets
-type: Opaque
+  namespace: kube-system
 data:
   cacert: $(echo "$certs" | jq -r .ca_certificate | base64 -w 0)
   cert: $(echo "$certs" | jq -r .certificate | base64 -w 0)
@@ -40,3 +41,6 @@ EOF
 # main
 checkKubernetes
 setupCerts
+$KUBECTL config set-context default --namespace=kube-system
+$KUBECTL create -f /data/rbac.yml
+$KUBECTL create -f /data/deploy.yml

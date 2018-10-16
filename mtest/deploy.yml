@@ -12,8 +12,11 @@ data:
         "plugins"" [
           {
             "type": "coil",
-            "coild": "http://127.0.0.1:9383",
-            "mtu": 1440
+            "coild": "http://127.0.0.1:9383"
+          },
+          {
+            "type": "tuning",
+            "mtu": 1400
           },
           {
             "type": "portmap",
@@ -89,8 +92,13 @@ spec:
         # container programs network policy and routes on each
         # host.
         - name: coild
-          image: quay.io/cybozu/coil:latest
-          command: ["/coild", "-etcd-endpoints=https://10.0.0.101:2379"]
+          image: quay.io/cybozu/coil:dev
+          command:
+            - /coild
+            - "-etcd-endpoints=https://10.0.0.101:2379"
+            - "-etcd-tls-ca=/coil-secrets/cacert"
+            - "-etcd-tls-cert=/coil-secrets/cert"
+            - "-etcd-tls-key=/coil-secrets/key"
           env:
             # Set noderef for node controller.
             - name: COIL_NODE_NAME
@@ -115,7 +123,7 @@ spec:
               name: etcd-certs
         # This container installs the coil CNI plugin and configuration file.
         - name: coil-installer
-          image: quay.io/calico/cni:v3.2.3
+          image: quay.io/cybozu/coil:dev
           command: ["/coil-installer"]
           env:
             - name: CNI_NETCONF
@@ -123,6 +131,8 @@ spec:
                 configMapKeyRef:
                   name: coil-config
                   key: cni_netconf
+          securityContext:
+            privileged: true
           volumeMounts:
             - mountPath: /host/opt/cni/bin
               name: cni-bin-dir

@@ -45,12 +45,6 @@ func NewServer(db model.Model, tableID, protocolID int) *Server {
 
 // Init loads status data from the database.
 func (s *Server) Init(ctx context.Context) error {
-	n, err := os.Hostname()
-	if err != nil {
-		return err
-	}
-	s.podName = n
-
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return err
@@ -60,13 +54,22 @@ func (s *Server) Init(ctx context.Context) error {
 		return err
 	}
 
-	pod, err := clientset.CoreV1().Pods("").Get(n, metav1.GetOptions{
-		IncludeUninitialized: true,
-	})
+	n, err := os.Hostname()
 	if err != nil {
 		return err
 	}
-	s.nodeName = pod.Spec.NodeName
+	s.podName = n
+
+	s.nodeName = os.Getenv("COIL_NODE_NAME")
+	if len(s.nodeName) == 0 {
+		pod, err := clientset.CoreV1().Pods("").Get(n, metav1.GetOptions{
+			IncludeUninitialized: true,
+		})
+		if err != nil {
+			return err
+		}
+		s.nodeName = pod.Spec.NodeName
+	}
 
 	// retrieve blocks acquired previously
 	blocks, err := s.db.GetMyBlocks(ctx, s.nodeName)
@@ -88,7 +91,7 @@ func (s *Server) Init(ctx context.Context) error {
 				if len(sl) != 2 {
 					return fmt.Errorf("invalid pod ns/name: %s", podNSName)
 				}
-				pod, err = clientset.CoreV1().Pods(sl[0]).Get(sl[1], metav1.GetOptions{
+				pod, err := clientset.CoreV1().Pods(sl[0]).Get(sl[1], metav1.GetOptions{
 					IncludeUninitialized: true,
 				})
 				if err == nil && ip.String() == pod.Status.PodIP {
