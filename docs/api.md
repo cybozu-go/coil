@@ -55,6 +55,7 @@ Input must be a JSON object with these fields:
 ```json
 {
   "address": "<ip address>",
+  "gateway": "<ip address>",
   "status": 200
 }
 ```

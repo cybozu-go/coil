@@ -15,6 +15,7 @@ import (
 
 type addressInfo struct {
 	Address string `json:"address"`
+	Gateway string `json:"gateway,omitempty"`
 	Status  int    `json:"status"`
 }
 
@@ -90,6 +91,7 @@ RETRY:
 
 		resp := addressInfo{
 			Address: ip.String(),
+			Gateway: s.nodeIP,
 			Status:  http.StatusOK,
 		}
 		s.podIPs[podNSName] = ip

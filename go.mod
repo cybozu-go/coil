@@ -1,7 +1,10 @@
 module github.com/cybozu-go/coil
 
 require (
+	github.com/containernetworking/cni v0.6.0
+	github.com/containernetworking/plugins v0.7.3
 	github.com/coreos/etcd v3.3.9+incompatible
+	github.com/coreos/go-iptables v0.4.0 // indirect
 	github.com/cybozu-go/cmd v1.6.0
 	github.com/cybozu-go/etcdutil v1.3.0
 	github.com/cybozu-go/log v1.5.0

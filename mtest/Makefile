@@ -45,6 +45,7 @@ GENERATED_FILES = \
 	$(OUTPUT)/setup-coil.sh \
 	$(OUTPUT)/bird-node1.conf \
 	$(OUTPUT)/bird-node2.conf \
+	$(OUTPUT)/rbac.yml $(OUTPUT)/deploy.yml \
 	$(COREOS_IMAGE) \
 
 all: test
@@ -53,9 +54,9 @@ $(OUTPUT)/coil.img:
 	rm -rf tmpbin
 	mkdir tmpbin
 	cd ..; GOBIN=$(shell pwd)/tmpbin CGO_ENABLED=0 go install -mod=vendor ./...
-	sudo podman build --rm=false -f Dockerfile -t quay.io/cybozu/coil:latest tmpbin
+	sudo podman build --rm=false -f Dockerfile -t quay.io/cybozu/coil:dev tmpbin
 	mkdir -p $(OUTPUT)
-	sudo podman save -o $@ quay.io/cybozu/coil:latest
+	sudo podman save -o $@ quay.io/cybozu/coil:dev
 
 $(OUTPUT)/coilctl: $(OUTPUT)/coil.img
 	cp tmpbin/coilctl $(OUTPUT)
@@ -146,6 +147,14 @@ $(OUTPUT)/cke-cluster.yml: cke-cluster.yml
 $(OUTPUT)/cke.yml: cke.yml
 	mkdir -p $(OUTPUT)
 	sed -e 's/@HOST1@/$(HOST1)/' $< > $@
+
+$(OUTPUT)/rbac.yml: rbac.yml
+	mkdir -p $(OUTPUT)
+	cp $< $@
+
+$(OUTPUT)/deploy.yml: deploy.yml
+	mkdir -p $(OUTPUT)
+	cp $< $@
 
 test: $(GENERATED_FILES)
 	sudo rm -rf $(PLACEMAT_DATADIR)/volumes/host1

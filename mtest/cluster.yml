@@ -24,6 +24,10 @@ files:
     file: setup-cke.sh
   - name: setup-coil.sh
     file: setup-coil.sh
+  - name: rbac.yml
+    file: rbac.yml
+  - name: deploy.yml
+    file: deploy.yml
 ---
 kind: DataFolder
 name: node1
