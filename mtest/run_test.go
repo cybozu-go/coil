@@ -11,11 +11,9 @@ import (
 	"time"
 
 	"github.com/cybozu-go/cmd"
-
-	"golang.org/x/crypto/ssh"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -132,4 +130,8 @@ func isNodeReady(node corev1.Node) bool {
 		}
 	}
 	return false
+}
+
+func coilctl(args ...string) (stdout, stderr []byte, e error) {
+	return execAt(host1, "/data/coilctl "+strings.Join(args, " "))
 }
