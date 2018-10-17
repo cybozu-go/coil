@@ -41,5 +41,5 @@ roleRef:
   name: coil-node
 subjects:
 - kind: ServiceAccount
-  name: coild
+  name: coil-node
   namespace: kube-system

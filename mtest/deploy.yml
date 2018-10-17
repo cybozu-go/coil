@@ -207,7 +207,7 @@ metadata:
 #           operator: Exists
 #         - key: node-role.kubernetes.io/master
 #           effect: NoSchedule
-#       serviceAccountName: calico-kube-controllers
+#       serviceAccountName: coil-controller
 #       containers:
 #         - name: calico-kube-controllers
 #           image: quay.io/calico/kube-controllers:v3.2.3
