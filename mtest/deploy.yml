@@ -27,7 +27,7 @@ data:
     }
 
   # CNI network configuration may be given by a file.
-  #cni_netconf_file: "/path/to/10-coil.conf"
+  #cni_netconf_file: "/path/to/10-coil.conflist"
 
   # Installation directory for CNI configuration file.
   # Default: "/etc/cni/net.d"
