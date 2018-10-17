@@ -23,6 +23,11 @@ func (c *Controller) Watch(ctx context.Context, rev string) error {
 		return err
 	}
 
+	go func() {
+		<-ctx.Done()
+		w.Stop()
+	}()
+
 	for ev := range w.ResultChan() {
 		if ev.Type != watch.Deleted {
 			continue
