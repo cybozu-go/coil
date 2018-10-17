@@ -3,6 +3,7 @@ package mtest
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -134,4 +135,41 @@ func isNodeReady(node corev1.Node) bool {
 
 func coilctl(args ...string) (stdout, stderr []byte, e error) {
 	return execAt(host1, "/data/coilctl "+strings.Join(args, " "))
+}
+
+func checkFileExists(host, file string) {
+	_, _, err := execAt(host, "sudo test -f", file)
+	Expect(err).ShouldNot(HaveOccurred())
+}
+
+func checkSysctlParam(host, param string) string {
+	stdout, _, err := execAt(host, "sysctl", "-n", param)
+	Expect(err).ShouldNot(HaveOccurred())
+	return string(stdout)
+}
+
+func etcdctl(args ...string) (stdout, stderr []byte, e error) {
+	args = append([]string{"--endpoints=https://" + node1 + ":2379 --cert=/tmp/coil.crt --key=/tmp/coil.key --cacert=/tmp/coil-ca.crt"}, args...)
+	return execAt(host1, "ETCDCTL_API=3 /data/etcdctl "+strings.Join(args, " "))
+}
+
+func initializeCoilData() {
+	_, _, err := kubectl("create", "namespace", "mtest")
+	Expect(err).ShouldNot(HaveOccurred())
+
+	_, _, err = kubectl("config", "set-context", "default", "--namespace=mtest")
+	Expect(err).ShouldNot(HaveOccurred())
+}
+
+func cleanCoilData() {
+	_, _, err := kubectl("config", "set-context", "default", "--namespace=kube-system")
+	Expect(err).ShouldNot(HaveOccurred())
+
+	_, _, err = kubectl("delete", "namespace", "mtest")
+	Expect(err).ShouldNot(HaveOccurred())
+
+	stdout, stderr, err := etcdctl("del /coil/ --prefix")
+	fmt.Println(string(stdout))
+	fmt.Println(string(stderr))
+	Expect(err).ShouldNot(HaveOccurred())
 }

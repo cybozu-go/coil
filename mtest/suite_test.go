@@ -9,6 +9,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -34,7 +35,7 @@ var _ = BeforeSuite(func() {
 		execSafeAt(h, "sync")
 	}
 
-	// setup Kubernetes with CKE
+	By("setup Kubernetes with CKE")
 	_, stderr, err := execAt(host1, "/data/setup-cke.sh")
 	if err != nil {
 		fmt.Println("err!!!", string(stderr))
@@ -61,7 +62,25 @@ var _ = BeforeSuite(func() {
 		return nil
 	}).Should(Succeed())
 
+	By("setup coil-node daemonsets")
 	execSafeAt(host1, "/data/setup-coil.sh")
+	Eventually(func() error {
+		stdout, _, err := kubectl("get", "daemonsets/coil-node", "-o=json")
+		if err != nil {
+			return err
+		}
+
+		daemonset := new(appsv1.DaemonSet)
+		err = json.Unmarshal(stdout, daemonset)
+		if err != nil {
+			return err
+		}
+
+		if daemonset.Status.NumberReady != 2 {
+			return errors.New("NumberReady is not 2")
+		}
+		return nil
+	}).Should(Succeed())
 
 	fmt.Println("Begin tests...")
 })

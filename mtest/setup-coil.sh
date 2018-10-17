@@ -36,6 +36,9 @@ data:
   cert: $(echo "$certs" | jq -r .certificate | base64 -w 0)
   key: $(echo "$certs" | jq -r .private_key | base64 -w 0)
 EOF
+    echo "$certs" | jq -r .ca_certificate >/tmp/coil-ca.crt
+    echo "$certs" | jq -r .certificate >/tmp/coil.crt
+    echo "$certs" | jq -r .private_key >/tmp/coil.key
 }
 
 # main
