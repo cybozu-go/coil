@@ -11,7 +11,7 @@ var _ = Describe("pod deployment", func() {
 		_, _, err := coilctl("pool create default 10.0.1.0/24 2")
 		Expect(err).NotTo(HaveOccurred())
 
-		_, _, err := coilctl("pool show --json default 10.0.1.0/24")
+		_, _, err = coilctl("pool show --json default 10.0.1.0/24")
 		Expect(err).NotTo(HaveOccurred())
 
 		By("deployment Pods")
