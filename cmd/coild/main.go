@@ -43,7 +43,7 @@ func main() {
 	flag.Parse()
 	cmd.LogConfig{}.Apply()
 
-	err := coild.ResolveEtcdEndpoints(cfg)
+	err := coil.ResolveEtcdEndpoints(cfg)
 	if err != nil {
 		log.ErrorExit(err)
 	}
