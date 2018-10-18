@@ -2,6 +2,7 @@ package mtest
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"golang.org/x/crypto/ssh"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -154,7 +156,28 @@ func etcdctl(args ...string) (stdout, stderr []byte, e error) {
 }
 
 func initializeCoilData() {
-	_, _, err := kubectl("create", "namespace", "mtest")
+	_, _, err := kubectl("create", "-f", "/data/deploy.yml")
+	Expect(err).ShouldNot(HaveOccurred())
+
+	Eventually(func() error {
+		stdout, _, err := kubectl("get", "daemonsets/coil-node", "--namespace=kube-system", "-o=json")
+		if err != nil {
+			return err
+		}
+
+		daemonset := new(appsv1.DaemonSet)
+		err = json.Unmarshal(stdout, daemonset)
+		if err != nil {
+			return err
+		}
+
+		if daemonset.Status.NumberReady != 2 {
+			return errors.New("NumberReady is not 2")
+		}
+		return nil
+	}).Should(Succeed())
+
+	_, _, err = kubectl("create", "namespace", "mtest")
 	Expect(err).ShouldNot(HaveOccurred())
 
 	_, _, err = kubectl("config", "set-context", "default", "--namespace=mtest")
@@ -168,9 +191,9 @@ func cleanCoilData() {
 	_, _, err = kubectl("delete", "namespace", "mtest")
 	Expect(err).ShouldNot(HaveOccurred())
 
-	_, _, err = etcdctl("del /coil/ --prefix")
+	_, _, err = kubectl("delete", "-f", "/data/deploy.yml")
 	Expect(err).ShouldNot(HaveOccurred())
 
-	execSafeAt(node1, "sudo", "ip", "route", "flush", "table", "119")
-	execSafeAt(node2, "sudo", "ip", "route", "flush", "table", "119")
+	_, _, err = etcdctl("del /coil/ --prefix")
+	Expect(err).ShouldNot(HaveOccurred())
 }

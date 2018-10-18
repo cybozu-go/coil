@@ -48,5 +48,3 @@ setupCerts
 $KUBECTL config set-context default --namespace=kube-system
 $KUBECTL delete -f /data/rbac.yml || true
 $KUBECTL create -f /data/rbac.yml
-$KUBECTL delete -f /data/deploy.yml || true
-$KUBECTL create -f /data/deploy.yml

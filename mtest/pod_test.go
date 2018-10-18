@@ -60,7 +60,7 @@ var _ = Describe("pod deployment", func() {
 		for _, pod := range podList.Items {
 			By("checking PodIP is in address pool")
 			ip := net.ParseIP(pod.Status.PodIP)
-			Expect(subnet.Contains(ip)).To(BeTrue())
+			Expect(subnet.Contains(ip)).To(BeTrue(), "subnet: %s, ip: %s", subnet, ip)
 
 			By("checking veth for Pod exists in node")
 			stdout, _, err := execAt(pod.Status.HostIP, "ip -d route show "+ip.String())
@@ -138,7 +138,7 @@ var _ = Describe("pod deployment", func() {
 		Expect(ips1).To(Equal(ips2))
 	})
 
-	It("should exporse all blocks", func() {
+	It("should expose all blocks", func() {
 		addressPool := "10.0.6.0/24"
 
 		By("creating address pool")
@@ -223,5 +223,56 @@ var _ = Describe("pod deployment", func() {
 		overrides = fmt.Sprintf(`{ "apiVersion": "v1", "spec": { "nodeSelector": { "kubernetes.io/hostname": "%s" } } }`, node2)
 		_, _, err = kubectl("run -it ubuntu-debug --image=quay.io/cybozu/ubuntu-debug:18.04 --overrides='" + overrides + "' --restart=Never --command -- curl http://" + nginxPodIP)
 		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("should assign PodIP using address pool whose name matches the specified namespace", func() {
+		defaultAddressPool := "10.0.1.0/24"
+		addressPool := "10.0.3.0/24"
+
+		By("creating address pool")
+		coilctl("pool create default " + defaultAddressPool + " 2")
+		coilctl("pool create dmz " + addressPool + " 2")
+
+		By("deployment Pods in dmz namespace")
+		_, stderr, err := kubectl("create namespace dmz")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
+
+		_, stderr, err = kubectl("run nginx --replicas=2 --image=nginx --namespace=dmz")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
+
+		By("waiting pods are ready")
+		Eventually(func() error {
+			stdout, _, err := kubectl("get deployments/nginx --namespace=dmz -o json")
+			if err != nil {
+				return err
+			}
+
+			deployment := new(appsv1.Deployment)
+			err = json.Unmarshal(stdout, deployment)
+			if err != nil {
+				return err
+			}
+
+			if deployment.Status.ReadyReplicas != 2 {
+				return errors.New("ReadyReplicas is not 2")
+			}
+			return nil
+		}).Should(Succeed())
+
+		By("checking PodIPs are assigned")
+		stdout, stderr, err := kubectl("get pods --selector=run=nginx --namespace=dmz -o json")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
+		podList := new(corev1.PodList)
+		err = json.Unmarshal(stdout, podList)
+		Expect(err).NotTo(HaveOccurred())
+
+		_, subnet, err := net.ParseCIDR(addressPool)
+		Expect(err).NotTo(HaveOccurred())
+
+		for _, pod := range podList.Items {
+			By("checking PodIP is in address pool")
+			ip := net.ParseIP(pod.Status.PodIP)
+			Expect(subnet.Contains(ip)).To(BeTrue(), "subnet: %s, ip: %s", subnet, ip)
+		}
 	})
 })
