@@ -1,4 +1,4 @@
-package coild
+package coil
 
 import (
 	"fmt"

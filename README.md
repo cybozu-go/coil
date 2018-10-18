@@ -6,7 +6,8 @@
 Coil
 ====
 
-**Coil** is a [CNI][] plugin that automates IP address management (IPAM).
+**Coil** is a [CNI][] plugin that automates IP address management (IPAM)
+and programs intra-node Pod routing for Kubernetes.
 
 Coil is designed in favor of UNIX philosophy.  It is not tightly integrated
 with routing daemons like [BIRD][].  It does not implement
@@ -15,37 +16,57 @@ with routing daemons like [BIRD][].  It does not implement
 Instead, users can choose their favorite routing daemons and/or network
 policy implementations for use with coil.
 
-**Project Status**: Initial development.
+**Project Status**: All planned features are implemented.
 
 Requirements
 ------------
 
 * [etcd][]
 
-Planned Features
-----------------
+Features
+--------
 
-* CNI IPAM implementation
+* IP address management (IPAM)
+
+    Coil dynamically allocates IP addresses to Pods.
+
+    Coil has a mechanism called _address pool_ so that the administrator
+    can control to assign special/global IP addresses only to some Pods.
 
 * Address pools
 
     An address pool is a pool of allocatable IP addresses.  In addition to
     the _default_ pool, users can define arbitrary address pools.
 
-    Pods in a specific Kubernetes namespace will obtain IP addresses from
-    the address pool whose name matches the namespace when such a pool exists.
+    Pods in a specific Kubernetes namespace take their IP addresses from
+    the address pool whose name matches the namespace if such a pool exists.
+
+    This way, only users who can create Pods in the namespace can use
+    special/global IP addresses.
 
 * Address block
 
-    Coil can divide a large subnet into small fixed size blocks (e.g. `/27`),
+    Coil divides a large subnet into small fixed size blocks (e.g. `/27`),
     and assign them to nodes.  Nodes then allocate IP addresses to Pods
     from the assigned blocks.
 
-* Publish routes via unused kernel routing table
+* Intra-node Pod routing
 
-    Coil exports address blocks assigned to the node to an unused kernel
-    routing table.  [BIRD][] can be configured to look for the table and
-    publish the registered routes over BGP or other protocols.
+    Coil programs _intra_-node routing for Pods.
+
+    As to inter-node routing, coil publishes address blocks assigned to
+    the node to an unused kernel routing table as described next.
+
+* Publish address blocks to implement inter-node Pod routing
+
+    Coil registers address blocks assigned to a node with an unused
+    kernel routing table.  The default table ID is `119`.
+
+    The routing table can be referenced by other routing programs
+    such as [BIRD][] to implement inter-node routing.
+
+    An example BIRD configuration file that advertises address blocks
+    via BGP is available at [mtest/bird.conf](mtest/bird.conf).
 
 Programs
 --------
@@ -56,15 +77,16 @@ This repository contains these programs:
 * `coilctl`: CLI tool to configure coil IPAM.
 * `coild`: A background service to manage IP address.
 * `coil-controller`: watches kubernetes resources for coil.
+* `coil-installer`: installs `coil` and CNI configuration file.
 
 `coil` should be installed in `/opt/cni/bin` directory.
 
 `coilctl` directly communicates with etcd.
 Therefore it can be installed any host that can connect to etcd cluster.
 
-`coild` should run as [`DaemonSet`](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/) container.
+`coild` and `coil-installer` should run as [`DaemonSet`](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/).
 
-`coil-controller` should be deployed as [`Deployment`](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) resource.
+`coil-controller` should be deployed as [`Deployment`](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/).
 
 Documentation
 -------------

@@ -27,7 +27,7 @@ data:
     }
 
   # CNI network configuration may be given by a file.
-  #cni_netconf_file: "/path/to/10-coil.conf"
+  #cni_netconf_file: "/path/to/10-coil.conflist"
 
   # Installation directory for CNI configuration file.
   # Default: "/etc/cni/net.d"
@@ -60,7 +60,7 @@ subsets:
 # This manifest installs the coild as well as CNI plugins and
 # network config on each node.
 kind: DaemonSet
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: coil-node
   namespace: kube-system
@@ -173,88 +173,58 @@ metadata:
 
 ---
 
-# This manifest deploys the Calico Kubernetes controllers.
-# See https://github.com/projectcalico/kube-controllers
-# apiVersion: extensions/v1beta1
-# kind: Deployment
-# metadata:
-#   name: coil-controllers
-#   namespace: kube-system
-#   labels:
-#     k8s-app: coil-controllers
-#   annotations:
-#     scheduler.alpha.kubernetes.io/critical-pod: ''
-# spec:
-#   # The controllers can only have a single active instance.
-#   replicas: 1
-#   strategy:
-#     type: Recreate
-#   template:
-#     metadata:
-#       name: calico-kube-controllers
-#       namespace: kube-system
-#       labels:
-#         k8s-app: calico-kube-controllers
-#     spec:
-#       nodeSelector:
-#         beta.kubernetes.io/os: linux
-#       # The controllers must run in the host network namespace so that
-#       # it isn't governed by policy that would prevent it from working.
-#       hostNetwork: true
-#       tolerations:
-#         # Mark the pod as a critical add-on for rescheduling.
-#         - key: CriticalAddonsOnly
-#           operator: Exists
-#         - key: node-role.kubernetes.io/master
-#           effect: NoSchedule
-#       serviceAccountName: coil-controller
-#       containers:
-#         - name: calico-kube-controllers
-#           image: quay.io/calico/kube-controllers:v3.2.3
-#           env:
-#             # The location of the Calico etcd cluster.
-#             - name: ETCD_ENDPOINTS
-#               valueFrom:
-#                 configMapKeyRef:
-#                   name: calico-config
-#                   key: etcd_endpoints
-#             # Location of the CA certificate for etcd.
-#             - name: ETCD_CA_CERT_FILE
-#               valueFrom:
-#                 configMapKeyRef:
-#                   name: calico-config
-#                   key: etcd_ca
-#             # Location of the client key for etcd.
-#             - name: ETCD_KEY_FILE
-#               valueFrom:
-#                 configMapKeyRef:
-#                   name: calico-config
-#                   key: etcd_key
-#             # Location of the client certificate for etcd.
-#             - name: ETCD_CERT_FILE
-#               valueFrom:
-#                 configMapKeyRef:
-#                   name: calico-config
-#                   key: etcd_cert
-#             # Choose which controllers to run.
-#             - name: ENABLED_CONTROLLERS
-#               value: policy,profile,workloadendpoint,node
-#           volumeMounts:
-#             # Mount in the etcd TLS secrets.
-#             - mountPath: /calico-secrets
-#               name: etcd-certs
-#           readinessProbe:
-#             exec:
-#               command:
-#               - /usr/bin/check-status
-#               - -r
-#       volumes:
-#         # Mount in the etcd TLS secrets with mode 400.
-#         # See https://kubernetes.io/docs/concepts/configuration/secret/
-#         - name: etcd-certs
-#           secret:
-#             secretName: calico-etcd-secrets
-#             defaultMode: 0400
+# This manifest deploys coil-controller.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coil-controllers
+  namespace: kube-system
+  labels:
+    k8s-app: coil-controllers
+  annotations:
+    scheduler.alpha.kubernetes.io/critical-pod: ''
+spec:
+  # coil-controller can only have a single active instance.
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: coil-controllers
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      name: coil-controllers
+      namespace: kube-system
+      labels:
+        k8s-app: coil-controllers
+    spec:
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+      hostNetwork: true
+      tolerations:
+        # Mark the pod as a critical add-on for rescheduling.
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+      serviceAccountName: coil-controller
+      containers:
+        - name: controller
+          image: quay.io/cybozu/coil:dev
+          command:
+            - /coil-controller
+            - "-etcd-endpoints=@cke-etcd"
+            - "-etcd-tls-ca=/coil-secrets/cacert"
+            - "-etcd-tls-cert=/coil-secrets/cert"
+            - "-etcd-tls-key=/coil-secrets/key"
+          volumeMounts:
+            - mountPath: /coil-secrets
+              name: etcd-certs
+      volumes:
+        - name: etcd-certs
+          secret:
+            secretName: coil-etcd-secrets
+            defaultMode: 0400
 
 ---
 
