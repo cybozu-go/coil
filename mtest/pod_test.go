@@ -25,8 +25,8 @@ var _ = Describe("pod deployment", func() {
 		coilctl("pool show --json default " + addressPool)
 
 		By("deployment Pods")
-		_, _, err := kubectl("run nginx --replicas=2 --image=nginx")
-		Expect(err).NotTo(HaveOccurred())
+		_, stderr, err := kubectl("run nginx --replicas=2 --image=nginx")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 		By("waiting pods are ready")
 		Eventually(func() error {
@@ -48,8 +48,8 @@ var _ = Describe("pod deployment", func() {
 		}).Should(Succeed())
 
 		By("checking PodIPs are assigned")
-		stdout, _, err := kubectl("get pods --selector=run=nginx -o json")
-		Expect(err).NotTo(HaveOccurred())
+		stdout, stderr, err := kubectl("get pods --selector=run=nginx -o json")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 		podList := new(corev1.PodList)
 		err = json.Unmarshal(stdout, podList)
 		Expect(err).NotTo(HaveOccurred())
@@ -74,13 +74,13 @@ var _ = Describe("pod deployment", func() {
 		}
 
 		By("checking PodIPs are released")
-		_, _, err = kubectl("delete deployments/nginx")
-		Expect(err).NotTo(HaveOccurred())
+		_, stderr, err = kubectl("delete deployments/nginx")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 		By("waiting pod is deleted")
 		Eventually(func() error {
-			stdout, _, err := kubectl("get pods --selector=run=nginx -o json")
-			Expect(err).NotTo(HaveOccurred())
+			stdout, stderr, err := kubectl("get pods --selector=run=nginx -o json")
+			Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 			podList := new(corev1.PodList)
 			err = json.Unmarshal(stdout, podList)
@@ -102,8 +102,8 @@ var _ = Describe("pod deployment", func() {
 		}
 
 		By("checking PodIPs are reused")
-		_, _, err = kubectl("run nginx --replicas=2 --image=nginx")
-		Expect(err).NotTo(HaveOccurred())
+		_, stderr, err = kubectl("run nginx --replicas=2 --image=nginx")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 		Eventually(func() error {
 			stdout, _, err := kubectl("get deployments/nginx -o json")
 			if err != nil {
@@ -123,8 +123,8 @@ var _ = Describe("pod deployment", func() {
 		}).Should(Succeed())
 
 		By("checking PodIPs are assigned")
-		stdout, _, err = kubectl("get pods --selector=run=nginx -o json")
-		Expect(err).NotTo(HaveOccurred())
+		stdout, stderr, err = kubectl("get pods --selector=run=nginx -o json")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 		podList2 := new(corev1.PodList)
 		err = json.Unmarshal(stdout, podList2)
 		Expect(err).NotTo(HaveOccurred())
@@ -138,6 +138,46 @@ var _ = Describe("pod deployment", func() {
 		Expect(ips1).To(Equal(ips2))
 	})
 
+	It("should exporse all blocks", func() {
+		addressPool := "10.0.6.0/24"
+
+		By("creating address pool")
+		coilctl("pool create default " + addressPool + " 1")
+		coilctl("pool show --json default " + addressPool)
+
+		By("creating 4 pods to node1")
+		overrides := fmt.Sprintf(`{ "apiVersion": "apps/v1beta1", "spec": { "template": { "spec": { "nodeSelector": { "kubernetes.io/hostname": "%s" } } } } }`, node1)
+		_, stderr, err := kubectl("run nginx --image=nginx --replicas=4 --overrides='" + overrides + "'")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
+
+		Eventually(func() error {
+			stdout, stderr, err := kubectl("get pods --selector=run=nginx -o json")
+			Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
+
+			podList := new(corev1.PodList)
+			err = json.Unmarshal(stdout, podList)
+			Expect(err).NotTo(HaveOccurred())
+
+			if len(podList.Items) != 4 {
+				return errors.New("Four pods are not created")
+			}
+			for _, pod := range podList.Items {
+				if pod.Status.Phase != corev1.PodRunning {
+					return errors.New("All pods are note running")
+				}
+			}
+			return nil
+		}).Should(Succeed())
+
+		stdout, _, err := execAt(node1, "ip route show table 119 10.0.6.0/31")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(stdout).NotTo(BeEmpty())
+
+		stdout, _, err = execAt(node1, "ip route show table 119 10.0.6.2/31")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(stdout).NotTo(BeEmpty())
+	})
+
 	It("should access pod in different node", func() {
 		addressPool := "10.0.6.0/24"
 
@@ -147,8 +187,8 @@ var _ = Describe("pod deployment", func() {
 
 		By("deployment nginx Pod")
 		overrides := fmt.Sprintf(`{ "apiVersion": "v1", "spec": { "nodeSelector": { "kubernetes.io/hostname": "%s" } } }`, node1)
-		_, _, err := kubectl("run nginx --image=nginx --overrides='" + overrides + "' --restart=Never")
-		Expect(err).NotTo(HaveOccurred())
+		_, stderr, err := kubectl("run nginx --image=nginx --overrides='" + overrides + "' --restart=Never")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 		By("waiting pods are ready")
 		Eventually(func() error {
