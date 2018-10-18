@@ -5,6 +5,9 @@ import (
 )
 
 var _ = Describe("address pool", func() {
+	BeforeEach(initializeCoilData)
+	AfterEach(cleanCoilData)
+
 	It("should create address pool", func() {
 		By("creating address pool")
 		coilctl("pool", "create", "test1", "10.0.3.0/24", "2")

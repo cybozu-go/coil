@@ -3,6 +3,7 @@ package mtest
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 
 	. "github.com/onsi/ginkgo"
@@ -70,6 +71,34 @@ var _ = Describe("pod deployment", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).NotTo(BeEmpty())
 		}
+
+		By("checking PodIPs are released")
+		_, _, err = kubectl("delete deployments/nginx -o json")
+		Expect(err).NotTo(HaveOccurred())
+
+		By("waiting pod is deleted")
+		Eventually(func() error {
+			stdout, _, err := kubectl("get pods --selector=run=nginx -o json")
+			Expect(err).NotTo(HaveOccurred())
+
+			podList := new(corev1.PodList)
+			err = json.Unmarshal(stdout, podList)
+			Expect(err).NotTo(HaveOccurred())
+
+			if len(podList.Items) > 0 {
+				return errors.New("pods --selector=run=nginx are remaining")
+			}
+			return nil
+		}).Should(Succeed())
+
+		Expect(err).NotTo(HaveOccurred())
+		for _, pod := range podList.Items {
+			By("checking veth for Pod exists in node")
+			ip := net.ParseIP(pod.Status.PodIP)
+			stdout, _, err := execAt(pod.Status.HostIP, "ip -d route show "+ip.String())
+			Expect(err).NotTo(HaveOccurred())
+			Expect(stdout).To(BeEmpty())
+		}
 	})
 
 	It("should access pod in different node", func() {
@@ -80,7 +109,8 @@ var _ = Describe("pod deployment", func() {
 		coilctl("pool show --json default " + addressPool)
 
 		By("deployment nginx Pod")
-		_, _, err := kubectl("run nginx --image=nginx --overrides='{\"apiVersion\": \"v1\", \"spec\": { \"nodeSelector\": {\"kubernetes.io/hostname\": \"" + node1 + "\" } } }' --restart=Never")
+		overrides := fmt.Sprintf(`{ "apiVersion": "v1", "spec": { "nodeSelector": { "kubernetes.io/hostname": "%s" } } }`, node1)
+		_, _, err := kubectl("run nginx --image=nginx --overrides='" + overrides + "' --restart=Never")
 		Expect(err).NotTo(HaveOccurred())
 
 		By("waiting pods are ready")
@@ -113,7 +143,8 @@ var _ = Describe("pod deployment", func() {
 		nginxPodIP := pod.Status.PodIP
 
 		By("executing curl to nginx Pod from ubuntu-debug Pod in different node")
-		_, _, err = kubectl("run -it ubuntu-debug --image=quay.io/cybozu/ubuntu-debug:18.04 --overrides='{ \"apiVersion\": \"v1\", \"spec\": { \"nodeSelector\": { \"kubernetes.io/hostname\": \"" + node2 + "\" } } }' --restart=Never --command -- curl http://" + nginxPodIP)
+		overrides = fmt.Sprintf(`{ "apiVersion": "v1", "spec": { "nodeSelector": { "kubernetes.io/hostname": "%s" } } }`, node2)
+		_, _, err = kubectl("run -it ubuntu-debug --image=quay.io/cybozu/ubuntu-debug:18.04 --overrides='" + overrides + "' --restart=Never --command -- curl http://" + nginxPodIP)
 		Expect(err).NotTo(HaveOccurred())
 	})
 })
