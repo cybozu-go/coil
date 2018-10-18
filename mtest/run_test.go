@@ -170,4 +170,7 @@ func cleanCoilData() {
 
 	_, _, err = etcdctl("del /coil/ --prefix")
 	Expect(err).ShouldNot(HaveOccurred())
+
+	execSafeAt(node1, "sudo", "ip", "route", "flush", "table", "119")
+	execSafeAt(node2, "sudo", "ip", "route", "flush", "table", "119")
 }
