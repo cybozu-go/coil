@@ -3,7 +3,6 @@ package mtest
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -168,8 +167,6 @@ func cleanCoilData() {
 	_, _, err = kubectl("delete", "namespace", "mtest")
 	Expect(err).ShouldNot(HaveOccurred())
 
-	stdout, stderr, err := etcdctl("del /coil/ --prefix")
-	fmt.Println(string(stdout))
-	fmt.Println(string(stderr))
+	_, _, err = etcdctl("del /coil/ --prefix")
 	Expect(err).ShouldNot(HaveOccurred())
 }
