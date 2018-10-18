@@ -34,7 +34,7 @@ var _ = BeforeSuite(func() {
 		execSafeAt(h, "sync")
 	}
 
-	// setup Kubernetes with CKE
+	By("setup Kubernetes with CKE")
 	_, stderr, err := execAt(host1, "/data/setup-cke.sh")
 	if err != nil {
 		fmt.Println("err!!!", string(stderr))
@@ -61,7 +61,12 @@ var _ = BeforeSuite(func() {
 		return nil
 	}).Should(Succeed())
 
-	execSafeAt(host1, "/data/setup-coil.sh")
+	By("setup coil-node daemonsets")
+	_, stderr, err = execAt(host1, "/data/setup-coil.sh")
+	if err != nil {
+		fmt.Println("err!!!", string(stderr))
+		panic(err)
+	}
 
 	fmt.Println("Begin tests...")
 })

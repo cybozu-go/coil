@@ -24,6 +24,7 @@ tls-cert: $(echo "$certs" | jq .certificate)
 tls-key: $(echo "$certs" | jq .private_key)
 EOF
 
+    $KUBECTL delete --namespace=kube-system secret/coil-etcd-secrets || true
     $KUBECTL create -f - <<EOF
 apiVersion: v1
 kind: Secret
@@ -36,11 +37,14 @@ data:
   cert: $(echo "$certs" | jq -r .certificate | base64 -w 0)
   key: $(echo "$certs" | jq -r .private_key | base64 -w 0)
 EOF
+    echo "$certs" | jq -r .ca_certificate >/tmp/coil-ca.crt
+    echo "$certs" | jq -r .certificate >/tmp/coil.crt
+    echo "$certs" | jq -r .private_key >/tmp/coil.key
 }
 
 # main
 checkKubernetes
 setupCerts
 $KUBECTL config set-context default --namespace=kube-system
+$KUBECTL delete -f /data/rbac.yml || true
 $KUBECTL create -f /data/rbac.yml
-$KUBECTL create -f /data/deploy.yml

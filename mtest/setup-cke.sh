@@ -9,6 +9,7 @@ if [ ! -f /usr/bin/jq ]; then
 fi
 
 run_etcd() {
+    sudo systemctl is-active my-etcd.service && return 0
     sudo systemd-run --unit=my-etcd.service /data/etcd --data-dir /home/cybozu/default.etcd
 }
 
@@ -25,6 +26,8 @@ create_ca() {
 }
 
 run_vault() {
+    sudo systemctl is-active my-vault.service && return 0
+
     sudo systemd-run --unit=my-vault.service /data/vault server -dev -dev-root-token-id=cybozu
 
     VAULT_TOKEN=cybozu
@@ -74,7 +77,8 @@ endpoints: ["http://127.0.0.1:2379"]
 EOF
 }
 
-install_kubectl_config() {
+install_kubectl() {
+    sudo cp /data/kubectl /opt/bin/kubectl
     mkdir -p $HOME/.kube
     $CKECLI kubernetes issue >$HOME/.kube/config
 }
@@ -86,7 +90,8 @@ install_ckecli() {
 }
 
 run_cke() {
-    docker run -d --name cke --net=host -v /etc/cke:/etc/cke:ro quay.io/cybozu/cke:0 -interval 2s
+    docker inspect cke >/dev/null && return 0
+    docker run -d --rm --name cke --net=host -v /etc/cke:/etc/cke:ro quay.io/cybozu/cke:0 -interval 2s
 }
 
 setup_cke() {
@@ -102,7 +107,7 @@ run_vault
 run_cke
 sleep 1
 setup_cke
-install_kubectl_config
+install_kubectl
 
 cat <<EOF
 
