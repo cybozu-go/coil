@@ -134,9 +134,10 @@ func isNodeReady(node corev1.Node) bool {
 	return false
 }
 
-func coilctl(args ...string) {
+func coilctl(args ...string) []byte {
 	stdout, stderr, err := execAt(host1, "/data/coilctl "+strings.Join(args, " "))
-	Expect(err).NotTo(HaveOccurred(), "error: %v\nstdout: %s\nstderr: %s", err, string(stdout), string(stderr))
+	Expect(err).NotTo(HaveOccurred(), "error: %v\nstderr: %s", err, string(stderr))
+	return stdout
 }
 
 func checkFileExists(host, file string) {
@@ -156,7 +157,7 @@ func etcdctl(args ...string) (stdout, stderr []byte, e error) {
 }
 
 func initializeCoilData() {
-	_, _, err := kubectl("create", "-f", "/data/deploy.yml")
+	_, _, err := kubectl("apply", "-f", "/data/deploy.yml")
 	Expect(err).ShouldNot(HaveOccurred())
 
 	Eventually(func() error {
