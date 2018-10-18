@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sort"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -73,7 +74,7 @@ var _ = Describe("pod deployment", func() {
 		}
 
 		By("checking PodIPs are released")
-		_, _, err = kubectl("delete deployments/nginx -o json")
+		_, _, err = kubectl("delete deployments/nginx")
 		Expect(err).NotTo(HaveOccurred())
 
 		By("waiting pod is deleted")
@@ -99,6 +100,42 @@ var _ = Describe("pod deployment", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(stdout).To(BeEmpty())
 		}
+
+		By("checking PodIPs are reused")
+		_, _, err = kubectl("run nginx --replicas=2 --image=nginx")
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(func() error {
+			stdout, _, err := kubectl("get deployments/nginx -o json")
+			if err != nil {
+				return err
+			}
+
+			deployment := new(appsv1.Deployment)
+			err = json.Unmarshal(stdout, deployment)
+			if err != nil {
+				return err
+			}
+
+			if deployment.Status.ReadyReplicas != 2 {
+				return errors.New("ReadyReplicas is not 2")
+			}
+			return nil
+		}).Should(Succeed())
+
+		By("checking PodIPs are assigned")
+		stdout, _, err = kubectl("get pods --selector=run=nginx -o json")
+		Expect(err).NotTo(HaveOccurred())
+		podList2 := new(corev1.PodList)
+		err = json.Unmarshal(stdout, podList2)
+		Expect(err).NotTo(HaveOccurred())
+
+		ips1 := []string{podList.Items[0].Status.PodIP, podList.Items[1].Status.PodIP}
+		ips2 := []string{podList2.Items[0].Status.PodIP, podList2.Items[1].Status.PodIP}
+
+		sort.Strings(ips1)
+		sort.Strings(ips2)
+
+		Expect(ips1).To(Equal(ips2))
 	})
 
 	It("should access pod in different node", func() {
