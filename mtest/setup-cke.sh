@@ -9,6 +9,11 @@ if [ ! -f /usr/bin/jq ]; then
 fi
 
 run_etcd() {
+    set +e
+    sudo systemctl reset-failed my-etcd.service
+    sudo systemctl stop my-etcd.service
+    set -e
+
     sudo systemd-run --unit=my-etcd.service /data/etcd --data-dir /home/cybozu/default.etcd
 }
 
@@ -25,6 +30,11 @@ create_ca() {
 }
 
 run_vault() {
+    set +e
+    sudo systemctl reset-failed my-vault.service
+    sudo systemctl stop my-vault.service
+    set -e
+
     sudo systemd-run --unit=my-vault.service /data/vault server -dev -dev-root-token-id=cybozu
 
     VAULT_TOKEN=cybozu
@@ -86,7 +96,11 @@ install_ckecli() {
 }
 
 run_cke() {
-    docker run -d --name cke --net=host -v /etc/cke:/etc/cke:ro quay.io/cybozu/cke:0 -interval 2s
+    set +e
+    docker stop cke
+    set -e
+
+    docker run -d --rm --name cke --net=host -v /etc/cke:/etc/cke:ro quay.io/cybozu/cke:0 -interval 2s
 }
 
 setup_cke() {
