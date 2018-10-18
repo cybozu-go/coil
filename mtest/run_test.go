@@ -132,8 +132,9 @@ func isNodeReady(node corev1.Node) bool {
 	return false
 }
 
-func coilctl(args ...string) (stdout, stderr []byte, e error) {
-	return execAt(host1, "/data/coilctl "+strings.Join(args, " "))
+func coilctl(args ...string) {
+	stdout, stderr, err := execAt(host1, "/data/coilctl "+strings.Join(args, " "))
+	Expect(err).NotTo(HaveOccurred(), "error: %v\nstdout: %s\nstderr: %s", err, string(stdout), string(stderr))
 }
 
 func checkFileExists(host, file string) {

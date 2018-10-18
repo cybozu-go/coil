@@ -19,14 +19,11 @@ var _ = Describe("pod deployment", func() {
 		addressPool := "10.0.1.0/24"
 
 		By("creating address pool")
-		_, _, err := coilctl("pool create default " + addressPool + " 2")
-		Expect(err).NotTo(HaveOccurred())
-
-		_, _, err = coilctl("pool show --json default " + addressPool)
-		Expect(err).NotTo(HaveOccurred())
+		coilctl("pool create default " + addressPool + " 2")
+		coilctl("pool show --json default " + addressPool)
 
 		By("deployment Pods")
-		_, _, err = kubectl("run nginx --replicas=2 --image=nginx")
+		_, _, err := kubectl("run nginx --replicas=2 --image=nginx")
 		Expect(err).NotTo(HaveOccurred())
 
 		By("waiting pods are ready")
@@ -79,14 +76,11 @@ var _ = Describe("pod deployment", func() {
 		addressPool := "10.0.6.0/24"
 
 		By("creating address pool")
-		_, _, err := coilctl("pool create default " + addressPool + " 2")
-		Expect(err).NotTo(HaveOccurred())
-
-		_, _, err = coilctl("pool show --json default " + addressPool)
-		Expect(err).NotTo(HaveOccurred())
+		coilctl("pool create default " + addressPool + " 2")
+		coilctl("pool show --json default " + addressPool)
 
 		By("deployment nginx Pod")
-		_, _, err = kubectl("run nginx --image=nginx --overrides='{\"apiVersion\": \"v1\", \"spec\": { \"nodeSelector\": {\"kubernetes.io/hostname\": \"" + node1 + "\" } } }' --restart=Never")
+		_, _, err := kubectl("run nginx --image=nginx --overrides='{\"apiVersion\": \"v1\", \"spec\": { \"nodeSelector\": {\"kubernetes.io/hostname\": \"" + node1 + "\" } } }' --restart=Never")
 		Expect(err).NotTo(HaveOccurred())
 
 		By("waiting pods are ready")
