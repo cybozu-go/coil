@@ -77,7 +77,8 @@ endpoints: ["http://127.0.0.1:2379"]
 EOF
 }
 
-install_kubectl_config() {
+install_kubectl() {
+    sudo cp /data/kubectl /opt/bin/kubectl
     mkdir -p $HOME/.kube
     $CKECLI kubernetes issue >$HOME/.kube/config
 }
@@ -106,7 +107,7 @@ run_vault
 run_cke
 sleep 1
 setup_cke
-install_kubectl_config
+install_kubectl
 
 cat <<EOF
 
