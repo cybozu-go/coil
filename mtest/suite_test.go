@@ -63,7 +63,11 @@ var _ = BeforeSuite(func() {
 	}).Should(Succeed())
 
 	By("setup coil-node daemonsets")
-	execSafeAt(host1, "/data/setup-coil.sh")
+	_, stderr, err = execAt(host1, "/data/setup-coil.sh")
+	if err != nil {
+		fmt.Println("err!!!", string(stderr))
+		panic(err)
+	}
 	Eventually(func() error {
 		stdout, _, err := kubectl("get", "daemonsets/coil-node", "-o=json")
 		if err != nil {

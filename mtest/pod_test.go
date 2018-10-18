@@ -96,24 +96,27 @@ var _ = Describe("pod deployment", func() {
 				return err
 			}
 
-			podList := new(corev1.PodList)
-			err = json.Unmarshal(stdout, podList)
+			pod := new(corev1.Pod)
+			err = json.Unmarshal(stdout, pod)
 			if err != nil {
 				return err
 			}
 
-			if podList.Items[0].Status.Phase != corev1.PodRunning {
+			if pod.Status.Phase != corev1.PodRunning {
 				return errors.New("pod is not Running")
+			}
+			if len(pod.Status.PodIP) == 0 {
+				return errors.New("pod is not assigned IP")
 			}
 			return nil
 		}).Should(Succeed())
 
-		podList := new(corev1.PodList)
-		stdout, _, err := kubectl("get pods --selector=run=nginx -o json")
+		pod := new(corev1.Pod)
+		stdout, _, err := kubectl("get pods/nginx -o json")
 		Expect(err).NotTo(HaveOccurred())
-		err = json.Unmarshal(stdout, podList)
+		err = json.Unmarshal(stdout, pod)
 		Expect(err).NotTo(HaveOccurred())
-		nginxPodIP := podList.Items[0].Status.PodIP
+		nginxPodIP := pod.Status.PodIP
 
 		By("executing curl to nginx Pod from ubuntu-debug Pod in different node")
 		_, _, err = kubectl("run -it ubuntu-debug --image=quay.io/cybozu/ubuntu-debug:18.04 --overrides='{ \"apiVersion\": \"v1\", \"spec\": { \"nodeSelector\": { \"kubernetes.io/hostname\": \"" + node2 + "\" } } }' --restart=Never --command -- curl http://" + nginxPodIP)
