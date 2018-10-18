@@ -22,12 +22,8 @@ import (
 const sshTimeout = 3 * time.Minute
 
 var (
-	sshClients     = make(map[string]*ssh.Client)
-	httpClient     = &cmd.HTTPClient{Client: &http.Client{}}
-	installedFiles = []string{
-		"/etc/cni/net.d/10-coil.conflist",
-		"/opt/cni/bin/coil",
-	}
+	sshClients = make(map[string]*ssh.Client)
+	httpClient = &cmd.HTTPClient{Client: &http.Client{}}
 )
 
 func sshTo(address string, sshKey ssh.Signer) (*ssh.Client, error) {
@@ -181,19 +177,6 @@ func initializeCoil() {
 		}
 		return nil
 	}).Should(Succeed())
-
-	Eventually(func() error {
-		for _, host := range []string{node1, node2} {
-			for _, file := range installedFiles {
-				By("checking " + file + " exists at " + host)
-				err := checkFileExists(host, file)
-				if err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	})
 
 	_, _, err = kubectl("create", "namespace", "mtest")
 	Expect(err).ShouldNot(HaveOccurred())

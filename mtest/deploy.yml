@@ -134,6 +134,7 @@ spec:
             - mountPath: /coil-secrets
               name: etcd-certs
         # This container installs the coil CNI plugin and configuration file.
+      initContainers:
         - name: coil-installer
           image: quay.io/cybozu/coil:dev
           command: ["/coil-installer"]
