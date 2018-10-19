@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/cybozu-go/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -111,7 +112,9 @@ func EnableIPForwarding() error {
 }
 
 // RemoveBootTaintFromNode remove bootstrap taints from the node.
-func RemoveBootTaintFromNode(nodeName string, taintKey string) error {
+func RemoveBootTaintFromNode(nodeName string, bootTaint string) error {
+	taintKeys := strings.Split(bootTaint, ",")
+
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return err
@@ -130,13 +133,16 @@ func RemoveBootTaintFromNode(nodeName string, taintKey string) error {
 	deleted := 0
 	for i := range node.Spec.Taints {
 		j := i - deleted
-		if node.Spec.Taints[j].Key == taintKey {
-			log.Info("remove taint", map[string]interface{}{
-				"node":  nodeName,
-				"taint": node.Spec.Taints[j].Key,
-			})
-			node.Spec.Taints = append(node.Spec.Taints[:j], node.Spec.Taints[j+1:]...)
-			deleted++
+		for _, taintKey := range taintKeys {
+			if node.Spec.Taints[j].Key == taintKey {
+				log.Info("remove taint", map[string]interface{}{
+					"node":  nodeName,
+					"taint": node.Spec.Taints[j].Key,
+				})
+				node.Spec.Taints = append(node.Spec.Taints[:j], node.Spec.Taints[j+1:]...)
+				deleted++
+				break
+			}
 		}
 	}
 

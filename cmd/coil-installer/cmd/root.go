@@ -35,6 +35,7 @@ const (
 	defaultCniEtcDir   = "/host/etc/cni/net.d"
 	defaultCniBinDir   = "/host/opt/cni/bin"
 	defaultCoilPath    = "/coil"
+	defaultBootTaint   = "coil.cybozu.com/bootstrap"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -104,4 +105,5 @@ func initConfig() {
 	viper.SetDefault("CNI_ETC_DIR", defaultCniEtcDir)
 	viper.SetDefault("CNI_BIN_DIR", defaultCniBinDir)
 	viper.SetDefault("COIL_PATH", defaultCoilPath)
+	viper.SetDefault("COIL_BOOT_TAINT", defaultBootTaint)
 }
