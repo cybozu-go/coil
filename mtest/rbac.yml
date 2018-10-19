@@ -31,6 +31,9 @@ metadata:
   name: coil-node
 rules:
   - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "update"]
+  - apiGroups: [""]
     resources: ["pods", "services", "endpoints"]
     verbs: ["get"]
 ---

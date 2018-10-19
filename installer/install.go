@@ -5,6 +5,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/cybozu-go/log"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 const (
@@ -103,4 +110,57 @@ func EnableIPForwarding() error {
 	}
 
 	return setForwarding(v6ForwardKey, true)
+}
+
+// RemoveBootTaintFromNode remove bootstrap taints from the node.
+func RemoveBootTaintFromNode(nodeName string, bootTaint string) error {
+	taintKeys := make(map[string]bool)
+	for _, key := range strings.Split(bootTaint, ",") {
+		if key != "" {
+			taintKeys[key] = true
+		}
+	}
+
+	// Return early if user does not use this function because
+	// such a user may not grant privileges required to remove
+	// taints.
+	if len(taintKeys) == 0 {
+		return nil
+	}
+
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return err
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
+	nodes := clientset.CoreV1().Nodes()
+	node, err := nodes.Get(nodeName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	var newTaints []corev1.Taint
+	for _, taint := range node.Spec.Taints {
+		if taintKeys[taint.Key] {
+			log.Info("remove taint", map[string]interface{}{
+				"node":  nodeName,
+				"taint": taint.Key,
+			})
+			continue
+		}
+		newTaints = append(newTaints, taint)
+	}
+
+	if len(node.Spec.Taints) == len(newTaints) {
+		return nil
+	}
+
+	node.Spec.Taints = newTaints
+	_, err = nodes.Update(node)
+	return err
 }
