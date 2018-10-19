@@ -5,8 +5,8 @@ import (
 )
 
 var _ = Describe("address pool", func() {
-	BeforeEach(initializeCoilData)
-	AfterEach(cleanCoilData)
+	BeforeEach(initializeCoil)
+	AfterEach(cleanCoil)
 
 	It("should create address pool", func() {
 		By("creating address pool")

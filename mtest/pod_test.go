@@ -14,8 +14,8 @@ import (
 )
 
 var _ = Describe("pod deployment", func() {
-	BeforeEach(initializeCoilData)
-	AfterEach(cleanCoilData)
+	BeforeEach(initializeCoil)
+	AfterEach(cleanCoil)
 
 	It("should assign PodIP using address pool", func() {
 		addressPool := "10.0.1.0/24"

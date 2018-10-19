@@ -43,20 +43,6 @@ data:
 
 ---
 
-# This Endpoints is for coild to dynamically resolve etcd endpoints.
-kind: Endpoints
-apiVersion: v1
-metadata:
-  name: cke-etcd
-  namespace: kube-system
-subsets:
-  - addresses:
-      - ip: 10.0.0.101
-    ports:
-      - port: 2379
-
----
-
 # This manifest installs the coild as well as CNI plugins and
 # network config on each node.
 kind: DaemonSet
@@ -134,6 +120,7 @@ spec:
             - mountPath: /coil-secrets
               name: etcd-certs
         # This container installs the coil CNI plugin and configuration file.
+      initContainers:
         - name: coil-installer
           image: quay.io/cybozu/coil:dev
           command: ["/coil-installer"]

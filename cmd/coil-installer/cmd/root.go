@@ -66,9 +66,6 @@ using given environment variables.`,
 		if err != nil {
 			log.ErrorExit(err)
 		}
-
-		// Sleep forever
-		<-(chan int)(nil)
 	},
 }
 

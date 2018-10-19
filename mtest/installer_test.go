@@ -19,6 +19,9 @@ var (
 )
 
 var _ = Describe("coil-installer", func() {
+	BeforeEach(initializeCoil)
+	AfterEach(cleanCoil)
+
 	It("should installed files by coil-installer container", func() {
 		for _, host := range []string{node1, node2} {
 			for _, file := range installedFiles {

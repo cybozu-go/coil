@@ -14,7 +14,7 @@ import (
 
 var _ = Describe("coil-controller", func() {
 	BeforeEach(func() {
-		initializeCoilData()
+		initializeCoil()
 		coilctl("pool create default 10.1.0.0/24 2")
 
 		// Dump current nodes
@@ -22,7 +22,7 @@ var _ = Describe("coil-controller", func() {
 		kubectl("get nodes/10.0.0.102 -o json >/tmp/node2.json")
 	})
 	AfterEach(func() {
-		cleanCoilData()
+		cleanCoil()
 
 		kubectl("apply -f /tmp/node1.json")
 		kubectl("apply -f /tmp/node2.json")

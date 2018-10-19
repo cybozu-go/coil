@@ -140,9 +140,9 @@ func coilctl(args ...string) []byte {
 	return stdout
 }
 
-func checkFileExists(host, file string) {
+func checkFileExists(host, file string) error {
 	_, _, err := execAt(host, "sudo test -f", file)
-	Expect(err).ShouldNot(HaveOccurred())
+	return err
 }
 
 func checkSysctlParam(host, param string) string {
@@ -156,7 +156,7 @@ func etcdctl(args ...string) (stdout, stderr []byte, e error) {
 	return execAt(host1, "ETCDCTL_API=3 /data/etcdctl "+strings.Join(args, " "))
 }
 
-func initializeCoilData() {
+func initializeCoil() {
 	_, _, err := kubectl("apply", "-f", "/data/deploy.yml")
 	Expect(err).ShouldNot(HaveOccurred())
 
@@ -185,7 +185,7 @@ func initializeCoilData() {
 	Expect(err).ShouldNot(HaveOccurred())
 }
 
-func cleanCoilData() {
+func cleanCoil() {
 	_, _, err := kubectl("config", "set-context", "default", "--namespace=kube-system")
 	Expect(err).ShouldNot(HaveOccurred())
 
