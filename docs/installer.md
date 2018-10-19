@@ -16,3 +16,5 @@ Name               | Default               | Description
 `COIL_PATH`        | `/coil`               | Path to `coil`.
 `CNI_NETCONF_FILE` |                       | Path to CNI configuration file.
 `CNI_NETCONF`      |                       | CNI configuration file contents.
+`COIL_NODE_NAME`   |                       | The node name to install `coil`.
+`COIL_BOOT_TAINT`  |                       | The key of Taint to delete when the coil is installed.

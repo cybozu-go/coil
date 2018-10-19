@@ -5,6 +5,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/cybozu-go/log"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 const (
@@ -103,4 +108,37 @@ func EnableIPForwarding() error {
 	}
 
 	return setForwarding(v6ForwardKey, true)
+}
+
+func RemoveBootTaintFromNode(nodeName string, taintKey string) error {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return err
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
+	node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	deleted := 0
+	for i := range node.Spec.Taints {
+		j := i - deleted
+		if node.Spec.Taints[j].Key == taintKey {
+			log.Info("remove taint", map[string]interface{}{
+				"node":  nodeName,
+				"taint": node.Spec.Taints[j].Key,
+			})
+			node.Spec.Taints = append(node.Spec.Taints[:j], node.Spec.Taints[j+1:]...)
+			deleted++
+		}
+	}
+
+	_, err = clientset.CoreV1().Nodes().Update(node)
+	return err
 }

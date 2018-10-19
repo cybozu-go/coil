@@ -1,10 +1,12 @@
 package mtest
 
 import (
+	"encoding/json"
 	"strings"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 )
 
 var (
@@ -38,6 +40,23 @@ var _ = Describe("coil-installer", func() {
 				result := checkSysctlParam(host, param)
 				Expect(strings.TrimSpace(result)).To(Equal(expected))
 			}
+		}
+	})
+
+	It("should remove bootstrap taint from the node where coil is installed", func() {
+		stdout, _, err := kubectl("get", "nodes", "-o=json")
+		Expect(err).ShouldNot(HaveOccurred())
+
+		nodes := new(corev1.NodeList)
+		err = json.Unmarshal(stdout, nodes)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		for _, node := range nodes.Items {
+			taintKeys := make([]string, len(node.Spec.Taints))
+			for _, taint := range node.Spec.Taints {
+				taintKeys = append(taintKeys, taint.Key)
+			}
+			Expect(taintKeys).ShouldNot(ContainElement("coil.cybozu.com/bootstrap"))
 		}
 	})
 })

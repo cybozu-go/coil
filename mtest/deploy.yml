@@ -130,6 +130,12 @@ spec:
                 configMapKeyRef:
                   name: coil-config
                   key: cni_netconf
+            - name: COIL_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: COIL_BOOT_TAINT
+              value: coil.cybozu.com/bootstrap
           securityContext:
             privileged: true
           volumeMounts:

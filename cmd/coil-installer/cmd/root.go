@@ -51,6 +51,8 @@ using given environment variables.`,
 		coilPath := viper.GetString("COIL_PATH")
 		cniNetConf := viper.GetString("CNI_NETCONF")
 		cniNetConfFile := viper.GetString("CNI_NETCONF_FILE")
+		coilNodeName := viper.GetString("COIL_NODE_NAME")
+		coilBootTaint := viper.GetString("COIL_BOOT_TAINT")
 
 		err := installer.InstallCniConf(cniConfName, cniEtcDir, cniNetConf, cniNetConfFile)
 		if err != nil {
@@ -63,6 +65,11 @@ using given environment variables.`,
 		}
 
 		err = installer.EnableIPForwarding()
+		if err != nil {
+			log.ErrorExit(err)
+		}
+
+		err = installer.RemoveBootTaintFromNode(coilNodeName, coilBootTaint)
 		if err != nil {
 			log.ErrorExit(err)
 		}
@@ -90,6 +97,8 @@ func initConfig() {
 	viper.BindEnv("COIL_PATH")
 	viper.BindEnv("CNI_NETCONF_FILE")
 	viper.BindEnv("CNI_NETCONF")
+	viper.BindEnv("COIL_NODE_NAME")
+	viper.BindEnv("COIL_BOOT_TAINT")
 
 	viper.SetDefault("CNI_CONF_NAME", defaultCniConfName)
 	viper.SetDefault("CNI_ETC_DIR", defaultCniEtcDir)
