@@ -17,4 +17,4 @@ Name               | Default                     | Description
 `CNI_NETCONF_FILE` |                             | Path to CNI configuration file.
 `CNI_NETCONF`      |                             | CNI configuration file contents.
 `COIL_NODE_NAME`   |                             | The node name to install `coil`.
-`COIL_BOOT_TAINT`  | `coil.cybozu.com/bootstrap` | Comma separated keys of Taint to delete when the coil is installed.
+`COIL_BOOT_TAINT`  | `coil.cybozu.com/bootstrap` | Comma separated Taint keys to delete when installation completes.

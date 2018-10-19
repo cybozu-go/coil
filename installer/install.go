@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/cybozu-go/log"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -113,7 +114,19 @@ func EnableIPForwarding() error {
 
 // RemoveBootTaintFromNode remove bootstrap taints from the node.
 func RemoveBootTaintFromNode(nodeName string, bootTaint string) error {
-	taintKeys := strings.Split(bootTaint, ",")
+	taintKeys := make(map[string]bool)
+	for _, key := range strings.Split(bootTaint, ",") {
+		if key != "" {
+			taintKeys[key] = true
+		}
+	}
+
+	// Return early if user does not use this function because
+	// such a user may not grant privileges required to remove
+	// taints.
+	if len(taintKeys) == 0 {
+		return nil
+	}
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -125,27 +138,29 @@ func RemoveBootTaintFromNode(nodeName string, bootTaint string) error {
 		return err
 	}
 
-	node, err := clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	nodes := clientset.CoreV1().Nodes()
+	node, err := nodes.Get(nodeName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	deleted := 0
-	for i := range node.Spec.Taints {
-		j := i - deleted
-		for _, taintKey := range taintKeys {
-			if node.Spec.Taints[j].Key == taintKey {
-				log.Info("remove taint", map[string]interface{}{
-					"node":  nodeName,
-					"taint": node.Spec.Taints[j].Key,
-				})
-				node.Spec.Taints = append(node.Spec.Taints[:j], node.Spec.Taints[j+1:]...)
-				deleted++
-				break
-			}
+	var newTaints []corev1.Taint
+	for _, taint := range node.Spec.Taints {
+		if taintKeys[taint.Key] {
+			log.Info("remove taint", map[string]interface{}{
+				"node":  nodeName,
+				"taint": taint.Key,
+			})
+			continue
 		}
+		newTaints = append(newTaints, taint)
 	}
 
-	_, err = clientset.CoreV1().Nodes().Update(node)
+	if len(node.Spec.Taints) == len(newTaints) {
+		return nil
+	}
+
+	node.Spec.Taints = newTaints
+	_, err = nodes.Update(node)
 	return err
 }
