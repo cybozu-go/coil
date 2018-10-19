@@ -110,6 +110,7 @@ func EnableIPForwarding() error {
 	return setForwarding(v6ForwardKey, true)
 }
 
+// RemoveBootTaintFromNode remove bootstrap taints from the node.
 func RemoveBootTaintFromNode(nodeName string, taintKey string) error {
 	config, err := rest.InClusterConfig()
 	if err != nil {
