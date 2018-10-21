@@ -51,21 +51,21 @@ Command-line flags take precedence over configuration files because of [`viper.G
 
 Flags for etcd connection are defined in [cybozu-go/etcdutil](https://github.com/cybozu-go/etcdutil#command-line-flags).
 
-Flags for logging are defined in [cybozu-go/cmd](https://github.com/cybozu-go/cmd#command-line-options).
+Flags for logging are described in [cybozu-go/well](https://github.com/cybozu-go/well/wiki/Use-with-spf13-cobra).
 
-Following flags override the above specifications:
+Following flags are added or override the above specifications:
 
-Flag            | Default value        | Description
---------------- | -------------------- | -----------
-`--config`      | `$HOME/.coilctl.yml` | Location of the config file.
-`--etcd-prefix` | `/coil/`             | prefix for etcd keys.
+Flag            | Default value    | Description
+--------------- | ---------------- | -----------
+`--config`      | `$HOME/.coilctl` | [Viper configuration file](https://github.com/spf13/viper#reading-config-files).
+`--etcd-prefix` | `/coil/`         | prefix for etcd keys.
 
 ### Config file
 
 `coilctl` can read etcd connection parameters from a configuration file.
-The format is defined in [cybozu-go/etcdutil](https://github.com/cybozu-go/etcdutil#yamljson-configuration-file).
+The configuration file format may be one of YAML, JSON, or TOML.
 
-Following parameters override this specification:
+The syntax is defined in [cybozu-go/etcdutil](https://github.com/cybozu-go/etcdutil#yamljson-configuration-file).  Following parameters override the specification:
 
 Name     | Type   | Default  | Description
 -------- | ------ | -------- | -----------

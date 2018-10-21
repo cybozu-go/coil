@@ -1,5 +1,5 @@
 /*
-Package cmd provides a framework that helps implementation of
+Package well provides a framework that helps implementation of
 commands having these features:
 
 Better logging:
@@ -26,4 +26,4 @@ methods to manage goroutines.
 To use the framework easily, the framework provides an instance of
 Environment as the default, and functions to work with it.
 */
-package cmd
+package well

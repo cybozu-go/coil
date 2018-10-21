@@ -1,7 +1,7 @@
-[![GitHub release](https://img.shields.io/github/release/cybozu-go/cmd.svg?maxAge=60)][releases]
-[![GoDoc](https://godoc.org/github.com/cybozu-go/cmd?status.svg)][godoc]
-[![CircleCI](https://circleci.com/gh/cybozu-go/cmd.svg?style=svg)](https://circleci.com/gh/cybozu-go/cmd)
-[![Go Report Card](https://goreportcard.com/badge/github.com/cybozu-go/cmd)](https://goreportcard.com/report/github.com/cybozu-go/cmd)
+[![GitHub release](https://img.shields.io/github/release/cybozu-go/well.svg?maxAge=60)][releases]
+[![GoDoc](https://godoc.org/github.com/cybozu-go/well?status.svg)][godoc]
+[![CircleCI](https://circleci.com/gh/cybozu-go/well.svg?style=svg)](https://circleci.com/gh/cybozu-go/well)
+[![Go Report Card](https://goreportcard.com/badge/github.com/cybozu-go/well)](https://goreportcard.com/report/github.com/cybozu-go/well)
 
 Go Command Framework
 ====================
@@ -19,11 +19,12 @@ Features
 * Ultra fast UUID-like ID generator.
 * Activity tracking.
 * Support for [systemd socket activation](http://0pointer.de/blog/projects/socket-activation.html).
+* Support for [github.com/spf13/cobra][cobra].
 
 Requirements
 ------------
 
-Go 1.7 or better.
+Go 1.11 or better, though the code is expected to work with Go 1.7.
 
 Specifications
 --------------
@@ -79,7 +80,7 @@ Commands using this framework implement these external specifications:
 
     The framework changes [the way Go handles SIGPIPE slightly](https://golang.org/pkg/os/signal/#hdr-SIGPIPE).
     If a program using this framework receives SIGPIPE when writing to stdout or stderr, the program exits with status code 2.
-    See [#15](https://github.com/cybozu-go/cmd/issues/15) for details.
+    See [#15](https://github.com/cybozu-go/well/issues/15) for details.
 
 ### Environment variables
 
@@ -98,9 +99,12 @@ Usage
 
 Read [Tutorial][wiki], [the design notes](DESIGN.md) and [godoc][].
 
+A [wiki page for cobra users](https://github.com/cybozu-go/well/wiki/Use-with-spf13-cobra) is also available.
+
 Real world examples
 -------------------
 
+* [`github.com/cybozu-go/coil`](https://github.com/cybozu-go/coil) uses well with [cobra][].
 * [`github.com/cybozu-go/aptutil`](https://github.com/cybozu-go/aptutil)
 * [`github.com/cybozu-go/goma`](https://github.com/cybozu-go/goma)
 * [`github.com/cybozu-go/transocks`](https://github.com/cybozu-go/transocks)
@@ -113,7 +117,8 @@ License
 
 [MIT][]
 
-[releases]: https://github.com/cybozu-go/cmd/releases
-[godoc]: https://godoc.org/github.com/cybozu-go/cmd
-[wiki]: https://github.com/cybozu-go/cmd/wiki/Tutorial
+[releases]: https://github.com/cybozu-go/well/releases
+[godoc]: https://godoc.org/github.com/cybozu-go/well
+[wiki]: https://github.com/cybozu-go/well/wiki/Tutorial
+[cobra]: https://github.com/spf13/cobra
 [MIT]: https://opensource.org/licenses/MIT

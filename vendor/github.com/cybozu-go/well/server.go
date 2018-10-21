@@ -1,4 +1,4 @@
-package cmd
+package well
 
 import (
 	"context"
@@ -70,7 +70,7 @@ func (s *Server) Serve(l net.Listener) {
 		for {
 			conn, err := l.Accept()
 			if err != nil {
-				log.Debug("cmd: Listener.Accept error", map[string]interface{}{
+				log.Debug("well: Listener.Accept error", map[string]interface{}{
 					"addr":  l.Addr().String(),
 					"error": err.Error(),
 				})
@@ -110,7 +110,7 @@ func (s *Server) wait() {
 	select {
 	case <-ch:
 	case <-time.After(s.ShutdownTimeout):
-		log.Warn("cmd: timeout waiting for shutdown", nil)
+		log.Warn("well: timeout waiting for shutdown", nil)
 		atomic.StoreInt32(&s.timedout, 1)
 	}
 }

@@ -28,10 +28,10 @@ import (
 	"net"
 	"os"
 
-	mycmd "github.com/cybozu-go/cmd"
 	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/etcdutil"
 	"github.com/cybozu-go/log"
+	"github.com/cybozu-go/well"
 	"github.com/spf13/cobra"
 )
 
@@ -68,7 +68,7 @@ var poolShowCmd = &cobra.Command{
 		defer etcd.Close()
 
 		m := model.NewEtcdModel(etcd)
-		mycmd.Go(func(ctx context.Context) error {
+		well.Go(func(ctx context.Context) error {
 			ba, err := m.GetAssignments(ctx, showParams.Name, showParams.Subnet)
 			if err != nil {
 				return err
@@ -85,8 +85,8 @@ var poolShowCmd = &cobra.Command{
 			fmt.Printf("free blocks: %d out of %d\n", free, total)
 			return nil
 		})
-		mycmd.Stop()
-		err = mycmd.Wait()
+		well.Stop()
+		err = well.Wait()
 		if err != nil {
 			log.ErrorExit(err)
 		}

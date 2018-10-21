@@ -1,4 +1,4 @@
-package cmd
+package well
 
 import "context"
 
@@ -13,7 +13,7 @@ const (
 )
 
 func (k contextKey) String() string {
-	return "cmd: context key: " + string(k)
+	return "well: context key: " + string(k)
 }
 
 // WithRequestID returns a new context with a request ID as a value.

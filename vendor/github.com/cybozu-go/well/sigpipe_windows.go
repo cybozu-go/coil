@@ -1,3 +1,3 @@
-package cmd
+package well
 
 func handleSigPipe() {}
