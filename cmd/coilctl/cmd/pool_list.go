@@ -26,11 +26,11 @@ import (
 	"sort"
 	"strings"
 
-	mycmd "github.com/cybozu-go/cmd"
 	"github.com/cybozu-go/coil"
 	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/etcdutil"
 	"github.com/cybozu-go/log"
+	"github.com/cybozu-go/well"
 	"github.com/spf13/cobra"
 )
 
@@ -58,7 +58,7 @@ var poolListCmd = &cobra.Command{
 		defer etcd.Close()
 
 		m := model.NewEtcdModel(etcd)
-		mycmd.Go(func(ctx context.Context) error {
+		well.Go(func(ctx context.Context) error {
 			pools, err := m.ListPools(ctx)
 			if err != nil {
 				return err
@@ -76,8 +76,8 @@ var poolListCmd = &cobra.Command{
 
 			return nil
 		})
-		mycmd.Stop()
-		err = mycmd.Wait()
+		well.Stop()
+		err = well.Wait()
 		if err != nil {
 			log.ErrorExit(err)
 		}

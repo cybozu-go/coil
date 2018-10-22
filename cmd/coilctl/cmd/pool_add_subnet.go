@@ -25,10 +25,10 @@ import (
 	"errors"
 	"net"
 
-	mycmd "github.com/cybozu-go/cmd"
 	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/etcdutil"
 	"github.com/cybozu-go/log"
+	"github.com/cybozu-go/well"
 	"github.com/spf13/cobra"
 )
 
@@ -66,11 +66,11 @@ The subnet size must be larger than the SIZE given when the pool was created.`,
 		defer etcd.Close()
 
 		m := model.NewEtcdModel(etcd)
-		mycmd.Go(func(ctx context.Context) error {
+		well.Go(func(ctx context.Context) error {
 			return m.AddSubnet(ctx, addSubnetParams.Name, addSubnetParams.Subnet)
 		})
-		mycmd.Stop()
-		err = mycmd.Wait()
+		well.Stop()
+		err = well.Wait()
 		if err != nil {
 			log.ErrorExit(err)
 		}

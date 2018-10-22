@@ -1,6 +1,6 @@
 // +build !windows
 
-package cmd
+package well
 
 import (
 	"io"

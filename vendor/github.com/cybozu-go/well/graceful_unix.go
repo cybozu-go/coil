@@ -1,9 +1,10 @@
 // +build !windows
 
-package cmd
+package well
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"os"
@@ -14,7 +15,6 @@ import (
 	"time"
 
 	"github.com/cybozu-go/log"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -58,7 +58,7 @@ func restoreListeners(envvar string) ([]net.Listener, error) {
 		return nil, nil
 	}
 
-	log.Debug("cmd: restored listeners", map[string]interface{}{
+	log.Debug("well: restored listeners", map[string]interface{}{
 		"nfds": nfds,
 	})
 
@@ -80,7 +80,7 @@ func restoreListeners(envvar string) ([]net.Listener, error) {
 func SystemdListeners() ([]net.Listener, error) {
 	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
 	if err != nil {
-		return nil, errors.Wrap(err, "SystemdListeners")
+		return nil, err
 	}
 	if pid != os.Getpid() {
 		return nil, nil
@@ -114,7 +114,7 @@ func (g *Graceful) Run() {
 	log.DefaultLogger().SetDefaults(map[string]interface{}{
 		"pid": os.Getpid(),
 	})
-	log.Info("cmd: new child", nil)
+	log.Info("well: new child", nil)
 	g.Serve(lns)
 
 	// child process should not return.
@@ -177,7 +177,7 @@ RESTART:
 		return err
 	case <-sighup:
 		child.Process.Signal(syscall.SIGTERM)
-		log.Warn("cmd: got sighup", nil)
+		log.Warn("well: got sighup", nil)
 		time.Sleep(restartWait)
 		goto RESTART
 	case <-ctx.Done():
@@ -190,7 +190,7 @@ RESTART:
 		case <-done:
 			return nil
 		case <-time.After(g.ExitTimeout):
-			logger.Warn("cmd: timeout child exit", nil)
+			logger.Warn("well: timeout child exit", nil)
 			return nil
 		}
 	}

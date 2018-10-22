@@ -1,4 +1,4 @@
-package cmd
+package well
 
 import (
 	"errors"
@@ -25,7 +25,7 @@ func handleSignal(env *Environment) {
 
 	go func() {
 		s := <-ch
-		log.Warn("cmd: got signal", map[string]interface{}{
+		log.Warn("well: got signal", map[string]interface{}{
 			"signal": s.String(),
 		})
 		env.Cancel(errSignaled)

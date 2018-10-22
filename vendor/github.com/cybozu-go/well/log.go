@@ -1,4 +1,4 @@
-package cmd
+package well
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 
 	"github.com/cybozu-go/log"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -22,6 +24,14 @@ func init() {
 	// This is for child processes of graceful restarting server.
 	// See graceful.go
 	ignoreLogFilename = !isMaster()
+
+	// Support for spf13/{cobra,pflag,viper} toolkit.
+	pflag.String("logfile", "", "Log filename")
+	pflag.String("loglevel", "", "Log level [critical,error,warning,info,debug]")
+	pflag.String("logformat", "", "Log format [plain,logfmt,json]")
+	viper.BindPFlag("log.file", pflag.Lookup("logfile"))
+	viper.BindPFlag("log.level", pflag.Lookup("loglevel"))
+	viper.BindPFlag("log.format", pflag.Lookup("logformat"))
 }
 
 // LogConfig configures cybozu-go/log's default logger.
@@ -38,20 +48,31 @@ func init() {
 //
 // For details, see https://godoc.org/github.com/cybozu-go/log .
 type LogConfig struct {
-	Filename string `toml:"filename" json:"filename"`
-	Level    string `toml:"level"    json:"level"`
-	Format   string `toml:"format"   json:"format"`
+	Filename string `toml:"filename" json:"filename" yaml:"filename"`
+	Level    string `toml:"level"    json:"level"    yaml:"level"`
+	Format   string `toml:"format"   json:"format"   yaml:"format"`
 }
 
 // Apply applies configurations to the default logger.
 //
 // Command-line flags take precedence over the struct member values.
+//
+// When used with github.com/spf13/{pflag,viper}, pflag values are
+// bound to viper database, and Apply look for following keys
+// in the viper database:
+//     - log.file
+//     - log.level
+//     - log.format
+// If they are not empty, they take precedence over the struct member values.
 func (c LogConfig) Apply() error {
 	logger := log.DefaultLogger()
 
 	filename := c.Filename
 	if len(*logFilename) > 0 {
 		filename = *logFilename
+	}
+	if v := viper.GetString("log.file"); len(v) > 0 {
+		filename = v
 	}
 	if len(filename) > 0 && !ignoreLogFilename {
 		abspath, err := filepath.Abs(filename)
@@ -69,6 +90,9 @@ func (c LogConfig) Apply() error {
 	if len(*logLevel) > 0 {
 		level = *logLevel
 	}
+	if v := viper.GetString("log.level"); len(v) > 0 {
+		level = v
+	}
 	if len(level) == 0 {
 		level = "info"
 	}
@@ -80,6 +104,9 @@ func (c LogConfig) Apply() error {
 	format := c.Format
 	if len(*logFormat) > 0 {
 		format = *logFormat
+	}
+	if v := viper.GetString("log.format"); len(v) > 0 {
+		format = v
 	}
 	switch format {
 	case "", "plain":

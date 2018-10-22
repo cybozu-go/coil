@@ -21,14 +21,13 @@
 package cmd
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
-	mycmd "github.com/cybozu-go/cmd"
 	"github.com/cybozu-go/coil"
 	"github.com/cybozu-go/etcdutil"
 	"github.com/cybozu-go/log"
+	"github.com/cybozu-go/well"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
@@ -49,7 +48,7 @@ configuration YAML to supply etcd connection parameters.
 The default location of YAML is "$HOME/.coilctl.yml".`,
 
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		err := mycmd.LogConfig{}.Apply()
+		err := well.LogConfig{}.Apply()
 		if err != nil {
 			log.ErrorExit(err)
 		}
@@ -90,9 +89,6 @@ func init() {
 	for _, key := range []string{"tls-ca", "tls-cert", "tls-key"} {
 		viper.BindPFlag(key+"-file", rootCmd.PersistentFlags().Lookup("etcd-"+key))
 	}
-
-	// add flags for logging
-	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 }
 
 // initConfig reads in config file and ENV variables if set.

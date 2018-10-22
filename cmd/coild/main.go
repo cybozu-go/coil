@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cybozu-go/cmd"
 	"github.com/cybozu-go/coil"
 	"github.com/cybozu-go/coil/coild"
 	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/etcdutil"
 	"github.com/cybozu-go/log"
+	"github.com/cybozu-go/well"
 )
 
 var (
@@ -26,7 +26,7 @@ func subMain(ctx context.Context, server *coild.Server) error {
 		return nil
 	}
 
-	webServer := &cmd.HTTPServer{
+	webServer := &well.HTTPServer{
 		Server: &http.Server{
 			Addr:    *flagHTTP,
 			Handler: server,
@@ -41,9 +41,12 @@ func main() {
 	cfg := coil.NewEtcdConfig()
 	cfg.AddFlags(flag.CommandLine)
 	flag.Parse()
-	cmd.LogConfig{}.Apply()
+	err := well.LogConfig{}.Apply()
+	if err != nil {
+		log.ErrorExit(err)
+	}
 
-	err := coil.ResolveEtcdEndpoints(cfg)
+	err = coil.ResolveEtcdEndpoints(cfg)
 	if err != nil {
 		log.ErrorExit(err)
 	}
@@ -57,11 +60,11 @@ func main() {
 	db := model.NewEtcdModel(etcd)
 	server := coild.NewServer(db, *flagTableID, *flagProtocolID)
 
-	cmd.Go(func(ctx context.Context) error {
+	well.Go(func(ctx context.Context) error {
 		return subMain(ctx, server)
 	})
-	err = cmd.Wait()
-	if err != nil && !cmd.IsSignaled(err) {
+	err = well.Wait()
+	if err != nil && !well.IsSignaled(err) {
 		log.ErrorExit(err)
 	}
 }

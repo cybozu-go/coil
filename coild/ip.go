@@ -7,9 +7,9 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/cybozu-go/cmd"
 	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/log"
+	"github.com/cybozu-go/well"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -78,7 +78,7 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 
 	bl := s.addressBlocks[poolName]
 RETRY:
-	fields := cmd.FieldsFromContext(r.Context())
+	fields := well.FieldsFromContext(r.Context())
 	for _, block := range bl {
 		ip, err := s.db.AllocateIP(r.Context(), block, podNSName)
 		if err == model.ErrBlockIsFull {
@@ -181,7 +181,7 @@ OUTER:
 		}
 	}
 
-	fields := cmd.FieldsFromContext(r.Context())
+	fields := well.FieldsFromContext(r.Context())
 	if block == nil {
 		fields["ip"] = ip.String()
 		log.Critical("orphaned IP address", fields)

@@ -176,8 +176,9 @@ clean:
 	rm -rf $(OUTPUT)
 
 setup:
-	GO111MODULE=off go get -u \
-		github.com/onsi/ginkgo/ginkgo \
-		github.com/cybozu-go/placemat/...
+	GO111MODULE=off go get -u github.com/onsi/ginkgo/ginkgo
+	t=$$(mktemp -d); cd $$t; go mod init foo/bar; \
+		GO111MODULE=on go get github.com/cybozu-go/placemat && \
+		GO111MODULE=on go install github.com/cybozu-go/placemat/...
 
 .PHONY:	all clean setup test

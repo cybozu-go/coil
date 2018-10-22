@@ -5,6 +5,20 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [1.8.1] - 2018-10-21
+### Changed
+- Remove dependency on `github.com/spf13/cobra`.
+
+## [1.8.0] - 2018-10-21
+### Added
+- Support for users of [github.com/spf13/cobra](https://github.com/spf13/cobra) and its friends (#24).
+
+## [1.7.0] - 2018-10-20
+### Changed
+- Use http.Server.Shutdown for Go 1.8+ (#23).
+- Rename the project from `cmd` to `well`.
+- Remove dependency on `github.com/pkg/errors`.
+
 ## [1.6.0] - 2018-09-14
 ### Added
 - Opt in to [Go modules](https://github.com/golang/go/wiki/Modules).
@@ -73,7 +87,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Conform to cybozu-go/log v1.1.0 spec.
 
 [activation]: http://0pointer.de/blog/projects/socket-activation.html
-[Unreleased]: https://github.com/cybozu-go/cmd/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/cmd/compare/v1.8.1...HEAD
+[1.8.1]: https://github.com/cybozu-go/cmd/compare/v1.8.0...v1.8.1
+[1.8.0]: https://github.com/cybozu-go/cmd/compare/v1.7.0...v1.8.0
+[1.7.0]: https://github.com/cybozu-go/cmd/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/cybozu-go/cmd/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/cybozu-go/cmd/compare/v1.4.2...v1.5.0
 [1.4.2]: https://github.com/cybozu-go/cmd/compare/v1.4.1...v1.4.2

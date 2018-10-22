@@ -5,10 +5,10 @@ require (
 	github.com/containernetworking/plugins v0.7.3
 	github.com/coreos/etcd v3.3.9+incompatible
 	github.com/coreos/go-iptables v0.4.0 // indirect
-	github.com/cybozu-go/cmd v1.6.0
 	github.com/cybozu-go/etcdutil v1.3.0
 	github.com/cybozu-go/log v1.5.0
 	github.com/cybozu-go/netutil v1.2.0
+	github.com/cybozu-go/well v1.8.1
 	github.com/google/go-cmp v0.2.0
 	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf // indirect
 	github.com/googleapis/gnostic v0.2.0 // indirect

@@ -27,10 +27,10 @@ import (
 	"regexp"
 	"strconv"
 
-	mycmd "github.com/cybozu-go/cmd"
 	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/etcdutil"
 	"github.com/cybozu-go/log"
+	"github.com/cybozu-go/well"
 	"github.com/spf13/cobra"
 )
 
@@ -99,11 +99,11 @@ The other pools are pods running in the namespace of the same name.`,
 		defer etcd.Close()
 
 		m := model.NewEtcdModel(etcd)
-		mycmd.Go(func(ctx context.Context) error {
+		well.Go(func(ctx context.Context) error {
 			return m.AddPool(ctx, createParams.Name, createParams.Subnet, createParams.Size)
 		})
-		mycmd.Stop()
-		err = mycmd.Wait()
+		well.Stop()
+		err = well.Wait()
 		if err != nil {
 			log.ErrorExit(err)
 		}

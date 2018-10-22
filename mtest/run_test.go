@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cybozu-go/cmd"
+	"github.com/cybozu-go/well"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"golang.org/x/crypto/ssh"
@@ -23,7 +23,7 @@ const sshTimeout = 3 * time.Minute
 
 var (
 	sshClients = make(map[string]*ssh.Client)
-	httpClient = &cmd.HTTPClient{Client: &http.Client{}}
+	httpClient = &well.HTTPClient{Client: &http.Client{}}
 )
 
 func sshTo(address string, sshKey ssh.Signer) (*ssh.Client, error) {

@@ -1,4 +1,4 @@
-package cmd
+package well
 
 import (
 	"bytes"
@@ -63,7 +63,7 @@ func (c *LogCmd) log(st time.Time, err error, output []byte) {
 	fields["args"] = c.Cmd.Args
 
 	if err == nil {
-		logger.Log(c.Severity, "cmd: exec", fields)
+		logger.Log(c.Severity, "well: exec", fields)
 		return
 	}
 
@@ -71,7 +71,7 @@ func (c *LogCmd) log(st time.Time, err error, output []byte) {
 	if len(output) > 0 {
 		fields["stderr"] = UTF8StringFromBytes(output)
 	}
-	logger.Error("cmd: exec", fields)
+	logger.Error("well: exec", fields)
 }
 
 // CombinedOutput overrides exec.Cmd.CombinedOutput to record the result.

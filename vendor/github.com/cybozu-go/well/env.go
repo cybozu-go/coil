@@ -1,4 +1,4 @@
-package cmd
+package well
 
 import (
 	"context"
@@ -94,7 +94,7 @@ func (e *Environment) Cancel(err error) bool {
 func (e *Environment) Wait() error {
 	<-e.stopCh
 	if log.Enabled(log.LvDebug) {
-		log.Debug("cmd: waiting for all goroutines to complete", nil)
+		log.Debug("well: waiting for all goroutines to complete", nil)
 	}
 	e.wg.Wait()
 	e.cancel() // in case no one calls Cancel
