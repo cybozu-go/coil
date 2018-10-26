@@ -49,7 +49,8 @@ var _ = Describe("coil-controller", func() {
 		}).Should(Succeed())
 
 		By("deleting node resources")
-		kubectl("delete -f /tmp/node1.json")
+		_, stderr, err = kubectl("delete -f /tmp/node1.json")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 		By("checking block is released")
 		Eventually(func() error {
@@ -122,7 +123,7 @@ var _ = Describe("coil-controller", func() {
 			return nil
 		}).Should(Succeed())
 
-		kubectl("apply -f /data/deploy.yml")
+		_, stderr, err = kubectl("apply -f /data/deploy.yml")
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 		By("checking block is released")
