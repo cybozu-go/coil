@@ -210,6 +210,15 @@ spec:
             - "-etcd-tls-ca=/coil-secrets/cacert"
             - "-etcd-tls-cert=/coil-secrets/cert"
             - "-etcd-tls-key=/coil-secrets/key"
+          env:
+            - name: COILCTL_ENDPOINTS
+              value: "@cke-etcd"
+            - name: COILCTL_TLS_CA_FILE
+              value: "/coil-secrets/cacert"
+            - name: COILCTL_TLS_CERT_FILE
+              value: "/coil-secrets/cert"
+            - name: COILCTL_TLS_KEY_FILE
+              value: "/coil-secrets/key"
           volumeMounts:
             - mountPath: /coil-secrets
               name: etcd-certs

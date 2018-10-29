@@ -8,7 +8,7 @@ Command-line flags for etcd connection are defined in [etcdutil][].
 Etcd Endpoints lookup
 ---------------------
 
-`coild` looks for [`Endpoints`][Endpoints] resource in `kube-system` namespace
+`coil-controller` looks for [`Endpoints`][Endpoints] resource in `kube-system` namespace
 if `-etcd-endpoints` option value begins with `@`.
 
 If the value is `@myetcd`, it looks for `kube-system/myetcd` Endpoints and
