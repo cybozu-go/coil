@@ -23,6 +23,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/cybozu-go/coil"
 	"github.com/cybozu-go/etcdutil"
@@ -57,6 +58,12 @@ The default location of YAML is "$HOME/.coilctl.yml".`,
 			c.TagName = "yaml"
 		}
 		viper.Unmarshal(etcdConfig, yamlTagOption)
+
+		err = coil.ResolveEtcdEndpoints(etcdConfig)
+		if err != nil {
+			log.ErrorExit(err)
+		}
+
 		log.Debug("etcd-config", map[string]interface{}{
 			"config": fmt.Sprintf("%+v", etcdConfig),
 		})
@@ -109,7 +116,10 @@ func initConfig() {
 		viper.SetConfigName(".coilctl")
 	}
 
-	viper.AutomaticEnv() // read in environment variables that match
+	// Read in environment variables that have the prefix "COILCTL_".
+	viper.SetEnvPrefix("coilctl")
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.AutomaticEnv()
 
 	// If a config file is found, read it in.
 	viper.ReadInConfig()
