@@ -79,3 +79,18 @@ endpoints:
 username: coil
 password: xxxxx
 ```
+
+### Environment variables
+
+`coilctl` can read configuration parameters from environment variables.
+
+Use `COILCTL_` prefix to give parameters via environment variables.
+For example, set `COILCTL_TLS_CA_FILE` variable to specify the CA file instead of `tls-ca-file` in a configuration file.
+
+### Etcd Endpoints lookup
+
+`coilctl` looks for [`Endpoints`][Endpoints] resource in `kube-system` namespace
+if `-etcd-endpoints` option value begins with `@`.
+
+If the value is `@myetcd`, it looks for `kube-system/myetcd` Endpoints and
+connect etcd servers using IP addresses listed in the resource.
