@@ -206,10 +206,11 @@ spec:
           image: quay.io/cybozu/coil:dev
           command:
             - /coil-controller
-            - "-etcd-endpoints=@cke-etcd"
-            - "-etcd-tls-ca=/coil-secrets/cacert"
-            - "-etcd-tls-cert=/coil-secrets/cert"
-            - "-etcd-tls-key=/coil-secrets/key"
+            - "--etcd-endpoints=@cke-etcd"
+            - "--etcd-tls-ca=/coil-secrets/cacert"
+            - "--etcd-tls-cert=/coil-secrets/cert"
+            - "--etcd-tls-key=/coil-secrets/key"
+          # for "kubectl exec POD coilctl"
           env:
             - name: COILCTL_ENDPOINTS
               value: "@cke-etcd"

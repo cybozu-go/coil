@@ -1,54 +1,27 @@
+// Copyright © 2018 Cybozu
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
 package main
 
-import (
-	"context"
-	"flag"
-
-	"github.com/cybozu-go/coil"
-	"github.com/cybozu-go/coil/controller"
-	"github.com/cybozu-go/coil/model"
-	"github.com/cybozu-go/etcdutil"
-	"github.com/cybozu-go/log"
-	"github.com/cybozu-go/well"
-)
+import "github.com/cybozu-go/coil/cmd/coil-controller/cmd"
 
 func main() {
-	cfg := coil.NewEtcdConfig()
-	cfg.AddFlags(flag.CommandLine)
-	flag.Parse()
-	err := well.LogConfig{}.Apply()
-	if err != nil {
-		log.ErrorExit(err)
-	}
-
-	err = coil.ResolveEtcdEndpoints(cfg)
-	if err != nil {
-		log.ErrorExit(err)
-	}
-
-	etcd, err := etcdutil.NewClient(cfg)
-	if err != nil {
-		log.ErrorExit(err)
-	}
-	defer etcd.Close()
-
-	db := model.NewEtcdModel(etcd)
-	cntl, err := controller.NewController(db)
-	if err != nil {
-		log.ErrorExit(err)
-	}
-
-	well.Go(func(ctx context.Context) error {
-		rev, err := cntl.Sync(ctx)
-		if err != nil {
-			return err
-		}
-
-		return cntl.Watch(ctx, rev)
-	})
-
-	err = well.Wait()
-	if err != nil && !well.IsSignaled(err) {
-		log.ErrorExit(err)
-	}
+	cmd.Execute()
 }
