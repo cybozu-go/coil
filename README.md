@@ -78,6 +78,7 @@ This repository contains these programs:
 * `coild`: A background service to manage IP address.
 * `coil-controller`: watches kubernetes resources for coil.
 * `coil-installer`: installs `coil` and CNI configuration file.
+* `hypercoil`: all-in-one binary just like `hyperkube`.
 
 `coil` should be installed in `/opt/cni/bin` directory.
 

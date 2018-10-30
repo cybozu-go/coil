@@ -5,6 +5,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- `hypercoil`: all-in-one binary integrating all coil commands (#25)
+
 ## [0.2] - 2018-10-29
 
 ### Added
