@@ -53,13 +53,18 @@ all: test
 $(OUTPUT)/coil.img:
 	rm -rf tmpbin
 	mkdir tmpbin
-	cd ..; GOBIN=$(shell pwd)/tmpbin CGO_ENABLED=0 go install -mod=vendor ./...
+	cd ..; GOBIN=$(shell pwd)/tmpbin CGO_ENABLED=0 go install -mod=vendor ./cmd/hypercoil
+	ln -s hypercoil tmpbin/coil
+	ln -s hypercoil tmpbin/coild
+	ln -s hypercoil tmpbin/coil-controller
+	ln -s hypercoil tmpbin/coilctl
+	ln -s hypercoil tmpbin/coil-installer
 	sudo podman build --rm=false -f Dockerfile -t quay.io/cybozu/coil:dev tmpbin
 	mkdir -p $(OUTPUT)
 	sudo podman save -o $@ quay.io/cybozu/coil:dev
 
 $(OUTPUT)/coilctl: $(OUTPUT)/coil.img
-	cp tmpbin/coilctl $(OUTPUT)
+	cp tmpbin/coilctl $@
 
 $(MANAGEMENT_ETCD_ARCHIVE):
 	curl -sSLf -o $@ https://github.com/coreos/etcd/releases/download/v$(MANAGEMENT_ETCD_VERSION)/etcd-v$(MANAGEMENT_ETCD_VERSION)-linux-amd64.tar.gz
