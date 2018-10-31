@@ -1,70 +1,27 @@
+// Copyright © 2018 Cybozu
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
 package main
 
-import (
-	"context"
-	"flag"
-	"net/http"
-	"time"
-
-	"github.com/cybozu-go/coil"
-	"github.com/cybozu-go/coil/coild"
-	"github.com/cybozu-go/coil/model"
-	"github.com/cybozu-go/etcdutil"
-	"github.com/cybozu-go/log"
-	"github.com/cybozu-go/well"
-)
-
-var (
-	flagHTTP       = flag.String("http", defaultListenHTTP, "<Listen IP>:<Port number>")
-	flagTableID    = flag.Int("table-id", defaultTableID, "Routing table ID to export routes")
-	flagProtocolID = flag.Int("protocol-id", defaultProtocolID, "Route author ID")
-)
-
-func subMain(ctx context.Context, server *coild.Server) error {
-	err := server.Init(ctx)
-	if err != nil {
-		return nil
-	}
-
-	webServer := &well.HTTPServer{
-		Server: &http.Server{
-			Addr:    *flagHTTP,
-			Handler: server,
-		},
-		ShutdownTimeout: 3 * time.Minute,
-	}
-	webServer.ListenAndServe()
-	return nil
-}
+import "github.com/cybozu-go/coil/cmd/coild/cmd"
 
 func main() {
-	cfg := coil.NewEtcdConfig()
-	cfg.AddFlags(flag.CommandLine)
-	flag.Parse()
-	err := well.LogConfig{}.Apply()
-	if err != nil {
-		log.ErrorExit(err)
-	}
-
-	err = coil.ResolveEtcdEndpoints(cfg)
-	if err != nil {
-		log.ErrorExit(err)
-	}
-
-	etcd, err := etcdutil.NewClient(cfg)
-	if err != nil {
-		log.ErrorExit(err)
-	}
-	defer etcd.Close()
-
-	db := model.NewEtcdModel(etcd)
-	server := coild.NewServer(db, *flagTableID, *flagProtocolID)
-
-	well.Go(func(ctx context.Context) error {
-		return subMain(ctx, server)
-	})
-	err = well.Wait()
-	if err != nil && !well.IsSignaled(err) {
-		log.ErrorExit(err)
-	}
+	cmd.Execute()
 }
