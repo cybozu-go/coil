@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"sort"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -14,8 +13,16 @@ import (
 )
 
 var _ = Describe("pod deployment", func() {
-	BeforeEach(initializeCoil)
-	AfterEach(cleanCoil)
+	BeforeEach(func() {
+		initializeCoil()
+		_, stderr, err := kubectl("create namespace dmz")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
+	})
+	AfterEach(func() {
+		_, stderr, err := kubectl("delete namespace dmz")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
+		cleanCoil()
+	})
 
 	It("should assign PodIP using address pool", func() {
 		addressPool := "10.0.1.0/24"
@@ -92,7 +99,6 @@ var _ = Describe("pod deployment", func() {
 			return nil
 		}).Should(Succeed())
 
-		Expect(err).NotTo(HaveOccurred())
 		for _, pod := range podList.Items {
 			By("checking veth for Pod exists in node")
 			ip := net.ParseIP(pod.Status.PodIP)
@@ -129,12 +135,14 @@ var _ = Describe("pod deployment", func() {
 		err = json.Unmarshal(stdout, podList2)
 		Expect(err).NotTo(HaveOccurred())
 
-		ips1 := []string{podList.Items[0].Status.PodIP, podList.Items[1].Status.PodIP}
-		ips2 := []string{podList2.Items[0].Status.PodIP, podList2.Items[1].Status.PodIP}
-
-		sort.Strings(ips1)
-		sort.Strings(ips2)
-
+		ips1 := map[string]string{
+			podList.Items[0].Status.PodIP: podList.Items[0].Status.HostIP,
+			podList.Items[1].Status.PodIP: podList.Items[1].Status.HostIP,
+		}
+		ips2 := map[string]string{
+			podList2.Items[0].Status.PodIP: podList2.Items[0].Status.HostIP,
+			podList2.Items[1].Status.PodIP: podList2.Items[1].Status.HostIP,
+		}
 		Expect(ips1).To(Equal(ips2))
 	})
 
@@ -234,10 +242,7 @@ var _ = Describe("pod deployment", func() {
 		coilctl("pool create dmz " + addressPool + " 2")
 
 		By("deployment Pods in dmz namespace")
-		_, stderr, err := kubectl("create namespace dmz")
-		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
-
-		_, stderr, err = kubectl("run nginx --replicas=2 --image=nginx --namespace=dmz")
+		_, stderr, err := kubectl("run nginx --replicas=2 --image=nginx --namespace=dmz")
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 		By("waiting pods are ready")
