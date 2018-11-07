@@ -280,4 +280,47 @@ var _ = Describe("pod deployment", func() {
 			Expect(subnet.Contains(ip)).To(BeTrue(), "subnet: %s, ip: %s", subnet, ip)
 		}
 	})
+
+	It("should access Service IP", func() {
+		addressPool := "10.0.1.0/24"
+
+		By("creating address pool")
+		coilctl("pool create default " + addressPool + " 2")
+		coilctl("pool show --json default " + addressPool)
+
+		By("deployment nginx Pods")
+		_, stderr, err := kubectl("run nginx --image=nginx")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
+
+		By("waiting pods are ready")
+		Eventually(func() error {
+			stdout, _, err := kubectl("get deployments/nginx -o json")
+			if err != nil {
+				return err
+			}
+
+			deployment := new(appsv1.Deployment)
+			err = json.Unmarshal(stdout, deployment)
+			if err != nil {
+				return err
+			}
+
+			if deployment.Status.ReadyReplicas != 1 {
+				return errors.New("ReadyReplicas is not 1")
+			}
+			return nil
+		}).Should(Succeed())
+
+		By("exposing nginx Service")
+		_, stderr, err = kubectl("expose deployments/nginx --port=80 --target-port=80")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
+
+		By("executing curl to nginx Service by name from ubuntu Pod")
+		_, _, err = kubectl("run -it ubuntu1 --image=quay.io/cybozu/ubuntu-debug:18.04 --restart=Never --command -- curl http://nginx")
+		Expect(err).NotTo(HaveOccurred())
+
+		By("executing curl to nginx Service by FQDN from ubuntu Pod")
+		_, _, err = kubectl("run -it ubuntu2 --image=quay.io/cybozu/ubuntu-debug:18.04 --restart=Never --command -- curl http://nginx.mtest.svc.neco")
+		Expect(err).NotTo(HaveOccurred())
+	})
 })
