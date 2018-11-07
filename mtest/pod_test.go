@@ -288,11 +288,37 @@ var _ = Describe("pod deployment", func() {
 		coilctl("pool create default " + addressPool + " 2")
 		coilctl("pool show --json default " + addressPool)
 
-		By("deployment nginx Pods")
-		_, stderr, err := kubectl("run nginx --image=nginx")
+		By("deploying ubuntu Pod")
+		_, stderr, err := kubectl("run ubuntu --image=quay.io/cybozu/ubuntu-debug:18.04 -- sleep Infinity")
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
-		By("waiting pods are ready")
+		var ubuntuPodName string
+		By("waiting ubuntu Pod is ready")
+		Eventually(func() error {
+			stdout, _, err := kubectl("get pods --selector=run=ubuntu -o json")
+			if err != nil {
+				return err
+			}
+
+			pods := new(corev1.PodList)
+			err = json.Unmarshal(stdout, pods)
+			if err != nil {
+				return err
+			}
+
+			if len(pods.Items) != 1 {
+				return errors.New("num of ubuntu pods is not 1")
+			}
+
+			ubuntuPodName = pods.Items[0].Name
+			return nil
+		}).Should(Succeed())
+
+		By("deploying nginx Pod")
+		_, stderr, err = kubectl("run nginx --image=nginx")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
+
+		By("waiting nginx is ready")
 		Eventually(func() error {
 			stdout, _, err := kubectl("get deployments/nginx -o json")
 			if err != nil {
@@ -316,11 +342,21 @@ var _ = Describe("pod deployment", func() {
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 		By("executing curl to nginx Service by name from ubuntu Pod")
-		_, _, err = kubectl("run -it ubuntu1 --image=quay.io/cybozu/ubuntu-debug:18.04 --restart=Never --command -- curl http://nginx")
-		Expect(err).NotTo(HaveOccurred())
+		Eventually(func() error {
+			_, stderr, err = kubectl(fmt.Sprintf("exec -it %s -- curl http://nginx", ubuntuPodName))
+			if err != nil {
+				return fmt.Errorf("stderr: %s, err: %s", stderr, err.Error())
+			}
+			return nil
+		}).Should(Succeed())
 
 		By("executing curl to nginx Service by FQDN from ubuntu Pod")
-		_, _, err = kubectl("run -it ubuntu2 --image=quay.io/cybozu/ubuntu-debug:18.04 --restart=Never --command -- curl http://nginx.mtest.svc.neco")
-		Expect(err).NotTo(HaveOccurred())
+		Eventually(func() error {
+			_, stderr, err = kubectl(fmt.Sprintf("exec -it %s -- curl http://nginx.mtest.svc.neco", ubuntuPodName))
+			if err != nil {
+				return fmt.Errorf("stderr: %s, err: %s", stderr, err.Error())
+			}
+			return nil
+		}).Should(Succeed())
 	})
 })
