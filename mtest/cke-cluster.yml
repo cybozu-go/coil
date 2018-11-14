@@ -38,7 +38,7 @@ pod_subnet: 10.1.0.0/16
 dns_servers: ["8.8.8.8", "1.1.1.1"]
 options:
   kubelet:
-    boot-taints:
+    boot_taints:
       - key: coil.cybozu.com/bootstrap
         value:
         effect: NoSchedule
