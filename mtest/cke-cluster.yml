@@ -40,5 +40,4 @@ options:
   kubelet:
     boot_taints:
       - key: coil.cybozu.com/bootstrap
-        value:
         effect: NoSchedule
