@@ -91,7 +91,7 @@ install_ckecli() {
 
 run_cke() {
     docker inspect cke >/dev/null && return 0
-    docker run -d --rm --name cke --net=host -v /etc/cke:/etc/cke:ro quay.io/cybozu/cke:0 -interval 2s
+    docker run -d --rm --name cke --net=host -v /etc/cke:/etc/cke:ro quay.io/cybozu/cke:0 --interval 2s
 }
 
 setup_cke() {
