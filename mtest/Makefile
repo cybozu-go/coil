@@ -7,7 +7,7 @@ HOST1 = 10.0.0.11
 ## 'NODE' runs etcd and k8s, managed by CKE
 NODE1 = 10.0.0.101
 NODE2 = 10.0.0.102
-PLACEMAT = $(GOPATH)/bin/placemat
+PLACEMAT = /usr/bin/placemat
 GINKGO = env GOFLAGS=-mod=vendor $(GOPATH)/bin/ginkgo
 MANAGEMENT_ETCD_VERSION = 3.3.9
 VAULT_VERSION = 0.11.0
@@ -182,8 +182,5 @@ clean:
 
 setup:
 	GO111MODULE=off go get -u github.com/onsi/ginkgo/ginkgo
-	t=$$(mktemp -d); cd $$t; go mod init foo/bar; \
-		GO111MODULE=on go get github.com/cybozu-go/placemat && \
-		GO111MODULE=on go install github.com/cybozu-go/placemat/...
 
 .PHONY:	all clean setup test
