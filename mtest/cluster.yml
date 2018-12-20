@@ -28,6 +28,8 @@ files:
     file: rbac.yml
   - name: deploy.yml
     file: deploy.yml
+  - name: mtest_key
+    file: mtest_key
 ---
 kind: DataFolder
 name: node1
