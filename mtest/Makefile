@@ -46,6 +46,7 @@ GENERATED_FILES = \
 	$(OUTPUT)/bird-node1.conf \
 	$(OUTPUT)/bird-node2.conf \
 	$(OUTPUT)/rbac.yml $(OUTPUT)/deploy.yml \
+	$(OUTPUT)/mtest_key \
 	$(COREOS_IMAGE) \
 
 all: test
@@ -100,6 +101,10 @@ $(OUTPUT)/setup-coil.sh: setup-coil.sh
 	mkdir -p $(OUTPUT)
 	cp $< $@
 	chmod a+x $@
+
+$(OUTPUT)/mtest_key: $(SSH_PRIVKEY)
+	mkdir -p $(OUTPUT)
+	cp $< $@
 
 $(OUTPUT)/bird-node1.conf: bird.conf
 	mkdir -p $(OUTPUT)
