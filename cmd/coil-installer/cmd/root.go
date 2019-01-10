@@ -23,6 +23,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/cybozu-go/coil/installer"
 	"github.com/cybozu-go/log"
@@ -69,6 +70,11 @@ using given environment variables.`,
 		if err != nil {
 			log.ErrorExit(err)
 		}
+
+		// Because kubelet scans /etc/cni/net.d for CNI config files every 5 seconds,
+		// the installer need to sleep at least 5 seconds before removing a boot taint.
+		// ref: https://github.com/kubernetes/kubernetes/blob/3d9c6eb9e6e1759683d2c6cda726aad8a0e85604/pkg/kubelet/kubelet.go#L1416
+		time.Sleep(6 * time.Second)
 
 		err = installer.RemoveBootTaintFromNode(coilNodeName, coilBootTaint)
 		if err != nil {
