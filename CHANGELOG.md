@@ -5,9 +5,18 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.4] - 2019-01-11
+
+### Changed
+
+- Support for kubernetes 1.12 (#30)
+- Update mtest (#27, #28, #31, #33, #34)
+- [coil installer] Wait for kubelet to rescan /etc/cni/net.d
+
 ## [0.3] - 2018-10-31
 
 ### Added
+
 - `hypercoil`: all-in-one binary integrating all coil commands (#25)
 
 ## [0.2] - 2018-10-29
@@ -29,7 +38,8 @@ This is the first release
 
 - Implement CNI plugin, coild, coilctl and coil-controller
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v0.3...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v0.4...HEAD
+[0.4]: https://github.com/cybozu-go/coil/compare/v0.3...v0.4
 [0.3]: https://github.com/cybozu-go/coil/compare/v0.2...v0.3
 [0.2]: https://github.com/cybozu-go/coil/compare/v0.1...v0.2
 [0.1]: https://github.com/cybozu-go/coil/compare/91f0cb8b46e800f41a6b811fce811977ac52b07d...v0.1
