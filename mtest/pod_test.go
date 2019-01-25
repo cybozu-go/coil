@@ -195,7 +195,7 @@ var _ = Describe("pod deployment", func() {
 
 		By("deployment nginx Pod")
 		overrides := fmt.Sprintf(`{ "apiVersion": "v1", "spec": { "nodeSelector": { "kubernetes.io/hostname": "%s" } } }`, node1)
-		_, stderr, err := kubectl("run nginx --image=nginx --overrides='" + overrides + "' --restart=Never")
+		_, stderr, err := kubectl("run --generator=run-pod/v1 nginx --image=nginx --overrides='" + overrides + "' --restart=Never")
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 		By("waiting pods are ready")
@@ -229,7 +229,7 @@ var _ = Describe("pod deployment", func() {
 
 		By("executing curl to nginx Pod from ubuntu-debug Pod in different node")
 		overrides = fmt.Sprintf(`{ "apiVersion": "v1", "spec": { "nodeSelector": { "kubernetes.io/hostname": "%s" } } }`, node2)
-		_, _, err = kubectl("run -it ubuntu-debug --image=quay.io/cybozu/ubuntu-debug:18.04 --overrides='" + overrides + "' --restart=Never --command -- curl http://" + nginxPodIP)
+		_, _, err = kubectl("run --generator=run-pod/v1 -it ubuntu-debug --image=quay.io/cybozu/ubuntu-debug:18.04 --overrides='" + overrides + "' --restart=Never --command -- curl http://" + nginxPodIP)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
