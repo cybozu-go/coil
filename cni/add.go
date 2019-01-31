@@ -14,6 +14,10 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+var (
+	linkLocalNode = net.ParseIP("169.254.1.1")
+)
+
 func ipToIPNet(ip net.IP) *net.IPNet {
 	bits := 32
 	if ip.To4() == nil {
@@ -28,7 +32,8 @@ func ipToIPNet(ip net.IP) *net.IPNet {
 // setupVeth does:
 // 1. creates a veth pair in the container NS,
 // 2. moves one side of the pair to the host NS, and
-// 3. fill "Interface" objects which will be used in the plugin result.
+// 3. fill "Interface" objects which will be used in the plugin result, and
+// 4. sets a link local address to the host-side veth.
 func setupVeth(netns ns.NetNS, ifName string) (*current.Interface, *current.Interface, error) {
 	contIface := new(current.Interface)
 	hostIface := new(current.Interface)
@@ -54,6 +59,12 @@ func setupVeth(netns ns.NetNS, ifName string) (*current.Interface, *current.Inte
 	}
 	hostIface.Mac = hostVeth.Attrs().HardwareAddr.String()
 
+	addr := &netlink.Addr{IPNet: ipToIPNet(linkLocalNode), Label: ""}
+	err = netlink.AddrAdd(hostVeth, addr)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	return hostIface, contIface, nil
 }
 
@@ -74,9 +85,9 @@ func addRouteInHost(dst net.IP, devName string) error {
 }
 
 // addRouteInContainer does:
-// 1. "ip route add <gateway address>/32 dev eth0 scope link", and
-// 2. "ip route add default via <gateway address> scope global".
-func addRouteInContainer(gw net.IP, devName string) error {
+// 1. "ip route add <host-side link local address>/32 dev eth0 scope link", and
+// 2. "ip route add default via <host-side link local address> scope global".
+func addRouteInContainer(devName string) error {
 	dev, err := netlink.LinkByName(devName)
 	if err != nil {
 		return err
@@ -85,7 +96,7 @@ func addRouteInContainer(gw net.IP, devName string) error {
 	hostRoute := &netlink.Route{
 		LinkIndex: dev.Attrs().Index,
 		Scope:     netlink.SCOPE_LINK,
-		Dst:       ipToIPNet(gw),
+		Dst:       ipToIPNet(linkLocalNode),
 	}
 
 	err = netlink.RouteAdd(hostRoute)
@@ -100,7 +111,7 @@ func addRouteInContainer(gw net.IP, devName string) error {
 	defaultRoute := &netlink.Route{
 		Scope: netlink.SCOPE_UNIVERSE,
 		Dst:   defaultgw,
-		Gw:    gw,
+		Gw:    linkLocalNode,
 	}
 
 	return netlink.RouteAdd(defaultRoute)
@@ -110,14 +121,14 @@ func addRouteInContainer(gw net.IP, devName string) error {
 // 1. assigns an IP address,
 // 2. adds route to the host node, and
 // 3. adds default route, all in the container.
-func configureInterface(netns ns.NetNS, gw net.IP, ifName string, result *current.Result) error {
+func configureInterface(netns ns.NetNS, ifName string, result *current.Result) error {
 	return netns.Do(func(_ ns.NetNS) error {
 		err := ipam.ConfigureIface(ifName, result)
 		if err != nil {
 			return err
 		}
 
-		err = addRouteInContainer(gw, ifName)
+		err = addRouteInContainer(ifName)
 		if err != nil {
 			return err
 		}
@@ -157,7 +168,7 @@ func Add(args *skel.CmdArgs) error {
 		return err
 	}
 
-	ip, gw, err := getIPFromCoild(coildURL, podNS, podName)
+	ip, err := getIPFromCoild(coildURL, podNS, podName)
 	if err != nil {
 		return err
 	}
@@ -182,7 +193,7 @@ func Add(args *skel.CmdArgs) error {
 		},
 	}
 
-	err = configureInterface(netns, gw, args.IfName, result)
+	err = configureInterface(netns, args.IfName, result)
 	if err != nil {
 		return err
 	}

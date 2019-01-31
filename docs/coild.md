@@ -39,10 +39,9 @@ subsets:
 Environment variables
 ---------------------
 
-`coild` requires following environment variables to be set.
+`coild` requires following environment variable to be set.
 
 * `COIL_NODE_NAME`: The node name where `coild` is running.
-* `COIL_NODE_IP`: A routable IP address to the node.
 
 As `coild` should run as [`DaemonSet`](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/), these environment variables can be given as follows:
 
@@ -57,10 +56,6 @@ As `coild` should run as [`DaemonSet`](https://kubernetes.io/docs/concepts/workl
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: COIL_NODE_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.hostIP
 ```
 
 [etcdutil]: https://github.com/cybozu-go/etcdutil

@@ -57,10 +57,9 @@ var rootCmd = &cobra.Command{
 	Long: `coild is a backend service to allocate IP address.
 
 It normally run as a DaemonSet container in Kubernetes.
-Following environment variables need to be set:
+Following environment variable needs to be set:
 
     COIL_NODE_NAME:  The node name where the container is running.
-    COIL_NODE_IP:    A routable IP address to the node.
 `,
 
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {

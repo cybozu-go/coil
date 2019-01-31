@@ -10,7 +10,7 @@ import (
 	"path"
 )
 
-func getIPFromCoild(coild *url.URL, podNS, podName string) (ip, gw net.IP, err error) {
+func getIPFromCoild(coild *url.URL, podNS, podName string) (ip net.IP, err error) {
 	u := *coild
 	u.Path = path.Join(u.Path, "/ip")
 	var data struct {
@@ -24,28 +24,27 @@ func getIPFromCoild(coild *url.URL, podNS, podName string) (ip, gw net.IP, err e
 
 	body, err := json.Marshal(data)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	resp, err := http.Post(u.String(), "application/json", bytes.NewReader(body))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, nil, fmt.Errorf("coild returns %d", resp.StatusCode)
+		return nil, fmt.Errorf("coild returns %d", resp.StatusCode)
 	}
 
 	var result struct {
 		Address string `json:"address"`
-		Gateway string `json:"gateway"`
 	}
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return net.ParseIP(result.Address), net.ParseIP(result.Gateway), nil
+	return net.ParseIP(result.Address), nil
 }
 
 func returnIPToCoild(coild *url.URL, podNS, podName string) error {

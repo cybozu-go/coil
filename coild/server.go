@@ -29,7 +29,6 @@ type Server struct {
 	protocolID int
 
 	nodeName string
-	nodeIP   string
 
 	// skip routing table edit for testing
 	dryRun bool
@@ -64,10 +63,6 @@ func (s *Server) Init(ctx context.Context) error {
 	s.nodeName = os.Getenv("COIL_NODE_NAME")
 	if s.nodeName == "" {
 		return missingEnvvar("COIL_NODE_NAME")
-	}
-	s.nodeIP = os.Getenv("COIL_NODE_IP")
-	if s.nodeIP == "" {
-		return missingEnvvar("COIL_NODE_IP")
 	}
 
 	// retrieve blocks acquired previously
