@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2019-01-31
+
+### Changed
+
+- Support for Kubernetes 1.13 (#36)
+- `COIL_NODE_IP` is no longer needed for coild
+
 ## [0.4] - 2019-01-11
 
 ### Changed
@@ -38,7 +45,8 @@ This is the first release
 
 - Implement CNI plugin, coild, coilctl and coil-controller
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v0.4...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/cybozu-go/coil/compare/v0.4...v1.0.0
 [0.4]: https://github.com/cybozu-go/coil/compare/v0.3...v0.4
 [0.3]: https://github.com/cybozu-go/coil/compare/v0.2...v0.3
 [0.2]: https://github.com/cybozu-go/coil/compare/v0.1...v0.2
