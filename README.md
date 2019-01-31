@@ -16,7 +16,7 @@ with routing daemons like [BIRD][].  It does not implement
 Instead, users can choose their favorite routing daemons and/or network
 policy implementations for use with coil.
 
-**Project Status**: All planned features are implemented.
+**Project Status**: General Availability (GA)
 
 Requirements
 ------------
