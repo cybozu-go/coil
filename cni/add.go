@@ -12,6 +12,7 @@ import (
 	"github.com/containernetworking/plugins/pkg/ipam"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -59,7 +60,7 @@ func setupVeth(netns ns.NetNS, ifName string) (*current.Interface, *current.Inte
 	}
 	hostIface.Mac = hostVeth.Attrs().HardwareAddr.String()
 
-	addr := &netlink.Addr{IPNet: ipToIPNet(linkLocalNode), Label: ""}
+	addr := &netlink.Addr{IPNet: ipToIPNet(linkLocalNode), Scope: unix.RT_SCOPE_LINK, Label: ""}
 	err = netlink.AddrAdd(hostVeth, addr)
 	if err != nil {
 		return nil, nil, err
