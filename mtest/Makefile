@@ -9,9 +9,9 @@ NODE1 = 10.0.0.101
 NODE2 = 10.0.0.102
 PLACEMAT = /usr/bin/placemat
 GINKGO = env GOFLAGS=-mod=vendor $(GOPATH)/bin/ginkgo
-MANAGEMENT_ETCD_VERSION = 3.3.9
-VAULT_VERSION = 0.11.0
-K8S_VERSION = 1.11.2
+MANAGEMENT_ETCD_VERSION = 3.3.11
+VAULT_VERSION = 1.0.2
+K8S_VERSION = 1.13.2
 PLACEMAT_DATADIR = /var/scratch/placemat
 
 export BRIDGE_ADDRESS HOST1 NODE1 NODE2 PLACEMAT GINKGO
@@ -60,7 +60,7 @@ $(OUTPUT)/coil.img:
 	ln -s hypercoil tmpbin/coil-controller
 	ln -s hypercoil tmpbin/coilctl
 	ln -s hypercoil tmpbin/coil-installer
-	sudo podman build --rm=false -f Dockerfile -t quay.io/cybozu/coil:dev tmpbin
+	sudo podman build --no-cache --rm=false -f Dockerfile -t quay.io/cybozu/coil:dev tmpbin
 	mkdir -p $(OUTPUT)
 	sudo podman save -o $@ quay.io/cybozu/coil:dev
 

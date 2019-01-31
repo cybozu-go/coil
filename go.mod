@@ -28,7 +28,9 @@ require (
 	github.com/vishvananda/netns v0.0.0-20180720170159-13995c7128cc // indirect
 	golang.org/x/crypto v0.0.0-20181009213950-7c1a557ab941
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/api v0.0.0-20181013020047-475331a8afff
-	k8s.io/apimachinery v0.0.0-20181022183627-f71dbbc36e12
-	k8s.io/client-go v9.0.0+incompatible
+	k8s.io/api v0.0.0-20181121191454-a61488babbd6
+	k8s.io/apimachinery v0.0.0-20190117220443-572dfc7bdfcb
+	k8s.io/client-go v10.0.0+incompatible
+	k8s.io/klog v0.1.0 // indirect
+	sigs.k8s.io/yaml v1.1.0 // indirect
 )

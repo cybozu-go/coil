@@ -21,7 +21,17 @@ policy implementations for use with coil.
 Requirements
 ------------
 
-* [etcd][]
+* Linux Distribution
+  - [CoreOS Container Linux][] stable
+  - Other distributions are likely to work, but not tested.
+* Kubernetes Version
+  - 1.12.x
+  - 1.13.x
+  - Other versions are likely to work, but not tested.
+* [etcd][]: coil requires etcd v3 API, does not support v2.
+* Routing Software
+  - [Bird][]
+  - Other software that can import a kernel routing table and advertise them via BGP, RIP, OSPF.
 
 Features
 --------
@@ -105,3 +115,4 @@ MIT
 [BIRD]: https://bird.network.cz/
 [NetworkPolicy]: https://kubernetes.io/docs/concepts/services-networking/network-policies/
 [etcd]: https://github.com/etcd-io/etcd
+[CoreOS Container Linux]: https://coreos.com/os/docs/latest/

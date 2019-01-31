@@ -2,6 +2,7 @@
 
 VAULT=/data/vault
 CKECLI=/opt/bin/ckecli
+CKE_VERSION=1.13
 
 if [ ! -f /usr/bin/jq ]; then
     echo "please wait; cloud-init will install jq."
@@ -54,12 +55,12 @@ install_kubectl() {
 install_ckecli() {
     docker run --rm -u root:root --entrypoint /usr/local/cke/install-tools \
            -v /opt/bin:/host \
-           quay.io/cybozu/cke:0
+           quay.io/cybozu/cke:${CKE_VERSION}
 }
 
 run_cke() {
     docker inspect cke >/dev/null && return 0
-    docker run -d --rm --name cke --net=host -v /etc/cke:/etc/cke:ro quay.io/cybozu/cke:0 --interval 2s
+    docker run -d --rm --name cke --net=host -v /etc/cke:/etc/cke:ro quay.io/cybozu/cke:${CKE_VERSION} --interval 2s
 }
 
 setup_cke() {

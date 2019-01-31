@@ -31,7 +31,7 @@ var _ = Describe("coil-controller", func() {
 	It("deletes node's block by watching kubernetes api", func() {
 		By("creating pods")
 		overrides := fmt.Sprintf(`{ "apiVersion": "v1", "spec": { "nodeSelector": { "kubernetes.io/hostname": "%s" } } }`, node1)
-		_, stderr, err := kubectl("run nginx --image=nginx --overrides='" + overrides + "' --restart=Never")
+		_, stderr, err := kubectl("run --generator=run-pod/v1 nginx --image=nginx --overrides='" + overrides + "' --restart=Never")
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 		Eventually(func() error {
@@ -70,7 +70,7 @@ var _ = Describe("coil-controller", func() {
 	It("deletes node's block on initialization of the controller", func() {
 		By("creating pods")
 		overrides := fmt.Sprintf(`{ "apiVersion": "v1", "spec": { "nodeSelector": { "kubernetes.io/hostname": "%s" } } }`, node1)
-		_, stderr, err := kubectl("run nginx --image=nginx --overrides='" + overrides + "' --restart=Never")
+		_, stderr, err := kubectl("run --generator=run-pod/v1 nginx --image=nginx --overrides='" + overrides + "' --restart=Never")
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 		Eventually(func() error {
