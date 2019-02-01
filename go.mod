@@ -27,6 +27,7 @@ require (
 	github.com/vishvananda/netlink v1.0.0
 	github.com/vishvananda/netns v0.0.0-20180720170159-13995c7128cc // indirect
 	golang.org/x/crypto v0.0.0-20181009213950-7c1a557ab941
+	golang.org/x/sys v0.0.0-20181005133103-4497e2df6f9e
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.0.0-20181121191454-a61488babbd6
 	k8s.io/apimachinery v0.0.0-20190117220443-572dfc7bdfcb
