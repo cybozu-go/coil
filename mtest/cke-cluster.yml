@@ -13,3 +13,7 @@ options:
     boot_taints:
       - key: coil.cybozu.com/bootstrap
         effect: NoSchedule
+    extra_args:
+      - --container-runtime=remote
+      - --runtime-request-timeout=15m
+      - --container-runtime-endpoint=unix:///run/docker/libcontainerd/docker-containerd.sock
