@@ -62,7 +62,7 @@ $(OUTPUT)/coil.img:
 	ln -s hypercoil tmpbin/coil-installer
 	sudo podman build --no-cache --rm=false -f Dockerfile -t quay.io/cybozu/coil:dev tmpbin
 	mkdir -p $(OUTPUT)
-	sudo podman save -o $@ quay.io/cybozu/coil:dev
+	sudo skopeo copy containers-storage:quay.io/cybozu/coil:dev oci-archive:$@:dev
 
 $(OUTPUT)/coilctl: $(OUTPUT)/coil.img
 	cp tmpbin/coilctl $@

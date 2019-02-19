@@ -17,3 +17,5 @@ options:
       - --container-runtime=remote
       - --runtime-request-timeout=15m
       - --container-runtime-endpoint=unix:///run/docker/libcontainerd/docker-containerd.sock
+      - --container-log-max-size=100
+      - --container-log-max-files=10
