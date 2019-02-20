@@ -14,7 +14,7 @@
         "mode": 420,
         "contents": { "source": "data:,127.0.0.1%09localhost%0A::1%09%09localhost%0A%0A@NODE1@%09node1%0A@NODE2@%09node2%0A@NODE3@%09node3%0A@NODE4@%09node4%0A@NODE5@%09node5%0A@NODE6@%09node6%0A" }
       },
-      {   
+      {
         "filesystem": "root",
         "path": "/etc/containerd/config.toml",
         "contents": {
@@ -22,6 +22,15 @@
           "verification": {}
         },
         "mode": 420
+      },
+      {
+        "filesystem": "root",
+        "path": "/opt/bin/wait-containerd-socket",
+        "contents": {
+          "source": "data:,%23!%2Fbin%2Fsh%0Awhile%20!%20test%20-S%20%2Frun%2Fdocker%2Flibcontainerd%2Fdocker-containerd.sock%3B%20do%0A%20%20%20%20sleep%201%0Adone%0A",
+          "verification": {}
+        },
+        "mode": 493
       }
     ]
   },
@@ -73,18 +82,23 @@
       {
         "name": "load-coil.service",
         "enable": true,
-        "contents": "[Unit]\nWants=data.mount containerd.service\nAfter=data.mount containerd.service\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/ctr --address=/run/docker/libcontainerd/docker-containerd.sock --namespace k8s.io images import --oci-name=quay.io/cybozu/coil /data/coil.img\n\n[Install]\nWantedBy=multi-user.target\n"
+        "contents": "[Unit]\nWants=data.mount wait-containerd-socket.service\nAfter=data.mount wait-containerd-socket.service\n\n[Service]\nType=oneshot\nExecStartPre=/usr/bin/docker load -i /data/coil.img\nExecStartPre=/usr/bin/docker save quay.io/cybozu/coil:dev -o /tmp/coil-exported.img\nExecStart=/usr/bin/ctr \\\n  --address=/run/docker/libcontainerd/docker-containerd.sock \\\n  --namespace k8s.io \\\n  cri load \\\n  /tmp/coil-exported.img\n\n[Install]\nWantedBy=multi-user.target\n"
       },
-      { 
+      {
         "name": "containerd.service",
         "enable": true,
-        "dropins": [ 
-          { 
-            "contents": "[Service]\nExecStart=\nExecStart=/usr/bin/env PATH=${TORCX_BINDIR}:${PATH} ${TORCX_BINDIR}/containerd --config /etc/containerd/config.toml\n", 
-            "name": "10-opts.conf" 
-          } 
+        "dropins": [
+            {
+                "contents": "[Unit]\nConditionPathExists=/etc/containerd/config.toml\n\n[Service]\nExecStartPre=/usr/bin/mkdir -p /run/docker/libcontainerd\nExecStart=\nExecStart=/usr/bin/env PATH=${TORCX_BINDIR}:${PATH} ${TORCX_BINDIR}/containerd --config /etc/containerd/config.toml\n",
+                "name": "10-opts.conf"
+            }
         ]
-      } 
+      },
+      {
+        "name": "wait-containerd-socket.service",
+        "enable": true,
+        "contents": "[Unit]\nDescription=Wait for containerd socket\nWants=containerd.service\nAfter=containerd.service\n\n[Service]\nType=oneshot\nExecStart=/opt/bin/wait-containerd-socket\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n"
+      }
     ]
   }
 }

@@ -3,12 +3,52 @@
 systemd:
   units:
     - name: containerd.service
+      enable: true
       dropins:
         - name: 10-opts.conf
           contents: |
+            [Unit]
+            ConditionPathExists=/etc/containerd/config.toml
+
             [Service]
+            ExecStartPre=/usr/bin/mkdir -p /run/docker/libcontainerd
             ExecStart=
             ExecStart=/usr/bin/env PATH=${TORCX_BINDIR}:${PATH} ${TORCX_BINDIR}/containerd --config /etc/containerd/config.toml
+    - name: wait-containerd-socket.service
+      enable: true
+      contents: |
+        [Unit]
+        Description=Wait for containerd socket
+        Wants=containerd.service
+        After=containerd.service
+
+        [Service]
+        Type=oneshot
+        ExecStart=/opt/bin/wait-containerd-socket
+        RemainAfterExit=yes
+
+        [Install]
+        WantedBy=multi-user.target
+    - name: load-coil.service
+      enable: true
+      contents: |
+        [Unit]
+        Wants=data.mount wait-containerd-socket.service
+        After=data.mount wait-containerd-socket.service
+
+        [Service]
+        Type=oneshot
+        ExecStartPre=/usr/bin/docker load -i /data/coil.img
+        ExecStartPre=/usr/bin/docker save quay.io/cybozu/coil:dev -o /tmp/coil-exported.img
+        ExecStart=/usr/bin/ctr \
+          --address=/run/docker/libcontainerd/docker-containerd.sock \
+          --namespace k8s.io \
+          cri load \
+          /tmp/coil-exported.img
+
+        [Install]
+        WantedBy=multi-user.target
+
 storage:
   files:
     - path: /etc/containerd/config.toml
@@ -81,4 +121,12 @@ storage:
               mutation_threshold = 100
               schedule_delay = "0s"
               startup_delay = "100ms"
-
+    - path: /opt/bin/wait-containerd-socket
+      filesystem: root
+      mode: 0755
+      contents:
+        inline: |
+          #!/bin/sh
+          while ! test -S /run/docker/libcontainerd/docker-containerd.sock; do
+              sleep 1
+          done
