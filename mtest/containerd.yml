@@ -2,6 +2,21 @@
 
 systemd:
   units:
+    - name: setup-containerd.service
+      enable: true
+      contents: |
+        [Unit]
+        Description=Setup containerd
+        Wants=data.mount
+        After=data.mount
+
+        [Service]
+        Type=oneshot
+        ExecStart=/opt/bin/setup-containerd
+        RemainAfterExit=yes
+
+        [Install]
+        WantedBy=multi-user.target
     - name: containerd.service
       enable: true
       dropins:
@@ -9,11 +24,13 @@ systemd:
           contents: |
             [Unit]
             ConditionPathExists=/etc/containerd/config.toml
+            Wants=setup-containerd.service
+            After=setup-containerd.service
 
             [Service]
             ExecStartPre=/usr/bin/mkdir -p /run/docker/libcontainerd
             ExecStart=
-            ExecStart=/usr/bin/env PATH=${TORCX_BINDIR}:${PATH} ${TORCX_BINDIR}/containerd --config /etc/containerd/config.toml
+            ExecStart=/opt/bin/containerd --config /etc/containerd/config.toml
     - name: wait-containerd-socket.service
       enable: true
       contents: |
@@ -38,13 +55,11 @@ systemd:
 
         [Service]
         Type=oneshot
-        ExecStartPre=/usr/bin/docker load -i /data/coil.img
-        ExecStartPre=/usr/bin/docker save quay.io/cybozu/coil:dev -o /tmp/coil-exported.img
-        ExecStart=/usr/bin/ctr \
+        ExecStart=/opt/bin/ctr \
           --address=/run/docker/libcontainerd/docker-containerd.sock \
           --namespace k8s.io \
-          cri load \
-          /tmp/coil-exported.img
+          images import \
+          /data/coil.img
 
         [Install]
         WantedBy=multi-user.target
@@ -110,7 +125,7 @@ storage:
             [plugins.diff-service]
               default = ["walking"]
             [plugins.linux]
-              shim = "containerd-shim"
+              shim = "/opt/bin/containerd-shim"
               runtime = "runc"
               runtime_root = ""
               no_shim = false
@@ -130,3 +145,14 @@ storage:
           while ! test -S /run/docker/libcontainerd/docker-containerd.sock; do
               sleep 1
           done
+    - path: /opt/bin/setup-containerd
+      filesystem: root
+      mode: 0755
+      contents:
+        inline: |
+          #!/bin/sh
+          cp /data/containerd /opt/bin/containerd
+          cp /data/containerd-shim /opt/bin/containerd-shim
+          cp /data/containerd-shim-runc-v1 /opt/bin/containerd-shim-runc-v1
+          cp /data/ctr /opt/bin/ctr
+          cp /data/crictl /opt/bin/crictl

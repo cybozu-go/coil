@@ -31,6 +31,15 @@
           "verification": {}
         },
         "mode": 493
+      },
+      {
+        "filesystem": "root",
+        "path": "/opt/bin/setup-containerd",
+        "contents": {
+          "source": "data:,%23!%2Fbin%2Fsh%0Acp%20%2Fdata%2Fcontainerd%20%2Fopt%2Fbin%2Fcontainerd%0Acp%20%2Fdata%2Fcontainerd-shim%20%2Fopt%2Fbin%2Fcontainerd-shim%0Acp%20%2Fdata%2Fcontainerd-shim-runc-v1%20%2Fopt%2Fbin%2Fcontainerd-shim-runc-v1%0Acp%20%2Fdata%2Fctr%20%2Fopt%2Fbin%2Fctr%0Acp%20%2Fdata%2Fcrictl%20%2Fopt%2Fbin%2Fcrictl%0A",
+          "verification": {}
+        },
+        "mode": 493
       }
     ]
   },
@@ -80,24 +89,29 @@
         }]
       },
       {
-        "name": "load-coil.service",
+        "contents": "[Unit]\nDescription=Setup containerd\nWants=data.mount\nAfter=data.mount\n\n[Service]\nType=oneshot\nExecStart=/opt/bin/setup-containerd\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n",
         "enable": true,
-        "contents": "[Unit]\nWants=data.mount wait-containerd-socket.service\nAfter=data.mount wait-containerd-socket.service\n\n[Service]\nType=oneshot\nExecStartPre=/usr/bin/docker load -i /data/coil.img\nExecStartPre=/usr/bin/docker save quay.io/cybozu/coil:dev -o /tmp/coil-exported.img\nExecStart=/usr/bin/ctr \\\n  --address=/run/docker/libcontainerd/docker-containerd.sock \\\n  --namespace k8s.io \\\n  cri load \\\n  /tmp/coil-exported.img\n\n[Install]\nWantedBy=multi-user.target\n"
+        "name": "setup-containerd.service"
       },
       {
-        "name": "containerd.service",
-        "enable": true,
         "dropins": [
-            {
-                "contents": "[Unit]\nConditionPathExists=/etc/containerd/config.toml\n\n[Service]\nExecStartPre=/usr/bin/mkdir -p /run/docker/libcontainerd\nExecStart=\nExecStart=/usr/bin/env PATH=${TORCX_BINDIR}:${PATH} ${TORCX_BINDIR}/containerd --config /etc/containerd/config.toml\n",
-                "name": "10-opts.conf"
-            }
-        ]
+          {
+            "contents": "[Unit]\nConditionPathExists=/etc/containerd/config.toml\nWants=setup-containerd.service\nAfter=setup-containerd.service\n\n[Service]\nExecStartPre=/usr/bin/mkdir -p /run/docker/libcontainerd\nExecStart=\nExecStart=/opt/bin/containerd --config /etc/containerd/config.toml\n",
+            "name": "10-opts.conf"
+          }
+        ],
+        "enable": true,
+        "name": "containerd.service"
       },
       {
-        "name": "wait-containerd-socket.service",
+        "contents": "[Unit]\nDescription=Wait for containerd socket\nWants=containerd.service\nAfter=containerd.service\n\n[Service]\nType=oneshot\nExecStart=/opt/bin/wait-containerd-socket\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n",
         "enable": true,
-        "contents": "[Unit]\nDescription=Wait for containerd socket\nWants=containerd.service\nAfter=containerd.service\n\n[Service]\nType=oneshot\nExecStart=/opt/bin/wait-containerd-socket\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n"
+        "name": "wait-containerd-socket.service"
+      },
+      {
+        "contents": "[Unit]\nWants=data.mount wait-containerd-socket.service\nAfter=data.mount wait-containerd-socket.service\n\n[Service]\nType=oneshot\nExecStart=/opt/bin/ctr \\\n  --address=/run/docker/libcontainerd/docker-containerd.sock \\\n  --namespace k8s.io \\\n  images import \\\n  /data/coil.img\n\n[Install]\nWantedBy=multi-user.target\n",
+        "enable": true,
+        "name": "load-coil.service"
       }
     ]
   }

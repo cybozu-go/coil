@@ -38,6 +38,16 @@ files:
     file: bird-node1.conf
   - name: coil.img
     file: coil.img
+  - name: containerd
+    file: containerd
+  - name: containerd-shim
+    file: containerd-shim
+  - name: containerd-shim-runc-v1
+    file: containerd-shim-runc-v1
+  - name: ctr
+    file: ctr
+  - name: crictl
+    file: crictl
 ---
 kind: DataFolder
 name: node2
@@ -46,6 +56,16 @@ files:
     file: bird-node2.conf
   - name: coil.img
     file: coil.img
+  - name: containerd
+    file: containerd
+  - name: containerd-shim
+    file: containerd-shim
+  - name: containerd-shim-runc-v1
+    file: containerd-shim-runc-v1
+  - name: ctr
+    file: ctr
+  - name: crictl
+    file: crictl
 ---
 kind: Image
 name: coreos
