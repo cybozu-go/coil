@@ -17,6 +17,21 @@ systemd:
 
         [Install]
         WantedBy=multi-user.target
+    - name: setup-registry.service
+      enable: true
+      contents: |
+        [Unit]
+        Description=Setup registry
+        Wants=docker.socket
+        After=docker.socket
+
+        [Service]
+        Type=oneshot
+        ExecStart=/opt/bin/setup-registry
+        RemainAfterExit=yes
+
+        [Install]
+        WantedBy=multi-user.target
     - name: containerd.service
       enable: true
       dropins:
@@ -119,9 +134,9 @@ storage:
               [plugins.cri.registry]
                 [plugins.cri.registry.mirrors]
                   [plugins.cri.registry.mirrors."docker.io"]
-                    endpoint = ["https://registry-1.docker.io"]
+                    endpoint = ["http://localhost:5000"]
                   [plugins.cri.registry.mirrors."quay.io"]
-                    endpoint = ["https://quay.io"]
+                    endpoint = ["http://localhost:5000"]
             [plugins.diff-service]
               default = ["walking"]
             [plugins.linux]
@@ -156,3 +171,10 @@ storage:
           cp /data/containerd-shim-runc-v1 /opt/bin/containerd-shim-runc-v1
           cp /data/ctr /opt/bin/ctr
           cp /data/crictl /opt/bin/crictl
+    - path: /opt/bin/setup-registry
+      filesystem: root
+      mode: 0755
+      contents:
+        inline: |
+          #!/bin/sh
+          docker run --net=host --restart always --name registry registry:2
