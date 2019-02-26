@@ -13,7 +13,7 @@ jobs:
     - run: go test -mod=vendor -race -v ./...
     - run: go vet -mod=vendor ./...
 
-  mtest:
+  mtest-containerd:
     docker:
       - image: google/cloud-sdk
     steps:
@@ -23,11 +23,24 @@ jobs:
           command: |
             echo $GCLOUD_SERVICE_ACCOUNT > account.json
             gcloud auth activate-service-account --key-file=account.json
-      - run: ./bin/run-mtest.sh
+      - run: ./bin/run-mtest.sh remote
+
+  mtest-docker:
+    docker:
+      - image: google/cloud-sdk
+    steps:
+      - checkout
+      - run:
+          name: Store Service Account
+          command: |
+            echo $GCLOUD_SERVICE_ACCOUNT > account.json
+            gcloud auth activate-service-account --key-file=account.json
+      - run: ./bin/run-mtest.sh docker "should access pod in different node"
 
 workflows:
   version: 2
   main:
     jobs:
       - build
-      - mtest
+      - mtest-containerd
+      - mtest-docker

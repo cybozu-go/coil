@@ -1,5 +1,7 @@
 #!/bin/sh
 
+TARGET="$1"
+
 sudo -b sh -c "echo \$\$ >/tmp/placemat_pid$$; exec $PLACEMAT output/cluster.yml" >/dev/null 2>&1
 sleep 1
 PLACEMAT_PID=$(cat /tmp/placemat_pid$$)
@@ -21,7 +23,7 @@ fin() {
 }
 trap fin INT TERM HUP 0
 
-$GINKGO -v
+$GINKGO -v -focus="${TARGET}"
 RET=$?
 
 exit $RET

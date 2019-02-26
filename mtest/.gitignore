@@ -3,3 +3,6 @@
 *.img
 /vault_*.zip
 /tmpbin
+node.ign
+crictl.tar.gz
+protoc.zip

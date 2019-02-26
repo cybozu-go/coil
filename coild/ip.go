@@ -103,22 +103,33 @@ RETRY:
 	}
 
 	block, err := s.db.AcquireBlock(r.Context(), s.nodeName, poolName)
-	if err == model.ErrOutOfBlocks {
+	fields["pool"] = poolName
+	switch err {
+	case model.ErrOutOfBlocks:
 		fields[log.FnError] = err
-		fields["pool"] = poolName
 		log.Error("no more blocks in pool", fields)
 		renderError(r.Context(), w, APIError{
 			Status:  http.StatusServiceUnavailable,
 			Message: "no more blocks in pool " + poolName,
 			Err:     err,
 		})
-	}
-	if err != nil {
+		return
+	case model.ErrNotFound:
+		fields[log.FnError] = err
+		log.Error("address pool is not found", fields)
+		renderError(r.Context(), w, APIError{
+			Status:  http.StatusInternalServerError,
+			Message: "address pool is not found " + poolName,
+			Err:     err,
+		})
+		return
+	case nil:
+		// nothing to do
+	default:
 		renderError(r.Context(), w, InternalServerError(err))
 		return
 	}
 
-	fields["pool"] = poolName
 	fields["block"] = block.String()
 	log.Info("acquired new block", fields)
 
