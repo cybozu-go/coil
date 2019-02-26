@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.1] - 2019-02-26
+
+### Changed
+
+- Improve an error message when address pool is not found. (#40)
+
 ## [1.0.0] - 2019-01-31
 
 ### Changed
@@ -45,7 +51,8 @@ This is the first release
 
 - Implement CNI plugin, coild, coilctl and coil-controller
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/cybozu-go/coil/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/cybozu-go/coil/compare/v0.4...v1.0.0
 [0.4]: https://github.com/cybozu-go/coil/compare/v0.3...v0.4
 [0.3]: https://github.com/cybozu-go/coil/compare/v0.2...v0.3
