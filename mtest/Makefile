@@ -59,6 +59,13 @@ GENERATED_FILES = \
 	$(OUTPUT)/rbac.yml $(OUTPUT)/deploy.yml \
 	$(OUTPUT)/mtest_key \
 	$(COREOS_IMAGE) \
+	$(CONTAINERD_FILES) \
+	$(OUTPUT)/crictl
+
+CONTAINERD_FILES = \
+	$(OUTPUT)/containerd \
+	$(OUTPUT)/containerd-shim \
+	$(OUTPUT)/ctr
 
 all: test
 
@@ -181,6 +188,32 @@ $(OUTPUT)/rbac.yml: rbac.yml
 $(OUTPUT)/deploy.yml: deploy.yml
 	mkdir -p $(OUTPUT)
 	cp $< $@
+
+build-containerd:
+	rm -rf $(GOPATH)/src/github.com/containerd/containerd
+	mkdir -p $(GOPATH)/src/github.com/containerd/containerd
+	curl -fsSL -o containerd.tar.gz https://github.com/containerd/containerd/archive/v${CONTAINERD_VERSION}.tar.gz
+	tar -x -z --strip-components 1 -f containerd.tar.gz -C $(GOPATH)/src/github.com/containerd/containerd
+	rm -f containerd.tar.gz
+	(cd $(GOPATH)/src/github.com/containerd/containerd; make VERSION=$(CONTAINERD_VERSION))
+
+$(OUTPUT)/containerd: build-containerd
+	mkdir -p $(OUTPUT)
+	cp $(GOPATH)/src/github.com/containerd/containerd/bin/containerd $@
+
+$(OUTPUT)/containerd-shim: build-containerd
+	mkdir -p $(OUTPUT)
+	cp $(GOPATH)/src/github.com/containerd/containerd/bin/containerd-shim $@
+
+$(OUTPUT)/ctr: build-containerd
+	mkdir -p $(OUTPUT)
+	cp $(GOPATH)/src/github.com/containerd/containerd/bin/ctr $@
+
+$(OUTPUT)/crictl:
+	mkdir -p $(OUTPUT)
+	curl -fsSL -o crictl.tar.gz https://github.com/kubernetes-sigs/cri-tools/releases/download/v$(CRITOOLS_VERSION)/crictl-v$(CRITOOLS_VERSION)-linux-amd64.tar.gz
+	tar zxvf crictl.tar.gz -C $(OUTPUT)
+
 
 test: $(GENERATED_FILES)
 	sudo rm -rf $(PLACEMAT_DATADIR)/volumes/host1

@@ -117,7 +117,7 @@ storage:
           runtime-endpoint: /var/run/k8s-containerd.sock
           image-endpoint: ""
           timeout: 0
-          debut: false
+          debug: false
       mode: 0644
 
   directories:
@@ -192,20 +192,6 @@ systemd:
             [Service]
             Environment=DOCKER_OPTS="--bridge=none --iptables=false --ip-masq=false"
 
-    - name: load-coil.service
-      enable: true
-      contents: |
-        [Unit]
-        Wants=data.mount
-        After=data.mount docker.socket
-
-        [Service]
-        Type=oneshot
-        ExecStart=/usr/bin/docker load -i /data/coil.img
-
-        [Install]
-        WantedBy=multi-user.target
-
     - name: setup-k8s-containerd.service
       enable: true
       contents: |
@@ -257,3 +243,19 @@ systemd:
         [Install]
         WantedBy=multi-user.target
 
+    - name: load-coil.service
+      enable: true
+      contents: |
+        [Unit]
+        Wants=data.mount wait-k8s-containerd-socket.service docker.socket
+        After=data.mount wait-k8s-containerd-socket.service docker.socket
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/docker load -i /data/coil.img
+        ExecStart=/opt/bin/ctr \
+          --address=/var/run/k8s-containerd.sock \
+          --namespace k8s.io \
+          images import \
+          /data/coil.img
+        [Install]
+        WantedBy=multi-user.target
