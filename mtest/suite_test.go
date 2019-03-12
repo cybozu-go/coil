@@ -53,11 +53,6 @@ var _ = BeforeSuite(func() {
 		if len(nl.Items) != 2 {
 			return errors.New("Node is not 2")
 		}
-		for _, node := range nl.Items {
-			if !isNodeReady(node) {
-				return errors.New("node is not ready")
-			}
-		}
 		return nil
 	}).Should(Succeed())
 
