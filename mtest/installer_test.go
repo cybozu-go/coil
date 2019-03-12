@@ -2,6 +2,7 @@ package mtest
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 
 	. "github.com/onsi/ginkgo"
@@ -23,6 +24,29 @@ var (
 var _ = Describe("coil-installer", func() {
 	BeforeEach(initializeCoil)
 	AfterEach(cleanCoil)
+
+	It("", func() {
+		Eventually(func() error {
+			stdout, _, err := kubectl("get", "nodes", "-o=json")
+			if err != nil {
+				return err
+			}
+			var nl corev1.NodeList
+			err = json.Unmarshal(stdout, &nl)
+			if err != nil {
+				return err
+			}
+			if len(nl.Items) != 2 {
+				return errors.New("Node is not 2")
+			}
+			for _, node := range nl.Items {
+				if !isNodeReady(node) {
+					return errors.New("node is not ready")
+				}
+			}
+			return nil
+		}).Should(Succeed())
+	})
 
 	It("should installed files by coil-installer container", func() {
 		for _, host := range []string{node1, node2} {
