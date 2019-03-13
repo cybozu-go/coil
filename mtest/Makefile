@@ -18,11 +18,12 @@ VAULT_VERSION = 1.0.2
 K8S_VERSION = 1.13.2
 PLACEMAT_DATADIR = /var/scratch/placemat
 CONTAINERD_VERSION = 1.2.4
-PROTOC_VERSION = 3.6.1
+PROTOBUF_VERSION = 3.7.0
+PROTOC = /usr/local/bin/protoc
 CRITOOLS_VERSION = 1.13.0
-CT_VERSION = 0.9.0
 SUDO = sudo
-PACKAGES = libseccomp-dev
+PACKAGES = libseccomp-dev autoconf automake libtool
+CT_VERSION = 0.9.0
 CT = /usr/local/bin/ct
 
 export BRIDGE_ADDRESS HOST1 NODE1 NODE2 PLACEMAT GINKGO CONTAINER_RUNTIME
@@ -151,7 +152,12 @@ $(OUTPUT)/host1.ign: host.ign
 		-e 's/__NODE2__/$(NODE2)/' \
 		-e 's/__NODE_ADDRESS__/$(HOST1)/' $< > $@
 
-node.ign: node-ign.yml
+$(CT):
+	curl -fsSL -o ct https://github.com/coreos/container-linux-config-transpiler/releases/download/v$(CT_VERSION)/ct-v$(CT_VERSION)-x86_64-unknown-linux-gnu
+	chmod +x ct
+	$(SUDO) mv ct $@
+
+node.ign: node-ign.yml $(CT)
 	$(CT) -in-file=$< -pretty -out-file=$@
 
 $(OUTPUT)/node1.ign: node.ign
@@ -189,13 +195,20 @@ $(OUTPUT)/deploy.yml: deploy.yml
 	mkdir -p $(OUTPUT)
 	cp $< $@
 
-build-containerd:
+$(PROTOC):
+	curl -fsSL -o /tmp/protobuf.tar.gz https://github.com/protocolbuffers/protobuf/archive/v$(PROTOBUF_VERSION).tar.gz
+	tar -x -z -f /tmp/protobuf.tar.gz -C /tmp
+	(cd /tmp/protobuf-$(PROTOBUF_VERSION); ./autogen.sh && ./configure && make && $(SUDO) make install)
+	$(SUDO) ldconfig
+	rm -rf /tmp/protobuf.tar.gz /tmp/protobuf-$(PROTOBUF_VERSION)
+
+build-containerd: $(PROTOC)
 	rm -rf $(GOPATH)/src/github.com/containerd/containerd
 	mkdir -p $(GOPATH)/src/github.com/containerd/containerd
 	curl -fsSL -o containerd.tar.gz https://github.com/containerd/containerd/archive/v${CONTAINERD_VERSION}.tar.gz
 	tar -x -z --strip-components 1 -f containerd.tar.gz -C $(GOPATH)/src/github.com/containerd/containerd
 	rm -f containerd.tar.gz
-	(cd $(GOPATH)/src/github.com/containerd/containerd; make VERSION=$(CONTAINERD_VERSION))
+	(cd $(GOPATH)/src/github.com/containerd/containerd; env GO111MODULE=off make VERSION=$(CONTAINERD_VERSION))
 
 $(OUTPUT)/containerd: build-containerd
 	mkdir -p $(OUTPUT)
@@ -238,10 +251,5 @@ setup:
 	GO111MODULE=off go get -u github.com/onsi/ginkgo/ginkgo
 	$(SUDO) apt-get update
 	$(SUDO) apt-get -y install --no-install-recommends $(PACKAGES)
-	curl -fsSL -o protoc.zip https://github.com/google/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-linux-x86_64.zip
-	$(SUDO) unzip -o protoc.zip -d /usr/local
-	curl -fsSL -o ct https://github.com/coreos/container-linux-config-transpiler/releases/download/v$(CT_VERSION)/ct-v$(CT_VERSION)-x86_64-unknown-linux-gnu
-	chmod +x ct
-	$(SUDO) mv ct /usr/local/bin
 
 .PHONY:	all clean setup test
