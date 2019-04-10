@@ -12,7 +12,41 @@ jobs:
     - run: go build -mod=vendor ./...
     - run: go test -mod=vendor -race -v ./...
     - run: go vet -mod=vendor ./...
-
+    - run: GOBIN=/tmp/workspace CGO_ENABLED=0 GOLDFLAGS="-w -s" go install -mod=vendor ./cmd/hypercoil
+    - run: cp LICENSE /tmp/workspace
+    - persist_to_workspace:
+       root: /tmp/workspace
+       paths:
+         - hypercoil
+         - LICENSE
+  build-image:
+    docker:
+      - image: docker:stable
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /tmp/workspace
+      - run:
+          name: Copy files
+          command: |
+            cp /tmp/workspace/hypercoil docker
+            cp /tmp/workspace/LICENSE docker
+      - setup_remote_docker
+      - run:
+          name: Build image
+          command: |
+            docker build -t quay.io/cybozu/coil:latest ./docker
+      - run:
+          name: Push docker image to Quay.io
+          command: |
+            docker login -u $QUAY_USER -p $QUAY_PASSWORD quay.io
+            echo "pushing Coil image ..."
+            TAG=$(echo $CIRCLE_TAG | cut -c 2-)
+            docker tag quay.io/cybozu/coil:latest quay.io/cybozu/coil:$TAG
+            docker push quay.io/cybozu/coil:$TAG
+            BRANCH=$(echo $TAG | cut -d "." -f 1-2)
+            docker tag quay.io/cybozu/coil:latest quay.io/cybozu/coil:$BRANCH
+            docker push quay.io/cybozu/coil:$BRANCH
   mtest-containerd:
     docker:
       - image: google/cloud-sdk
@@ -44,3 +78,19 @@ workflows:
       - build
       - mtest-containerd
       - mtest-docker
+  release:
+    jobs:
+      - build:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+      - build-image:
+          requires:
+            - build
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
