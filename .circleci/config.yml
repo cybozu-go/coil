@@ -37,6 +37,23 @@ jobs:
           command: |
             docker build -t quay.io/cybozu/coil:latest ./docker
       - run:
+          name: Save image
+          command: |
+            mkdir -p /tmp/docker
+            docker save quay.io/cybozu/coil:latest -o /tmp/docker/image
+      - persist_to_workspace:
+          root: /tmp/docker
+          paths:
+            - image
+  push-image:
+    docker:
+      - image: docker:stable
+    steps:
+      - attach_workspace:
+          at: /tmp/docker
+      - setup_remote_docker
+      - run: docker load -i /tmp/docker/image
+      - run:
           name: Push docker image to Quay.io
           command: |
             docker login -u $QUAY_USER -p $QUAY_PASSWORD quay.io
@@ -76,6 +93,9 @@ workflows:
   main:
     jobs:
       - build
+      - build-image:
+          requires:
+            - build
       - mtest-containerd
       - mtest-docker
   release:
@@ -89,6 +109,14 @@ workflows:
       - build-image:
           requires:
             - build
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+      - push-image:
+          requires:
+            - build-image
           filters:
             branches:
               ignore: /.*/
