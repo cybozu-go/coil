@@ -12,5 +12,6 @@ RUN ln -s hypercoil coil \
 
 # Stage2: setup runtime container
 FROM scratch
+COPY LICENSE /
 COPY --from=stage1 /coil /
 ENTRYPOINT ["/hypercoil"]

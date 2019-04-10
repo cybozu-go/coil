@@ -13,10 +13,12 @@ jobs:
     - run: go test -mod=vendor -race -v ./...
     - run: go vet -mod=vendor ./...
     - run: GOBIN=/tmp/workspace CGO_ENABLED=0 GOLDFLAGS="-w -s" go install -mod=vendor ./cmd/hypercoil
+    - run: cp LICENSE /tmp/workspace
     - persist_to_workspace:
        root: /tmp/workspace
        paths:
          - hypercoil
+         - LICENSE
   build-image:
     docker:
       - image: docker:stable
@@ -25,9 +27,10 @@ jobs:
       - attach_workspace:
           at: /tmp/workspace
       - run:
-          name: Copy binaries
+          name: Copy files
           command: |
             cp /tmp/workspace/hypercoil docker
+            cp /tmp/workspace/LICENSE docker
       - setup_remote_docker
       - run:
           name: Build image
