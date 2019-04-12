@@ -242,20 +242,3 @@ systemd:
         RemainAfterExit=yes
         [Install]
         WantedBy=multi-user.target
-
-    - name: load-coil.service
-      enable: true
-      contents: |
-        [Unit]
-        Wants=data.mount wait-k8s-containerd-socket.service docker.socket
-        After=data.mount wait-k8s-containerd-socket.service docker.socket
-        [Service]
-        Type=oneshot
-        ExecStart=/usr/bin/docker load -i /data/coil.img
-        ExecStart=/opt/bin/ctr \
-          --address=/var/run/k8s-containerd.sock \
-          --namespace k8s.io \
-          images import \
-          /data/coil.img
-        [Install]
-        WantedBy=multi-user.target

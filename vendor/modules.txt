@@ -22,7 +22,7 @@ github.com/coreos/etcd/mvcc/mvccpb
 github.com/coreos/etcd/pkg/types
 # github.com/coreos/go-iptables v0.4.0
 github.com/coreos/go-iptables/iptables
-# github.com/cybozu-go/etcdutil v1.3.0
+# github.com/cybozu-go/etcdutil v1.3.1
 github.com/cybozu-go/etcdutil
 # github.com/cybozu-go/log v1.5.0
 github.com/cybozu-go/log
@@ -146,13 +146,13 @@ github.com/vishvananda/netlink
 github.com/vishvananda/netlink/nl
 # github.com/vishvananda/netns v0.0.0-20180720170159-13995c7128cc
 github.com/vishvananda/netns
-# golang.org/x/crypto v0.0.0-20181009213950-7c1a557ab941
+# golang.org/x/crypto v0.0.0-20181015023909-0c41d7ab0a0e
 golang.org/x/crypto/ssh
-golang.org/x/crypto/ssh/terminal
 golang.org/x/crypto/curve25519
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/internal/chacha20
 golang.org/x/crypto/poly1305
+golang.org/x/crypto/ssh/terminal
 golang.org/x/crypto/ed25519/internal/edwards25519
 golang.org/x/crypto/internal/subtle
 # golang.org/x/net v0.0.0-20181005035420-146acd28ed58
@@ -163,9 +163,9 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/context
 golang.org/x/net/trace
+golang.org/x/net/html/charset
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/internal/timeseries
-golang.org/x/net/html/charset
 golang.org/x/net/html
 golang.org/x/net/html/atom
 # golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be

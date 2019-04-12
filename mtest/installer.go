@@ -3,6 +3,7 @@ package mtest
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo"
@@ -21,15 +22,16 @@ var (
 	}
 )
 
-var _ = Describe("coil-installer", func() {
+// TestCoilInstaller tests coil-installer
+func TestCoilInstaller() {
 	BeforeEach(initializeCoil)
 	AfterEach(cleanCoil)
 
-	It("", func() {
+	It("should nodes are ready", func() {
 		Eventually(func() error {
-			stdout, _, err := kubectl("get", "nodes", "-o=json")
+			stdout, stderr, err := kubectl("get", "nodes", "-o=json")
 			if err != nil {
-				return err
+				return fmt.Errorf("%v: stderr=%s", err, stderr)
 			}
 			var nl corev1.NodeList
 			err = json.Unmarshal(stdout, &nl)
@@ -68,8 +70,8 @@ var _ = Describe("coil-installer", func() {
 	})
 
 	It("should remove bootstrap taint from the node where coil is installed", func() {
-		stdout, _, err := kubectl("get", "nodes", "-o=json")
-		Expect(err).ShouldNot(HaveOccurred())
+		stdout, stderr, err := kubectl("get", "nodes", "-o=json")
+		Expect(err).ShouldNot(HaveOccurred(), "stderr: %s", stderr)
 
 		nodes := new(corev1.NodeList)
 		err = json.Unmarshal(stdout, nodes)
@@ -83,4 +85,4 @@ var _ = Describe("coil-installer", func() {
 			Expect(taintKeys).ShouldNot(ContainElement("coil.cybozu.com/bootstrap"))
 		}
 	})
-})
+}
