@@ -10,10 +10,11 @@ var (
 	node1         = os.Getenv("NODE1")
 	node2         = os.Getenv("NODE2")
 
-	ckeConfigPath = os.Getenv("CKECONFIG")
-	coilImagePath = os.Getenv("COILIMAGE")
-	coilctlPath   = os.Getenv("COILCTL")
-	kubectlPath   = os.Getenv("KUBECTL")
+	ckeConfigPath  = os.Getenv("CKECONFIG")
+	coilImagePath  = os.Getenv("COILIMAGE")
+	coilctlPath    = os.Getenv("COILCTL")
+	kubectlPath    = os.Getenv("KUBECTL")
+	deployYAMLPath = os.Getenv("DEPLOYYAML")
 
 	sshKeyFile = os.Getenv("SSH_PRIVKEY")
 )

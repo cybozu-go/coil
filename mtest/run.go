@@ -224,6 +224,11 @@ func kubectl(args ...string) ([]byte, []byte, error) {
 	return execAt(host1, args...)
 }
 
+func kubectlWithInput(input []byte, args ...string) ([]byte, []byte, error) {
+	args = append([]string{"/opt/bin/kubectl"}, args...)
+	return execAtWithInput(host1, input, args...)
+}
+
 func isNodeReady(node corev1.Node) bool {
 	for _, cond := range node.Status.Conditions {
 		if cond.Type == corev1.NodeReady {
@@ -252,8 +257,10 @@ func etcdctl(args ...string) ([]byte, []byte, error) {
 }
 
 func initializeCoil() {
-	_, _, err := kubectl("apply", "-f", "/data/deploy.yml")
+	deploy, err := ioutil.ReadFile(deployYAMLPath)
 	Expect(err).ShouldNot(HaveOccurred())
+	_, stderr, err := kubectlWithInput(deploy, "apply", "-f", "-")
+	Expect(err).ShouldNot(HaveOccurred(), "stderr: %s", stderr)
 
 	Eventually(func() error {
 		stdout, _, err := kubectl("get", "daemonsets/coil-node", "--namespace=kube-system", "-o=json")
@@ -273,11 +280,11 @@ func initializeCoil() {
 		return nil
 	}).Should(Succeed())
 
-	_, _, err = kubectl("create", "namespace", "mtest")
-	Expect(err).ShouldNot(HaveOccurred())
+	_, stderr, err = kubectl("create", "namespace", "mtest")
+	Expect(err).ShouldNot(HaveOccurred(), "stderr: %s", stderr)
 
-	_, _, err = kubectl("config", "set-context", "default", "--namespace=mtest")
-	Expect(err).ShouldNot(HaveOccurred())
+	_, stderr, err = kubectl("config", "set-context", "default", "--namespace=mtest")
+	Expect(err).ShouldNot(HaveOccurred(), "stderr: %s", stderr)
 }
 
 func cleanCoil() {
@@ -287,7 +294,9 @@ func cleanCoil() {
 	_, stderr, err = kubectl("delete", "namespace", "mtest")
 	Expect(err).ShouldNot(HaveOccurred(), "stderr: %s", stderr)
 
-	_, stderr, err = kubectl("delete", "-f", "/data/deploy.yml")
+	deploy, err := ioutil.ReadFile(deployYAMLPath)
+	Expect(err).ShouldNot(HaveOccurred())
+	_, stderr, err = kubectlWithInput(deploy, "delete", "-f", "-")
 	Expect(err).ShouldNot(HaveOccurred(), "stderr: %s", stderr)
 
 	_, stderr, err = etcdctl("del", "/coil/", "--prefix")

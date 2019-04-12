@@ -46,5 +46,3 @@ EOF
 checkKubernetes
 setupCerts
 $KUBECTL config set-context default --namespace=kube-system
-$KUBECTL delete -f /data/rbac.yml || true
-$KUBECTL create -f /data/rbac.yml

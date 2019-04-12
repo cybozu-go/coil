@@ -22,10 +22,6 @@ files:
     file: setup-cke.sh
   - name: setup-coil.sh
     file: setup-coil.sh
-  - name: rbac.yml
-    file: rbac.yml
-  - name: deploy.yml
-    file: deploy.yml
   - name: mtest_key
     file: mtest_key
 ---

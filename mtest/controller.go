@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 
 	"github.com/cybozu-go/coil"
 	. "github.com/onsi/ginkgo"
@@ -147,7 +148,9 @@ func TestCoilController() {
 			return nil
 		}).Should(Succeed())
 
-		_, stderr, err = kubectl("apply", "-f", "/data/deploy.yml")
+		deploy, err := ioutil.ReadFile(deployYAMLPath)
+		Expect(err).NotTo(HaveOccurred())
+		_, stderr, err = kubectlWithInput(deploy, "apply", "-f", "-")
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 		By("checking block is released")

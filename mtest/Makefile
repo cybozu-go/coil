@@ -46,8 +46,9 @@ COILCTL := $(abspath $(OUTPUT))/coilctl
 COILIMAGE := $(abspath $(OUTPUT))/coil.img
 COREOS_IMAGE := coreos_production_qemu_image.img
 KUBECTL := $(abspath $(OUTPUT))/kubectl
+DEPLOYYAML := $(abspath $(OUTPUT))/deploy.yml
 
-export SSH_PRIVKEY CKECONFIG COILCTL COILIMAGE KUBECTL
+export SSH_PRIVKEY CKECONFIG COILCTL COILIMAGE KUBECTL DEPLOYYAML
 
 CONTAINERD_FILES = \
 	$(OUTPUT)/containerd \
@@ -74,7 +75,7 @@ PLACEMAT_DEPS = \
 	$(OUTPUT)/mtest_key \
 	$(OUTPUT)/node1.ign \
 	$(OUTPUT)/node2.ign \
-	$(OUTPUT)/rbac.yml $(OUTPUT)/deploy.yml \
+	$(OUTPUT)/deploy.yml \
 	$(OUTPUT)/setup-cke.sh \
 	$(OUTPUT)/setup-coil.sh \
 	$(OUTPUT)/vault
@@ -208,10 +209,6 @@ $(OUTPUT)/cke-cluster.yml: cke-cluster.yml
 $(OUTPUT)/cke.yml: cke.yml
 	mkdir -p $(OUTPUT)
 	sed -e 's/__HOST1__/$(HOST1)/' $< > $@
-
-$(OUTPUT)/rbac.yml: rbac.yml
-	mkdir -p $(OUTPUT)
-	cp $< $@
 
 $(OUTPUT)/deploy.yml: deploy.yml
 	mkdir -p $(OUTPUT)
