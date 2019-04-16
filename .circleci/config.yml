@@ -28,7 +28,8 @@ jobs:
     working_directory: /work
     steps:
     - checkout
-    - run: make test GOBIN=/tmp/workspace
+    - run: make test
+    - run: GOBIN=/tmp/workspace CGO_ENABLED=0 GOLDFLAGS="-w -s" go install -mod=vendor ./pkg/hypercoil
     - run: cp LICENSE /tmp/workspace
     - persist_to_workspace:
        root: /tmp/workspace

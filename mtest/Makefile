@@ -68,6 +68,7 @@ PLACEMAT_DEPS = \
 	$(OUTPUT)/cke.yml \
 	$(OUTPUT)/cluster.yml \
 	$(OUTPUT)/crictl \
+	$(OUTPUT)/deploy.yml \
 	$(OUTPUT)/etcd \
 	$(OUTPUT)/etcdctl \
 	$(OUTPUT)/host1.ign \
@@ -75,7 +76,6 @@ PLACEMAT_DEPS = \
 	$(OUTPUT)/mtest_key \
 	$(OUTPUT)/node1.ign \
 	$(OUTPUT)/node2.ign \
-	$(OUTPUT)/deploy.yml \
 	$(OUTPUT)/setup-cke.sh \
 	$(OUTPUT)/setup-coil.sh \
 	$(OUTPUT)/vault
