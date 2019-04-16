@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/bash -e
 
 CKECLI=/opt/bin/ckecli
 KUBECTL=/opt/bin/kubectl

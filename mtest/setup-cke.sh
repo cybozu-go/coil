@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/bash -e
 
 VAULT=/data/vault
 CKECLI=/opt/bin/ckecli
