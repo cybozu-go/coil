@@ -1,8 +1,8 @@
-#!/bin/sh -e
+#!/bin/bash -e
 
 CKECLI=/opt/bin/ckecli
-KUBECTL=/data/kubectl
-COILCTL=/data/coilctl
+KUBECTL=/opt/bin/kubectl
+COILCTL=/opt/bin/coilctl
 
 checkKubernetes() {
     if $KUBECTL get nodes >/dev/null 2>&1; then
@@ -13,7 +13,7 @@ checkKubernetes() {
 }
 
 setupCerts() {
-    $CKECLI etcd user-add coil /coil/
+    $CKECLI etcd user-add coil /coil/ || return 0
     certs=$($CKECLI etcd issue coil)
 
     cat >$HOME/.coilctl.yml <<EOF
@@ -46,5 +46,3 @@ EOF
 checkKubernetes
 setupCerts
 $KUBECTL config set-context default --namespace=kube-system
-$KUBECTL delete -f /data/rbac.yml || true
-$KUBECTL create -f /data/rbac.yml

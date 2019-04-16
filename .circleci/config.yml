@@ -1,4 +1,25 @@
-version: 2
+version: 2.1
+commands:
+  run-mtest:
+    description: "multi-host test"
+    parameters:
+      runtime:
+        type: string
+      suite:
+        type: string
+      target:
+        type: string
+        default: ""
+    steps:
+      - run:
+          name: Store Service Account
+          command: |
+            echo $GCLOUD_SERVICE_ACCOUNT > account.json
+            gcloud auth activate-service-account --key-file=account.json
+      - run:
+          command: |
+            ./bin/run-mtest.sh <<parameters.runtime>> <<parameters.suite>> <<parameters.target>>
+
 jobs:
   build:
     docker:
@@ -7,12 +28,8 @@ jobs:
     working_directory: /work
     steps:
     - checkout
-    - run: test -z "$(gofmt -s -l . | grep -v '^vendor' | tee /dev/stderr)"
-    - run: golint -set_exit_status $(go list -mod=vendor ./... | grep -v /vendor/)
-    - run: go build -mod=vendor ./...
-    - run: go test -mod=vendor -race -v ./...
-    - run: go vet -mod=vendor ./...
-    - run: GOBIN=/tmp/workspace CGO_ENABLED=0 GOLDFLAGS="-w -s" go install -mod=vendor ./cmd/hypercoil
+    - run: make test
+    - run: GOBIN=/tmp/workspace CGO_ENABLED=0 GOLDFLAGS="-w -s" go install -mod=vendor ./pkg/hypercoil
     - run: cp LICENSE /tmp/workspace
     - persist_to_workspace:
        root: /tmp/workspace
@@ -69,24 +86,18 @@ jobs:
       - image: google/cloud-sdk
     steps:
       - checkout
-      - run:
-          name: Store Service Account
-          command: |
-            echo $GCLOUD_SERVICE_ACCOUNT > account.json
-            gcloud auth activate-service-account --key-file=account.json
-      - run: ./bin/run-mtest.sh remote
-
+      - run-mtest:
+          runtime: remote
+          suite: ./functions
   mtest-docker:
     docker:
       - image: google/cloud-sdk
     steps:
       - checkout
-      - run:
-          name: Store Service Account
-          command: |
-            echo $GCLOUD_SERVICE_ACCOUNT > account.json
-            gcloud auth activate-service-account --key-file=account.json
-      - run: ./bin/run-mtest.sh docker "should access pod in different node"
+      - run-mtest:
+          runtime: docker
+          suite: ./functions
+          target: "should access pod in different node"
 
 workflows:
   version: 2

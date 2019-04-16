@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/bash -e
 
 VAULT=/data/vault
 CKECLI=/opt/bin/ckecli
@@ -52,6 +52,10 @@ install_kubectl() {
     $CKECLI kubernetes issue >$HOME/.kube/config
 }
 
+install_etcdctl() {
+    sudo cp /data/etcdctl /opt/bin/etcdctl
+}
+
 install_ckecli() {
     docker run --rm -u root:root --entrypoint /usr/local/cke/install-tools \
            -v /opt/bin:/host \
@@ -59,8 +63,12 @@ install_ckecli() {
 }
 
 run_cke() {
-    docker inspect cke >/dev/null && return 0
-    docker run -d --rm --name cke --net=host -v /etc/cke:/etc/cke:ro quay.io/cybozu/cke:${CKE_VERSION} --interval 2s
+    set +e
+    sudo systemctl reset-failed cke.service
+    sudo systemctl stop cke.service
+    set -e
+    sudo systemd-run --unit=cke.service \
+        docker run --rm --name cke --net=host -v /etc/cke:/etc/cke:ro quay.io/cybozu/cke:${CKE_VERSION} --interval 2s
 }
 
 setup_cke() {
@@ -77,15 +85,4 @@ run_cke
 sleep 1
 setup_cke
 install_kubectl
-
-cat <<EOF
-
-CKE has been initialized. use kubectl to manage a kubernetes cluster as:
-
-    $ /data/kubectl api-resources
-
-Run setup-coil.sh to setup etcd certificates for Coil.
-
-    $ /data/setup-coil.sh
-
-EOF
+install_etcdctl

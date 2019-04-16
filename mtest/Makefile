@@ -15,65 +15,86 @@ PLACEMAT = /usr/bin/placemat
 GINKGO = env GOFLAGS=-mod=vendor $(GOPATH)/bin/ginkgo
 MANAGEMENT_ETCD_VERSION = 3.3.11
 VAULT_VERSION = 1.0.2
-K8S_VERSION = 1.13.2
+K8S_VERSION = 1.13.4
 PLACEMAT_DATADIR = /var/scratch/placemat
+VM_SHARED_DIR = /mnt/placemat
 CONTAINERD_VERSION = 1.2.4
 PROTOBUF_VERSION = 3.7.0
 PROTOC = /usr/local/bin/protoc
 CRITOOLS_VERSION = 1.13.0
-SUDO = sudo
-PACKAGES = libseccomp-dev autoconf automake libtool
 CT_VERSION = 0.9.0
 CT = /usr/local/bin/ct
+SUDO = sudo
+PACKAGES = libseccomp-dev automake autoconf libtool
+SUITE = ./functions
+ifeq ($(findstring /,$(SUITE)),)
+  SUITE_PACKAGE = ./$(SUITE)
+else
+  SUITE_PACKAGE = $(SUITE)
+endif
 
-export BRIDGE_ADDRESS HOST1 NODE1 NODE2 PLACEMAT GINKGO CONTAINER_RUNTIME
+export BRIDGE_ADDRESS HOST1 NODE1 NODE2 PLACEMAT GINKGO CONTAINER_RUNTIME SUITE_PACKAGE
 
 # non-configuration variables
 MANAGEMENT_ETCD_ARCHIVE := etcd-v$(MANAGEMENT_ETCD_VERSION)-linux-amd64.tar.gz
 VAULT_ARCHIVE := vault_$(VAULT_VERSION)_linux_amd64.zip
 KUBECTL_URL := https://storage.googleapis.com/kubernetes-release/release/v$(K8S_VERSION)/bin/linux/amd64/kubectl
-SSH_PRIVKEY := ./mtest_key
+SSH_PRIVKEY = $(realpath ./mtest_key)
 OUTPUT := ./output
+CKECONFIG := $(abspath $(OUTPUT))/cke.yml
+COILCTL := $(abspath $(OUTPUT))/coilctl
+COILIMAGE := $(abspath $(OUTPUT))/coil.img
 COREOS_IMAGE := coreos_production_qemu_image.img
-CKECLI := $(OUTPUT)/ckecli
-CKECONFIG := $(OUTPUT)/cke.yml
-KUBECTL := $(OUTPUT)/kubectl
-COILIMAGE := $(OUTPUT)/coil.img
+KUBECTL := $(abspath $(OUTPUT))/kubectl
+DEPLOYYAML := $(abspath $(OUTPUT))/deploy.yml
 
-export SSH_PRIVKEY CKECLI CKECONFIG COILIMAGE KUBECTL
-
-GENERATED_FILES = \
-	$(COILIMAGE) $(OUTPUT)/coilctl \
-	$(OUTPUT)/etcd  $(OUTPUT)/etcdctl \
-	$(OUTPUT)/vault \
-	$(OUTPUT)/kubectl \
-	$(OUTPUT)/cluster.yml \
-	$(OUTPUT)/host1.ign \
-	$(OUTPUT)/node1.ign \
-	$(OUTPUT)/node2.ign \
-	$(OUTPUT)/cke-cluster.yml \
-	$(OUTPUT)/cke.yml \
-	$(OUTPUT)/setup-cke.sh \
-	$(OUTPUT)/setup-coil.sh \
-	$(OUTPUT)/bird-node1.conf \
-	$(OUTPUT)/bird-node2.conf \
-	$(OUTPUT)/rbac.yml $(OUTPUT)/deploy.yml \
-	$(OUTPUT)/mtest_key \
-	$(COREOS_IMAGE) \
-	$(CONTAINERD_FILES) \
-	$(OUTPUT)/crictl
+export SSH_PRIVKEY CKECONFIG COILCTL COILIMAGE KUBECTL DEPLOYYAML
 
 CONTAINERD_FILES = \
 	$(OUTPUT)/containerd \
 	$(OUTPUT)/containerd-shim \
 	$(OUTPUT)/ctr
 
-all: test
+TEST_DEPS = \
+	$(OUTPUT)/coilctl \
+	$(OUTPUT)/coil.img
 
+PLACEMAT_DEPS = \
+	$(CONTAINERD_FILES) \
+	$(COREOS_IMAGE) \
+	$(OUTPUT)/bird-node1.conf \
+	$(OUTPUT)/bird-node2.conf \
+	$(OUTPUT)/cke-cluster.yml \
+	$(OUTPUT)/cke.yml \
+	$(OUTPUT)/cluster.yml \
+	$(OUTPUT)/crictl \
+	$(OUTPUT)/deploy.yml \
+	$(OUTPUT)/etcd \
+	$(OUTPUT)/etcdctl \
+	$(OUTPUT)/host1.ign \
+	$(OUTPUT)/kubectl \
+	$(OUTPUT)/mtest_key \
+	$(OUTPUT)/node1.ign \
+	$(OUTPUT)/node2.ign \
+	$(OUTPUT)/setup-cke.sh \
+	$(OUTPUT)/setup-coil.sh \
+	$(OUTPUT)/vault
+
+all:
+	@echo "Specify one of these targets:"
+	@echo
+	@echo "    placemat - run VMs in placemat."
+	@echo "    stop     - stop placemat."
+	@echo "    test     - run test in placemat env."
+	@echo "    setup    - install dependencies."
+	@echo
+	@echo "'make test' accepts SUITE."
+
+# TEST_DEPS
 $(OUTPUT)/coil.img:
 	rm -rf tmpbin
 	mkdir tmpbin
-	cd ..; GOBIN=$(shell pwd)/tmpbin CGO_ENABLED=0 go install -mod=vendor ./cmd/hypercoil
+	cd ..; GOBIN=$(shell pwd)/tmpbin CGO_ENABLED=0 go install -mod=vendor ./pkg/hypercoil
 	ln -s hypercoil tmpbin/coil
 	ln -s hypercoil tmpbin/coild
 	ln -s hypercoil tmpbin/coil-controller
@@ -86,6 +107,7 @@ $(OUTPUT)/coil.img:
 $(OUTPUT)/coilctl: $(OUTPUT)/coil.img
 	cp tmpbin/coilctl $@
 
+# PLACEMAT_DEPS
 $(MANAGEMENT_ETCD_ARCHIVE):
 	curl -sSLf -o $@ https://github.com/coreos/etcd/releases/download/v$(MANAGEMENT_ETCD_VERSION)/etcd-v$(MANAGEMENT_ETCD_VERSION)-linux-amd64.tar.gz
 
@@ -157,10 +179,11 @@ $(CT):
 	chmod +x ct
 	$(SUDO) mv ct $@
 
-node.ign: node-ign.yml $(CT)
+$(OUTPUT)/node.ign: node-ign.yml $(CT)
+	mkdir -p $(OUTPUT)
 	$(CT) -in-file=$< -pretty -out-file=$@
 
-$(OUTPUT)/node1.ign: node.ign
+$(OUTPUT)/node1.ign: $(OUTPUT)/node.ign
 	mkdir -p $(OUTPUT)
 	sed -e 's/__BRIDGE_ADDRESS__/$(BRIDGE_ADDRESS)/' \
 		-e 's/__NODE_NAME__/node1/' \
@@ -168,7 +191,7 @@ $(OUTPUT)/node1.ign: node.ign
 		-e 's/__NODE2__/$(NODE2)/' \
 		-e 's/__NODE_ADDRESS__/$(NODE1)/' $< > $@
 
-$(OUTPUT)/node2.ign: node.ign
+$(OUTPUT)/node2.ign: $(OUTPUT)/node.ign
 	mkdir -p $(OUTPUT)
 	sed -e 's/__BRIDGE_ADDRESS__/$(BRIDGE_ADDRESS)/' \
 		-e 's/__NODE_NAME__/node2/' \
@@ -186,10 +209,6 @@ $(OUTPUT)/cke-cluster.yml: cke-cluster.yml
 $(OUTPUT)/cke.yml: cke.yml
 	mkdir -p $(OUTPUT)
 	sed -e 's/__HOST1__/$(HOST1)/' $< > $@
-
-$(OUTPUT)/rbac.yml: rbac.yml
-	mkdir -p $(OUTPUT)
-	cp $< $@
 
 $(OUTPUT)/deploy.yml: deploy.yml
 	mkdir -p $(OUTPUT)
@@ -227,29 +246,29 @@ $(OUTPUT)/crictl:
 	curl -fsSL -o crictl.tar.gz https://github.com/kubernetes-sigs/cri-tools/releases/download/v$(CRITOOLS_VERSION)/crictl-v$(CRITOOLS_VERSION)-linux-amd64.tar.gz
 	tar zxvf crictl.tar.gz -C $(OUTPUT)
 
-
-test: $(GENERATED_FILES)
-	sudo rm -rf $(PLACEMAT_DATADIR)/volumes/host1
-	sudo rm -rf $(PLACEMAT_DATADIR)/volumes/node1
-	sudo rm -rf $(PLACEMAT_DATADIR)/volumes/node2
+# Targets
+test: $(TEST_DEPS)
 	./test.sh "$(TARGET)"
 
-placemat: $(GENERATED_FILES)
-	sudo rm -rf $(PLACEMAT_DATADIR)/volumes/host1
-	sudo rm -rf $(PLACEMAT_DATADIR)/volumes/node1
-	sudo rm -rf $(PLACEMAT_DATADIR)/volumes/node2
-	sudo -b $(PLACEMAT) -force output/cluster.yml
-	@echo 'Placemat is running.  To kill it, do "sudo pkill placemat".'
+placemat: $(PLACEMAT_DEPS)
+	sudo rm -rf $(PLACEMAT_DATADIR)
+	sudo rm -rf $(VM_SHARED_DIR)
+	sudo systemd-run --unit=placemat.service $(PLACEMAT) -enable-virtfs $(abspath output/cluster.yml)
+	@echo 'Placemat is running.  To kill it, do "make stop".'
 
-test-light:
-	$(GINKGO) -v -focus="${TARGET}"
+stop:
+	sudo systemctl stop placemat.service
+	sudo systemctl disable placemat.service
+	sudo rm /run/systemd/transient/placemat.service
+	sudo systemctl daemon-reload
+	sudo systemctl reset-failed placemat.service
 
 clean:
-	rm -rf $(OUTPUT) node.ign
+	rm -rf $(OUTPUT)
 
 setup:
-	GO111MODULE=off go get -u github.com/onsi/ginkgo/ginkgo
+	go install github.com/onsi/ginkgo/ginkgo
 	$(SUDO) apt-get update
 	$(SUDO) apt-get -y install --no-install-recommends $(PACKAGES)
 
-.PHONY:	all clean setup test
+.PHONY: all test placemat stop clean setup

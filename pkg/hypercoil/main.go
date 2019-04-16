@@ -7,11 +7,11 @@ import (
 
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/version"
-	controller "github.com/cybozu-go/coil/cmd/coil-controller/cmd"
-	installer "github.com/cybozu-go/coil/cmd/coil-installer/cmd"
-	coilctl "github.com/cybozu-go/coil/cmd/coilctl/cmd"
-	coild "github.com/cybozu-go/coil/cmd/coild/cmd"
 	"github.com/cybozu-go/coil/cni"
+	controller "github.com/cybozu-go/coil/pkg/coil-controller/cmd"
+	installer "github.com/cybozu-go/coil/pkg/coil-installer/cmd"
+	coilctl "github.com/cybozu-go/coil/pkg/coilctl/cmd"
+	coild "github.com/cybozu-go/coil/pkg/coild/cmd"
 )
 
 func usage() {
