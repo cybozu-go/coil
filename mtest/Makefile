@@ -13,15 +13,15 @@ RUNTIME_ENDPOINT = unix:///var/run/k8s-containerd.sock
 endif
 PLACEMAT = /usr/bin/placemat
 GINKGO = env GOFLAGS=-mod=vendor $(GOPATH)/bin/ginkgo
-MANAGEMENT_ETCD_VERSION = 3.3.11
+MANAGEMENT_ETCD_VERSION = 3.3.12
 VAULT_VERSION = 1.0.2
-K8S_VERSION = 1.13.4
+K8S_VERSION = 1.14.1
 PLACEMAT_DATADIR = /var/scratch/placemat
 VM_SHARED_DIR = /mnt/placemat
 CONTAINERD_VERSION = 1.2.6
 PROTOBUF_VERSION = 3.7.0
 PROTOC = /usr/local/bin/protoc
-CRITOOLS_VERSION = 1.13.0
+CRITOOLS_VERSION = 1.14.0
 CT_VERSION = 0.9.0
 CT = /usr/local/bin/ct
 SUDO = sudo
