@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- installer: remove existing CNI files if any.
+
 ## [1.0.1] - 2019-02-26
 
 ### Changed
