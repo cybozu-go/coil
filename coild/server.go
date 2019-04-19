@@ -85,9 +85,7 @@ func (s *Server) Init(ctx context.Context) error {
 				if len(sl) != 2 {
 					return fmt.Errorf("invalid pod ns/name: %s", podNSName)
 				}
-				pod, err := clientset.CoreV1().Pods(sl[0]).Get(sl[1], metav1.GetOptions{
-					IncludeUninitialized: true,
-				})
+				pod, err := clientset.CoreV1().Pods(sl[0]).Get(sl[1], metav1.GetOptions{})
 				if err == nil && ip.String() == pod.Status.PodIP {
 					s.podIPs[podNSName] = ip
 					continue
