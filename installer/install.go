@@ -35,6 +35,20 @@ func InstallCniConf(cniConfName, cniEtcDir, cniNetConf, cniNetConfFile string) e
 		return err
 	}
 
+	files, err := ioutil.ReadDir(cniEtcDir)
+	if err != nil {
+		return err
+	}
+	for _, fi := range files {
+		if fi.IsDir() {
+			continue
+		}
+		err := os.Remove(filepath.Join(cniEtcDir, fi.Name()))
+		if err != nil {
+			return err
+		}
+	}
+
 	f, err := os.Create(filepath.Join(cniEtcDir, cniConfName))
 	if err != nil {
 		return err
