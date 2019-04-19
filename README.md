@@ -28,6 +28,7 @@ Requirements
 * Kubernetes Version
   - 1.12.x
   - 1.13.x
+  - 1.14.x
   - Other versions are likely to work, but not tested.
 * [etcd][]: coil requires etcd v3 API, does not support v2.
 * Routing Software
