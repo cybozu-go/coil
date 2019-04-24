@@ -267,7 +267,7 @@ clean:
 	rm -rf $(OUTPUT)
 
 setup:
-	go install github.com/onsi/ginkgo/ginkgo
+	go install -mod=vendor github.com/onsi/ginkgo/ginkgo
 	$(SUDO) apt-get update
 	$(SUDO) apt-get -y install --no-install-recommends $(PACKAGES)
 

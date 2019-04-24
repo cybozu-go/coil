@@ -97,7 +97,7 @@ Following environment variable needs to be set:
 func subMain(ctx context.Context, server *coild.Server) error {
 	err := server.Init(ctx)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	webServer := &well.HTTPServer{
