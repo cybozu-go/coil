@@ -3,8 +3,8 @@
 
 - [GET /status](#status)
 - [POST /ip](#post)
-- [GET /ip/\<pod-namespace\>/\<pod-name\>](#get)
-- [DELETE /ip/\<pod-namespace\>/\<pod-name\>](#delete)
+- [GET /ip/\<pod-namespace\>/\<pod-name\>/\<container-id\>](#get)
+- [DELETE /ip/\<pod-namespace\>/\<pod-name\>/\<container-id\>](#delete)
 
 ## Failure response format
 
@@ -45,6 +45,7 @@ Input must be a JSON object with these fields:
 
 - `pod-namespace` ... Pod namespace
 - `pod-name` ... Pod name
+- `container-id` ... Container ID
 - `address-type` (optional) ... `"ipv4"` or `"ipv6"` (default is `"ipv4"`)
 
 ### Successful response
@@ -66,7 +67,7 @@ Input must be a JSON object with these fields:
 - 503 Service Unavailable: no available IP addresses.
 - 500 Internal Server Error: other reasons.
 
-## <a name="get" />`GET /ip/<pod-namespace>/<pod-name>`
+## <a name="get" />`GET /ip/<pod-namespace>/<pod-name>/<container-id>`
 
 Get assigned address for the pod.
 
@@ -87,7 +88,7 @@ Get assigned address for the pod.
 - 404 Not Found: address was not assigned to the pod.
 - 500 Internal Server Error: other reasons.
 
-## <a name="delete" />`DELETE /ip/<pod-namespace>/<pod-name>`
+## <a name="delete" />`DELETE /ip/<pod-namespace>/<pod-name>/<container-id>`
 
 Release assigned address for the pod.
 

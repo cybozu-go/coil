@@ -6,11 +6,11 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"path"
 
 	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/log"
 	"github.com/cybozu-go/well"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 type addressInfo struct {
@@ -39,6 +39,7 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 	input := struct {
 		PodNS       string `json:"pod-namespace"`
 		PodName     string `json:"pod-name"`
+		ContainerID string `json:"container-id"`
 		AddressType string `json:"address-type"`
 	}{}
 
@@ -55,6 +56,10 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 		renderError(r.Context(), w, BadRequest("no pod name"))
 		return
 	}
+	if len(input.ContainerID) == 0 {
+		renderError(r.Context(), w, BadRequest("no container-id"))
+		return
+	}
 
 	poolName, err := s.determinePoolName(r.Context(), input.PodNS)
 	if err != nil {
@@ -62,10 +67,7 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	podNSName := types.NamespacedName{
-		Namespace: input.PodNS,
-		Name:      input.PodName,
-	}.String()
+	podNSName := path.Join(input.PodNS, input.PodName, input.ContainerID)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
