@@ -30,9 +30,9 @@ Obtain `coild` status.
       "global": ["1.1.1.0/24"]
   },
   "pods": {
-      "default/pod1": "10.20.30.16",
-      "another/pod1": "10.20.30.18",
-      "global/pod1": "1.1.1.1"
+      "aafde066-f9cd-4934-94c2-e37c6d52623c": "10.20.30.16",
+      "ac6e3507-fce0-4c81-9419-a9a2f77826a8": "10.20.30.18",
+      "96723dac-ad0f-4584-99bf-68a22fdb3b5f": "1.1.1.1"
   },
   "status": 200
 }

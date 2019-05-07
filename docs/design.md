@@ -46,16 +46,8 @@ Coil need to reclaim IP addresses and address blocks when they are no longer use
 When a node is removed from Kubernetes cluster, `coil-controller` will reclaim
 IP addresses and address blocks kept for that node.
 
-When a Pod is removed, `coild` will free the IP address for the Pod.  It will *not*
-return address blocks to the pool at the same time to avoid complex concurrency
-control.
-
-When `coild` starts or restarts, it will first examine which address blocks and
-IP addresses are kept for the node by examining etcd database.  It then queries
-the API server to obtain the currently running Pods, and reclaim IP addresses
-kept for missing Pods.  If no IP addresses are kept for an address block, `coild`
-will return it to the pool.  Once `coild` completes this house-keeping, it starts
-accepting REST API requests.
+When a Pod is removed, `coild` will free the IP address for the Pod.  It will also
+return address blocks to the pool at the same time if they are no longer used.
 
 Routing
 -------

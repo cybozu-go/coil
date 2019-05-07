@@ -55,6 +55,10 @@ func (m *mock) GetMyBlocks(ctx context.Context, node string) (map[string][]*net.
 	return nil, nil
 }
 
+func (m *mock) GetAssignedBlocks(ctx context.Context) (map[string][]*net.IPNet, error) {
+	return nil, nil
+}
+
 func (m *mock) AcquireBlock(ctx context.Context, node, poolName string) (*net.IPNet, error) {
 	if m.availableBlocks == 0 {
 		return nil, ErrOutOfBlocks
@@ -105,4 +109,8 @@ func (m *mock) GetAssignments(ctx context.Context, name string, n *net.IPNet) (*
 
 func (m *mock) RemovePool(ctx context.Context, name string) error {
 	return nil
+}
+
+func (m *mock) GetAddressInfo(ctx context.Context, ip net.IP) (string, error) {
+	return "", nil
 }

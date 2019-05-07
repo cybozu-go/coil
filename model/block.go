@@ -35,6 +35,29 @@ func (m etcdModel) GetMyBlocks(ctx context.Context, node string) (map[string][]*
 	return ret, nil
 }
 
+func (m etcdModel) GetAssignedBlocks(ctx context.Context) (map[string][]*net.IPNet, error) {
+	resp, err := m.etcd.Get(ctx, keyBlock, clientv3.WithPrefix())
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make(map[string][]*net.IPNet)
+	for _, kv := range resp.Kvs {
+		ba := new(coil.BlockAssignment)
+		err = json.Unmarshal(kv.Value, ba)
+		if err != nil {
+			return nil, err
+		}
+
+		t := kv.Key[len(keyBlock):]
+		poolName := string(t[0:bytes.IndexByte(t, '/')])
+		for _, blocks := range ba.Nodes {
+			ret[poolName] = append(ret[poolName], blocks...)
+		}
+	}
+	return ret, nil
+}
+
 func (m etcdModel) AcquireBlock(ctx context.Context, node, poolName string) (*net.IPNet, error) {
 	bkeyPrefix := blockKeyPrefix(poolName)
 RETRY:

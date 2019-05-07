@@ -34,6 +34,21 @@ List all pool names and their subnets.
 
 List all address blocks assigned to a node.
 
+### `address info ADDRESS`
+
+Show ID of the container to which address of `ADDRESS` is assigned.
+
+### `address free ADDRESS`
+
+Free address of `ADDRESS` regardless of Pods statuses.
+
+This subcommand is intended for fixing inconsistency between DB and real Pods.
+When you find an address which is assigned in DB but is not used in any real Pods,
+you can free it with this subcommand.
+
+This should not be used in ordinary operations.
+
+
 ### `completion`
 
 Generate bash completion rules.

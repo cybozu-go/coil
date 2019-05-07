@@ -26,6 +26,10 @@ type Model interface {
 	// The return value is a map whose keys are pool names.
 	GetMyBlocks(ctx context.Context, node string) (map[string][]*net.IPNet, error)
 
+	// GetAssignedBlocks retrieves all assigned blocks.
+	// The return value is a map whose keys are pool names.
+	GetAssignedBlocks(ctx context.Context) (map[string][]*net.IPNet, error)
+
 	// AcquireBlock acquires a block from the free list for node.
 	//
 	// When the pool has no more free blocks, ErrOutOfBlocks will be returned.
@@ -54,4 +58,7 @@ type Model interface {
 
 	// RemovePool removes pool.
 	RemovePool(ctx context.Context, name string) error
+
+	// GetAddressInfo returns ID of the container to which specified IP address is assigned.
+	GetAddressInfo(ctx context.Context, ip net.IP) (string, error)
 }
