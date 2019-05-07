@@ -67,12 +67,11 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	podNSName := path.Join(input.PodNS, input.PodName, input.ContainerID)
-
+	containerID := input.ContainerID
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ok := s.podIPs[podNSName]; ok {
+	if _, ok := s.podIPs[containerID]; ok {
 		renderError(r.Context(), w, APIErrConflict)
 		return
 	}
@@ -81,7 +80,7 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 RETRY:
 	fields := well.FieldsFromContext(r.Context())
 	for _, block := range bl {
-		ip, err := s.db.AllocateIP(r.Context(), block, podNSName)
+		ip, err := s.db.AllocateIP(r.Context(), block, containerID)
 		if err == model.ErrBlockIsFull {
 			continue
 		}
@@ -94,10 +93,12 @@ RETRY:
 			Address: ip.String(),
 			Status:  http.StatusOK,
 		}
-		s.podIPs[podNSName] = ip
+		s.podIPs[containerID] = ip
 		renderJSON(w, resp, http.StatusOK)
 
-		fields["pod"] = podNSName
+		fields["namespace"] = input.PodNS
+		fields["pod"] = input.PodName
+		fields["containerid"] = containerID
 		fields["pool"] = poolName
 		fields["ip"] = ip.String()
 		log.Info("allocate an address", fields)
@@ -153,11 +154,11 @@ RETRY:
 	goto RETRY
 }
 
-func (s *Server) handleIPGet(w http.ResponseWriter, r *http.Request, podKey string) {
+func (s *Server) handleIPGet(w http.ResponseWriter, r *http.Request, containerID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	ip, ok := s.podIPs[podKey]
+	ip, ok := s.podIPs[containerID]
 	if !ok {
 		renderError(r.Context(), w, APIErrNotFound)
 		return
@@ -171,14 +172,20 @@ func (s *Server) handleIPGet(w http.ResponseWriter, r *http.Request, podKey stri
 	renderJSON(w, resp, http.StatusOK)
 }
 
-func (s *Server) handleIPDelete(w http.ResponseWriter, r *http.Request, podKey string) {
+func (s *Server) handleIPDelete(w http.ResponseWriter, r *http.Request, keys []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	ip, ok := s.podIPs[podKey]
+	key := keys[2]
+	ip, ok := s.podIPs[key]
 	if !ok {
-		renderError(r.Context(), w, APIErrNotFound)
-		return
+		// In older than version 1.0.2 namespace and pod name are used for the key. Therefore we need to delete it.
+		key = path.Join(keys[0], keys[1])
+		ip, ok = s.podIPs[key]
+		if !ok {
+			renderError(r.Context(), w, APIErrNotFound)
+			return
+		}
 	}
 
 	var block *net.IPNet
@@ -206,7 +213,7 @@ OUTER:
 		return
 	}
 
-	delete(s.podIPs, podKey)
+	delete(s.podIPs, key)
 
 	resp := addressInfo{
 		Address: ip.String(),
@@ -215,7 +222,9 @@ OUTER:
 
 	renderJSON(w, resp, http.StatusOK)
 
-	fields["pod"] = podKey
+	fields["namespace"] = keys[0]
+	fields["pod"] = keys[1]
+	fields["containerid"] = keys[2]
 	fields["ip"] = ip.String()
 	log.Info("free an address", fields)
 }
