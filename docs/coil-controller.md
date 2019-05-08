@@ -5,6 +5,13 @@
 
 Command-line flags for etcd connection are defined in [etcdutil][].
 
+Other command-line options are:
+
+| Option               | Default value | Description                               |
+| ------               | ------------- | -----------                               |
+| `scan-interval`      | 10m           | Scan interval of IP address inconsistency |
+| `address-expiration` | 24h           | Expiration for releasing unused address   |
+
 Etcd Endpoints lookup
 ---------------------
 

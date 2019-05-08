@@ -36,7 +36,7 @@ List all address blocks assigned to a node.
 
 ### `address info ADDRESS`
 
-Show ID of the container to which address of `ADDRESS` is assigned.
+Show information of the pod to which address of `ADDRESS` is assigned.
 
 ### `address free ADDRESS`
 

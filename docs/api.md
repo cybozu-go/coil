@@ -106,5 +106,4 @@ Release assigned address for the pod.
 
 ### Failure responses
 
-- 404 Not Found: address was not assigned to the pod.
 - 500 Internal Server Error: other reasons.
