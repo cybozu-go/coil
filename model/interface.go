@@ -59,6 +59,6 @@ type Model interface {
 	// RemovePool removes pool.
 	RemovePool(ctx context.Context, name string) error
 
-	// GetAddressInfo returns information of the container/pod to which specified IP address is assigned.
-	GetAddressInfo(ctx context.Context, ip net.IP) (*coil.IPAssignment, error)
+	// GetAddressInfo returns information of the container/pod to which specified IP address is assigned, and its mod revision.
+	GetAddressInfo(ctx context.Context, ip net.IP) (*coil.IPAssignment, int64, error)
 }

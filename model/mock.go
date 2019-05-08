@@ -111,6 +111,6 @@ func (m *mock) RemovePool(ctx context.Context, name string) error {
 	return nil
 }
 
-func (m *mock) GetAddressInfo(ctx context.Context, ip net.IP) (*coil.IPAssignment, error) {
-	return &coil.IPAssignment{}, nil
+func (m *mock) GetAddressInfo(ctx context.Context, ip net.IP) (*coil.IPAssignment, int64, error) {
+	return &coil.IPAssignment{}, 0, nil
 }

@@ -2,9 +2,10 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
+	"os"
 
 	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/etcdutil"
@@ -40,13 +41,19 @@ var addressInfoCmd = &cobra.Command{
 
 		m := model.NewEtcdModel(etcd)
 		well.Go(func(ctx context.Context) error {
-			id, err := m.GetAddressInfo(ctx, infoParams.Address)
+			assignment, _, err := m.GetAddressInfo(ctx, infoParams.Address)
 			if err != nil {
 				return err
 			}
 
-			fmt.Println(id)
-			return nil
+			data, err := json.Marshal(assignment)
+			if err != nil {
+				return err
+			}
+
+			e := json.NewEncoder(os.Stdout)
+			e.SetIndent("", "  ")
+			return e.Encode(data)
 		})
 		well.Stop()
 		err = well.Wait()

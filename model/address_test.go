@@ -33,7 +33,7 @@ func testGetAddressInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	info, err := m.GetAddressInfo(context.Background(), net.ParseIP("10.11.0.0"))
+	info, _, err := m.GetAddressInfo(context.Background(), net.ParseIP("10.11.0.0"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func testGetAddressInfo(t *testing.T) {
 		t.Errorf("expected info: %v, actual: %v", assignment, *info)
 	}
 
-	_, err = m.GetAddressInfo(context.Background(), net.ParseIP("10.11.0.1"))
+	_, _, err = m.GetAddressInfo(context.Background(), net.ParseIP("10.11.0.1"))
 	if err != ErrNotFound {
 		t.Errorf("expected error: ErrNotFound, actual: %v", err)
 	}
