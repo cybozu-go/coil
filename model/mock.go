@@ -37,7 +37,7 @@ func (m *mock) GetAllocatedIPs(ctx context.Context, block *net.IPNet) (map[strin
 	return nil, nil
 }
 
-func (m *mock) AllocateIP(ctx context.Context, block *net.IPNet, key string) (net.IP, error) {
+func (m *mock) AllocateIP(ctx context.Context, block *net.IPNet, assignment coil.IPAssignment) (net.IP, error) {
 	if m.offset != 0 {
 		return nil, ErrBlockIsFull
 	}
@@ -111,6 +111,6 @@ func (m *mock) RemovePool(ctx context.Context, name string) error {
 	return nil
 }
 
-func (m *mock) GetAddressInfo(ctx context.Context, ip net.IP) (string, error) {
-	return "", nil
+func (m *mock) GetAddressInfo(ctx context.Context, ip net.IP) (*coil.IPAssignment, error) {
+	return &coil.IPAssignment{}, nil
 }

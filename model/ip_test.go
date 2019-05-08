@@ -2,10 +2,13 @@ package model
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"strconv"
 	"testing"
+	"time"
 
+	"github.com/cybozu-go/coil"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -18,7 +21,12 @@ func testAllocateIP(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < 4; i++ {
-		_, err := m.AllocateIP(context.Background(), block, "default/pod-"+strconv.Itoa(i))
+		_, err := m.AllocateIP(context.Background(), block, coil.IPAssignment{
+			ContainerID: fmt.Sprintf("container-%d", i),
+			Namespace:   "default",
+			Pod:         "pod-" + strconv.Itoa(i),
+			CreatedAt:   time.Now().UTC(),
+		})
 		if err != nil {
 			t.Error(err)
 		}
@@ -29,16 +37,21 @@ func testAllocateIP(t *testing.T) {
 	}
 
 	expected := map[string]net.IP{
-		"default/pod-0": net.ParseIP("10.11.0.0"),
-		"default/pod-1": net.ParseIP("10.11.0.1"),
-		"default/pod-2": net.ParseIP("10.11.0.2"),
-		"default/pod-3": net.ParseIP("10.11.0.3"),
+		"container-0": net.ParseIP("10.11.0.0"),
+		"container-1": net.ParseIP("10.11.0.1"),
+		"container-2": net.ParseIP("10.11.0.2"),
+		"container-3": net.ParseIP("10.11.0.3"),
 	}
 	if !cmp.Equal(ips, expected) {
 		t.Errorf("!cmd.Equal(ips, expected): %+v, %+v", ips, expected)
 	}
 
-	_, err = m.AllocateIP(context.Background(), block, "default/pod-x")
+	_, err = m.AllocateIP(context.Background(), block, coil.IPAssignment{
+		ContainerID: "4aed6222-375d-498e-a40a-e653c37cb0d9",
+		Namespace:   "default",
+		Pod:         "pod-x",
+		CreatedAt:   time.Now().UTC(),
+	})
 	if err != ErrBlockIsFull {
 		t.Error(err)
 	}
@@ -48,7 +61,12 @@ func testAllocateIP(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = m.AllocateIP(context.Background(), block, "default/pod-y")
+	_, err = m.AllocateIP(context.Background(), block, coil.IPAssignment{
+		ContainerID: "0a966833-a244-42fe-8f78-cc5d68f50ad0",
+		Namespace:   "default",
+		Pod:         "pod-y",
+		CreatedAt:   time.Now().UTC(),
+	})
 	if err != nil {
 		t.Error(err)
 	}

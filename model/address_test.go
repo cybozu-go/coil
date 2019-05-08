@@ -4,6 +4,9 @@ import (
 	"context"
 	"net"
 	"testing"
+	"time"
+
+	"github.com/cybozu-go/coil"
 )
 
 const (
@@ -19,7 +22,13 @@ func testGetAddressInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = m.AllocateIP(context.Background(), block, containerID)
+	assignment := coil.IPAssignment{
+		ContainerID: containerID,
+		Namespace:   "default",
+		Pod:         "test",
+		CreatedAt:   time.Now().UTC(),
+	}
+	_, err = m.AllocateIP(context.Background(), block, assignment)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,8 +38,8 @@ func testGetAddressInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if info != containerID {
-		t.Errorf("expected info: %s, actual: %s", containerID, info)
+	if *info != assignment {
+		t.Errorf("expected info: %v, actual: %v", assignment, *info)
 	}
 
 	_, err = m.GetAddressInfo(context.Background(), net.ParseIP("10.11.0.1"))

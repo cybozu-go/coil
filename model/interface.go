@@ -17,7 +17,7 @@ type Model interface {
 	// Multiple goroutines cannot use this concurrently.
 	//
 	// When no more IP address can be allocated in block, ErrBlockIsFull will be returned.
-	AllocateIP(ctx context.Context, block *net.IPNet, key string) (net.IP, error)
+	AllocateIP(ctx context.Context, block *net.IPNet, assignment coil.IPAssignment) (net.IP, error)
 
 	// FreeIP deletes allocated IP
 	FreeIP(ctx context.Context, block *net.IPNet, ip net.IP) error
@@ -59,6 +59,6 @@ type Model interface {
 	// RemovePool removes pool.
 	RemovePool(ctx context.Context, name string) error
 
-	// GetAddressInfo returns ID of the container to which specified IP address is assigned.
-	GetAddressInfo(ctx context.Context, ip net.IP) (string, error)
+	// GetAddressInfo returns information of the container/pod to which specified IP address is assigned.
+	GetAddressInfo(ctx context.Context, ip net.IP) (*coil.IPAssignment, error)
 }

@@ -7,7 +7,9 @@ import (
 	"net"
 	"net/http"
 	"path"
+	"time"
 
+	"github.com/cybozu-go/coil"
 	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/log"
 	"github.com/cybozu-go/well"
@@ -76,11 +78,17 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	assignment := coil.IPAssignment{
+		ContainerID: containerID,
+		Namespace:   input.PodNS,
+		Pod:         input.PodName,
+		CreatedAt:   time.Now().UTC(),
+	}
 	bl := s.addressBlocks[poolName]
 RETRY:
 	fields := well.FieldsFromContext(r.Context())
 	for _, block := range bl {
-		ip, err := s.db.AllocateIP(r.Context(), block, containerID)
+		ip, err := s.db.AllocateIP(r.Context(), block, assignment)
 		if err == model.ErrBlockIsFull {
 			continue
 		}
