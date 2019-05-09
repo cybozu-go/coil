@@ -23,6 +23,7 @@ require (
 	github.com/onsi/gomega v1.4.2
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.2.1
+	github.com/tcnksm/go-input v0.0.0-20180404061846-548a7d7a8ee8
 	github.com/vishvananda/netlink v1.0.0
 	github.com/vishvananda/netns v0.0.0-20180720170159-13995c7128cc // indirect
 	golang.org/x/crypto v0.0.0-20181015023909-0c41d7ab0a0e

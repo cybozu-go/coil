@@ -2,18 +2,56 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
+	"os"
+	"strings"
 
 	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/etcdutil"
 	"github.com/cybozu-go/log"
 	"github.com/cybozu-go/well"
 	"github.com/spf13/cobra"
+	"github.com/tcnksm/go-input"
 )
 
-var freeParams struct {
-	Address net.IP
+var (
+	freeParams struct {
+		Address net.IP
+	}
+	yorn string
+)
+
+func deleteInput() error {
+	ui := input.DefaultUI()
+	validateFunc := func(s string) error {
+		if s != "y" && s != "n" {
+			return fmt.Errorf("input must be y or n")
+		}
+		return nil
+	}
+
+	ask := func(p *string, query string, mask bool, validate func(s string) error) error {
+		ans, err := ui.Ask(query, &input.Options{
+			Default:      "n",
+			Required:     true,
+			Loop:         true,
+			MaskDefault:  mask,
+			ValidateFunc: validate,
+		})
+		if err != nil {
+			return err
+		}
+		*p = strings.TrimSpace(ans)
+		return nil
+	}
+
+	if err := ask(&yorn, "are you sure to delete?", false, validateFunc); err != nil {
+		return err
+	}
+	return nil
 }
 
 // addressFreeCmd represents the free command
@@ -56,7 +94,32 @@ var addressFreeCmd = &cobra.Command{
 				return errors.New("ADDRESS is not assigned")
 			}
 
-			return m.FreeIP(ctx, myBlock, freeParams.Address)
+			assignment, modRev, err := m.GetAddressInfo(ctx, freeParams.Address)
+			if err != nil {
+				return err
+			}
+
+			data, err := json.Marshal(assignment)
+			if err != nil {
+				return err
+			}
+
+			e := json.NewEncoder(os.Stdout)
+			e.SetIndent("", "  ")
+			err = e.Encode(data)
+			if err != nil {
+				return err
+			}
+
+			if err = deleteInput(); err != nil {
+				return err
+			}
+
+			if yorn == "y" {
+				return m.FreeIP(ctx, myBlock, freeParams.Address, modRev)
+			}
+
+			return nil
 		})
 		well.Stop()
 		err = well.Wait()

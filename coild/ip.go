@@ -32,6 +32,26 @@ func (s *Server) determinePoolName(ctx context.Context, podNS string) (string, e
 }
 
 func (s *Server) getAllocatedIP(ctx context.Context, containerID string) (net.IP, error) {
+	blocks, err := s.db.GetMyBlocks(ctx, s.nodeName)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range blocks {
+		for _, b := range v {
+			ips, err := s.db.GetAllocatedIPs(ctx, b)
+			if err != nil {
+				return nil, err
+			}
+
+			ip, ok := ips[containerID]
+			if ok {
+				return ip, nil
+			}
+		}
+	}
+
+	return nil, model.ErrNotFound
 }
 
 func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
@@ -72,11 +92,11 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	containerID := input.ContainerID
-	_, err := s.getAllocatedIP(r.Context(), containerID)
+	_, err = s.getAllocatedIP(r.Context(), containerID)
 	if err == nil {
 		renderError(r.Context(), w, APIErrConflict)
 		return
-	} else if err != ErrNotFound {
+	} else if err != model.ErrNotFound {
 		renderError(r.Context(), w, InternalServerError(err))
 		return
 	}
@@ -171,7 +191,7 @@ RETRY:
 
 func (s *Server) handleIPGet(w http.ResponseWriter, r *http.Request, containerID string) {
 	ip, err := s.getAllocatedIP(r.Context(), containerID)
-	if err == ErrNotFound {
+	if err == model.ErrNotFound {
 		renderError(r.Context(), w, APIErrNotFound)
 		return
 	} else if err != nil {
@@ -203,7 +223,7 @@ func (s *Server) handleIPDelete(w http.ResponseWriter, r *http.Request, keys []s
 
 	// In older than version 1.0.2 namespace and pod name are stored in DB.  We cannot find such entry.  coil-controller will delete it later.
 	ip, err := s.getAllocatedIP(r.Context(), containerID)
-	if err == ErrNotFound {
+	if err == model.ErrNotFound {
 		renderJSON(w, respNotFoundOK, http.StatusOK)
 		return
 	} else if err != nil {
@@ -231,7 +251,7 @@ OUTER:
 	}
 
 	assignment, modRev, err := s.db.GetAddressInfo(r.Context(), ip)
-	if err == ErrNotFound {
+	if err == model.ErrNotFound {
 		renderJSON(w, respNotFoundOK, http.StatusOK)
 		return
 	} else if err != nil {
@@ -244,7 +264,7 @@ OUTER:
 		return
 	}
 
-	err := s.db.FreeIP(r.Context(), block, ip, modRev)
+	err = s.db.FreeIP(r.Context(), block, ip, modRev)
 	if err != nil && err != model.ErrModRevDiffers {
 		renderError(r.Context(), w, InternalServerError(err))
 		return
