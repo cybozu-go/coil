@@ -49,10 +49,10 @@ IP addresses and address blocks kept for that node.
 When a Pod is removed, `coild` will free the IP address for the Pod.  It will also
 return address blocks to the pool at the same time if they are no longer used.
 
-`coild` will periodically examine which IP addresses are kept for the node by 
+`coil-controller` will periodically examine which IP addresses are kept for the node by
 examining etcd database.  It then queries the API server to obtain the currently
 running Pods, and reclaim IP addresses kept for missing Pods for a long time.
-If no IP addresses are kept for an address block, `coild` will return it to the pool.
+If no IP addresses are kept for an address block, `coil-controller` will return it to the pool.
 
 Routing
 -------

@@ -71,8 +71,19 @@ func (m etcdModel) AllocateIP(ctx context.Context, block *net.IPNet, assignment 
 	return netutil.IntToIP4(netutil.IP4ToInt(block.IP) + uint32(offset)), nil
 }
 
-func (m etcdModel) FreeIP(ctx context.Context, block *net.IPNet, ip net.IP) error {
+func (m etcdModel) FreeIP(ctx context.Context, block *net.IPNet, ip net.IP, modRev int64) error {
 	offset := netutil.IP4ToInt(ip) - netutil.IP4ToInt(block.IP)
-	_, err := m.etcd.Delete(ctx, ipKey(block, int(offset)))
-	return err
+	key := ipKey(block, int(offset))
+
+	resp, err := m.etcd.Txn(ctx).
+		If(clientv3.Compare(clientv3.ModRevision(key), "=", modRev)).
+		Then(clientv3.OpDelete(key)).
+		Commit()
+	if err != nil {
+		return err
+	}
+	if !resp.Succeeded {
+		return ErrModRevDiffers
+	}
+	return nil
 }

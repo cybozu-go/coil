@@ -6,7 +6,6 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"path"
 	"time"
 
 	"github.com/cybozu-go/coil"
@@ -30,6 +29,9 @@ func (s *Server) determinePoolName(ctx context.Context, podNS string) (string, e
 	default:
 		return "", err
 	}
+}
+
+func (s *Server) getAllocatedIP(ctx context.Context, containerID string) (net.IP, error) {
 }
 
 func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
@@ -70,13 +72,21 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	containerID := input.ContainerID
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if _, ok := s.podIPs[containerID]; ok {
+	_, err := s.getAllocatedIP(r.Context(), containerID)
+	if err == nil {
 		renderError(r.Context(), w, APIErrConflict)
 		return
+	} else if err != ErrNotFound {
+		renderError(r.Context(), w, InternalServerError(err))
+		return
 	}
+
+	blocks, err := s.db.GetMyBlocks(r.Context(), s.nodeName)
+	if err != nil {
+		renderError(r.Context(), w, InternalServerError(err))
+		return
+	}
+	bl := blocks[poolName]
 
 	assignment := coil.IPAssignment{
 		ContainerID: containerID,
@@ -84,7 +94,6 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 		Pod:         input.PodName,
 		CreatedAt:   time.Now().UTC(),
 	}
-	bl := s.addressBlocks[poolName]
 RETRY:
 	fields := well.FieldsFromContext(r.Context())
 	for _, block := range bl {
@@ -101,7 +110,6 @@ RETRY:
 			Address: ip.String(),
 			Status:  http.StatusOK,
 		}
-		s.podIPs[containerID] = ip
 		renderJSON(w, resp, http.StatusOK)
 
 		fields["namespace"] = input.PodNS
@@ -157,18 +165,17 @@ RETRY:
 	newAddressBlocks := make([]*net.IPNet, len(bl)+1)
 	newAddressBlocks[0] = block
 	copy(newAddressBlocks[1:], bl)
-	s.addressBlocks[poolName] = newAddressBlocks
 	bl = newAddressBlocks
 	goto RETRY
 }
 
 func (s *Server) handleIPGet(w http.ResponseWriter, r *http.Request, containerID string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	ip, ok := s.podIPs[containerID]
-	if !ok {
+	ip, err := s.getAllocatedIP(r.Context(), containerID)
+	if err == ErrNotFound {
 		renderError(r.Context(), w, APIErrNotFound)
+		return
+	} else if err != nil {
+		renderError(r.Context(), w, InternalServerError(err))
 		return
 	}
 
@@ -181,25 +188,33 @@ func (s *Server) handleIPGet(w http.ResponseWriter, r *http.Request, containerID
 }
 
 func (s *Server) handleIPDelete(w http.ResponseWriter, r *http.Request, keys []string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	containerID := keys[2]
+	respNotFoundOK := addressInfo{
+		Address: "",
+		Status:  http.StatusOK,
+	}
 
-	key := keys[2]
-	ip, ok := s.podIPs[key]
-	if !ok {
-		// In older than version 1.0.2 namespace and pod name are used for the key. Therefore we need to delete it.
-		key = path.Join(keys[0], keys[1])
-		ip, ok = s.podIPs[key]
-		if !ok {
-			renderError(r.Context(), w, APIErrNotFound)
-			return
-		}
+	// Get my blocks first because IP and block may be freed by coil-controller after getAllocatedIP(), which will cause false-evaluation of orphaned IP.
+	blocks, err := s.db.GetMyBlocks(r.Context(), s.nodeName)
+	if err != nil {
+		renderError(r.Context(), w, InternalServerError(err))
+		return
+	}
+
+	// In older than version 1.0.2 namespace and pod name are stored in DB.  We cannot find such entry.  coil-controller will delete it later.
+	ip, err := s.getAllocatedIP(r.Context(), containerID)
+	if err == ErrNotFound {
+		renderJSON(w, respNotFoundOK, http.StatusOK)
+		return
+	} else if err != nil {
+		renderError(r.Context(), w, InternalServerError(err))
+		return
 	}
 
 	var block *net.IPNet
 OUTER:
-	for _, blocks := range s.addressBlocks {
-		for _, b := range blocks {
+	for _, bl := range blocks {
+		for _, b := range bl {
 			if b.Contains(ip) {
 				block = b
 				break OUTER
@@ -215,13 +230,25 @@ OUTER:
 		return
 	}
 
-	err := s.db.FreeIP(r.Context(), block, ip)
-	if err != nil {
+	assignment, modRev, err := s.db.GetAddressInfo(r.Context(), ip)
+	if err == ErrNotFound {
+		renderJSON(w, respNotFoundOK, http.StatusOK)
+		return
+	} else if err != nil {
 		renderError(r.Context(), w, InternalServerError(err))
 		return
 	}
 
-	delete(s.podIPs, key)
+	if assignment.ContainerID != containerID {
+		renderJSON(w, respNotFoundOK, http.StatusOK)
+		return
+	}
+
+	err := s.db.FreeIP(r.Context(), block, ip, modRev)
+	if err != nil && err != model.ErrModRevDiffers {
+		renderError(r.Context(), w, InternalServerError(err))
+		return
+	}
 
 	resp := addressInfo{
 		Address: ip.String(),

@@ -57,9 +57,17 @@ func testAllocateIP(t *testing.T) {
 	}
 
 	ip := net.ParseIP("10.11.0.1")
-	err = m.FreeIP(context.Background(), block, ip)
+	_, modRev, err := m.GetAddressInfo(context.Background(), ip)
 	if err != nil {
 		t.Error(err)
+	}
+	err = m.FreeIP(context.Background(), block, ip, modRev)
+	if err != nil {
+		t.Error(err)
+	}
+	err = m.FreeIP(context.Background(), block, ip, modRev)
+	if err != ErrModRevDiffers {
+		t.Error("ErrModRevDiffers should be returned")
 	}
 	_, err = m.AllocateIP(context.Background(), block, coil.IPAssignment{
 		ContainerID: "0a966833-a244-42fe-8f78-cc5d68f50ad0",

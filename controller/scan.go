@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -91,9 +92,16 @@ OUTER:
 			"pod":          assignment.Pod,
 			"created_at":   assignment.CreatedAt,
 		})
-		_ = modRev
-		err = c.model.FreeIP(ctx, block, assignedIP) // pass modRev
-		if err != nil {
+		err = c.model.FreeIP(ctx, block, assignedIP, modRev)
+		if err == model.ErrModRevDiffers {
+			log.Info("IP address was already freed", map[string]interface{}{
+				"address":      assignedIP,
+				"container_id": assignment.ContainerID,
+				"namespace":    assignment.Namespace,
+				"pod":          assignment.Pod,
+				"created_at":   assignment.CreatedAt,
+			})
+		} else if err != nil {
 			return err
 		}
 	}

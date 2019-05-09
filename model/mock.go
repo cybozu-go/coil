@@ -47,7 +47,7 @@ func (m *mock) AllocateIP(ctx context.Context, block *net.IPNet, assignment coil
 	return newIP, nil
 }
 
-func (m *mock) FreeIP(ctx context.Context, block *net.IPNet, ip net.IP) error {
+func (m *mock) FreeIP(ctx context.Context, block *net.IPNet, ip net.IP, modRev int64) error {
 	return nil
 }
 

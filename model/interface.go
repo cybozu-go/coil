@@ -20,7 +20,7 @@ type Model interface {
 	AllocateIP(ctx context.Context, block *net.IPNet, assignment coil.IPAssignment) (net.IP, error)
 
 	// FreeIP deletes allocated IP
-	FreeIP(ctx context.Context, block *net.IPNet, ip net.IP) error
+	FreeIP(ctx context.Context, block *net.IPNet, ip net.IP, modRev int64) error
 
 	// GetMyBlocks retrieves all acquired blocks for a node.
 	// The return value is a map whose keys are pool names.
