@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/cybozu-go/coil/model"
+	"k8s.io/client-go/kubernetes"
 )
 
 type missingEnvvar string
@@ -17,6 +18,7 @@ func (e missingEnvvar) Error() string {
 // Server keeps coild internal status.
 type Server struct {
 	db         model.Model
+	k8s        *kubernetes.Clientset
 	tableID    int
 	protocolID int
 
@@ -27,9 +29,10 @@ type Server struct {
 }
 
 // NewServer creates a new Server.
-func NewServer(db model.Model, tableID, protocolID int) *Server {
+func NewServer(db model.Model, k8s *kubernetes.Clientset, tableID, protocolID int) *Server {
 	return &Server{
 		db:         db,
+		k8s:        k8s,
 		tableID:    tableID,
 		protocolID: protocolID,
 	}

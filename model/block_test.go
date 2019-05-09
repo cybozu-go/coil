@@ -145,12 +145,12 @@ func testReleaseBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = m.ReleaseBlock(context.Background(), "node1", "default", ipnet1)
+	err = m.ReleaseBlock(context.Background(), "node1", "default", ipnet1, true)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = m.ReleaseBlock(context.Background(), "node1", "default", ipnet1)
+	err = m.ReleaseBlock(context.Background(), "node1", "default", ipnet1, true)
 	if err != ErrNotFound {
 		t.Error("double release should return ErrNotFound")
 	}
@@ -160,7 +160,7 @@ func testReleaseBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = m.ReleaseBlock(context.Background(), "node1", "default", ipnet2)
+	err = m.ReleaseBlock(context.Background(), "node1", "default", ipnet2, true)
 	if err != ErrNotFound {
 		t.Error("double release should return ErrNotFound")
 	}

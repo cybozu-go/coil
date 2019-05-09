@@ -8,6 +8,7 @@ import (
 	"net"
 
 	"github.com/coreos/etcd/clientv3"
+	"github.com/coreos/etcd/clientv3/clientv3util"
 	"github.com/cybozu-go/coil"
 )
 
@@ -111,7 +112,7 @@ RETRY:
 	return first, nil
 }
 
-func (m etcdModel) ReleaseBlock(ctx context.Context, node, poolName string, block *net.IPNet) error {
+func (m etcdModel) ReleaseBlock(ctx context.Context, node, poolName string, block *net.IPNet, force bool) error {
 	pool, err := m.GetPool(ctx, poolName)
 	if err != nil {
 		return err
@@ -157,12 +158,26 @@ RETRY:
 	if err != nil {
 		return err
 	}
-	tresp, err := m.etcd.Txn(ctx).
-		If(clientv3.Compare(clientv3.ModRevision(bkey), "=", rev)).
-		Then(
+
+	var thenOps []clientv3.Op
+	if force {
+		thenOps = []clientv3.Op{
 			clientv3.OpPut(bkey, string(output)),
 			clientv3.OpDelete(ipKeyPrefix(block), clientv3.WithPrefix()),
-		).Commit()
+		}
+	} else {
+		thenOps = []clientv3.Op{
+			clientv3.OpTxn(
+				[]clientv3.Cmp{clientv3util.KeyMissing(ipKeyPrefix(block)).WithPrefix()},
+				[]clientv3.Op{clientv3.OpPut(bkey, string(output))},
+				nil,
+			),
+		}
+	}
+
+	tresp, err := m.etcd.Txn(ctx).
+		If(clientv3.Compare(clientv3.ModRevision(bkey), "=", rev)).
+		Then(thenOps...).Commit()
 	if err != nil {
 		return err
 	}

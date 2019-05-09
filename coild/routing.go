@@ -86,3 +86,26 @@ func addBlockRouting(tableID, protocol int, block *net.IPNet) error {
 	}
 	return h.RouteAdd(r)
 }
+
+// deleteBlockRouting deletes an address block from a kernel routing table.
+func deleteBlockRouting(tableID, protocol int, block *net.IPNet) error {
+	h, err := netlink.NewHandle()
+	if err != nil {
+		return err
+	}
+	defer h.Delete()
+
+	lo, err := h.LinkByName("lo")
+	if err != nil {
+		return err
+	}
+
+	r := &netlink.Route{
+		Scope:     netlink.SCOPE_UNIVERSE,
+		Dst:       block,
+		Table:     tableID,
+		LinkIndex: lo.Attrs().Index,
+		Protocol:  protocol,
+	}
+	return h.RouteDel(r)
+}

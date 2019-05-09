@@ -36,7 +36,7 @@ type Model interface {
 	AcquireBlock(ctx context.Context, node, poolName string) (*net.IPNet, error)
 
 	// ReleaseBlock releases a block and returns it to the free list.
-	ReleaseBlock(ctx context.Context, node, poolName string, block *net.IPNet) error
+	ReleaseBlock(ctx context.Context, node, poolName string, block *net.IPNet, force bool) error
 
 	// AddPool adds a new address pool.
 	// name must match this regexp: ^[a-z][a-z0-9_.-]*$

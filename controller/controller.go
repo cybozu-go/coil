@@ -45,7 +45,7 @@ func (c *Controller) freeBlocks(ctx context.Context, name string) error {
 
 	for poolName, blocks := range blockMap {
 		for _, block := range blocks {
-			err := c.model.ReleaseBlock(ctx, name, poolName, block)
+			err := c.model.ReleaseBlock(ctx, name, poolName, block, true)
 			if err != nil {
 				return err
 			}
