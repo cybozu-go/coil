@@ -32,13 +32,13 @@ func TestPod() {
 		coilctlSafe("pool", "create", "default", addressPool, "2")
 		coilctlSafe("pool", "show", "--json", "default", addressPool)
 
-		By("deployment Pods")
-		_, stderr, err := kubectl("run", "nginx", "--replicas=2", "--image=nginx")
+		By("deployment 1st nginx Pods")
+		_, stderr, err := kubectl("run", "nginx1", "--replicas=2", "--image=nginx")
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 		By("waiting pods are ready")
 		Eventually(func() error {
-			stdout, stderr, err := kubectl("get", "deployments/nginx", "-o=json")
+			stdout, stderr, err := kubectl("get", "deployments/nginx1", "-o=json")
 			if err != nil {
 				return fmt.Errorf("%v: stderr=%s", err, stderr)
 			}
@@ -55,8 +55,8 @@ func TestPod() {
 			return nil
 		}).Should(Succeed())
 
-		By("checking PodIPs are assigned")
-		stdout, stderr, err := kubectl("get", "pods", "--selector=run=nginx", "-o=json")
+		By("checking nginx1 PodIPs are assigned")
+		stdout, stderr, err := kubectl("get", "pods", "--selector=run=nginx1", "-o=json")
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 		podList := new(corev1.PodList)
 		err = json.Unmarshal(stdout, podList)
@@ -81,13 +81,36 @@ func TestPod() {
 			Expect(stdout).NotTo(BeEmpty())
 		}
 
-		By("checking PodIPs are released")
-		_, stderr, err = kubectl("delete", "deployments/nginx")
+		By("deployment 2nd nginx Pods")
+		_, stderr, err = kubectl("run", "nginx2", "--replicas=2", "--image=nginx")
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
-		By("waiting pod is deleted")
+		By("waiting pods are ready")
 		Eventually(func() error {
-			stdout, stderr, err := kubectl("get", "pods", "--selector=run=nginx", "-o=json")
+			stdout, stderr, err := kubectl("get", "deployments/nginx2", "-o=json")
+			if err != nil {
+				return fmt.Errorf("%v: stderr=%s", err, stderr)
+			}
+
+			deployment := new(appsv1.Deployment)
+			err = json.Unmarshal(stdout, deployment)
+			if err != nil {
+				return err
+			}
+
+			if deployment.Status.ReadyReplicas != 2 {
+				return errors.New("ReadyReplicas is not 2")
+			}
+			return nil
+		}).Should(Succeed())
+
+		By("checking nginx1 PodIPs are released")
+		_, stderr, err = kubectl("delete", "deployments/nginx1")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
+
+		By("waiting nginx1 pods are deleted")
+		Eventually(func() error {
+			stdout, stderr, err := kubectl("get", "pods", "--selector=run=nginx1", "-o=json")
 			Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 			podList := new(corev1.PodList)
@@ -95,13 +118,13 @@ func TestPod() {
 			Expect(err).NotTo(HaveOccurred())
 
 			if len(podList.Items) > 0 {
-				return errors.New("pods --selector=run=nginx are remaining")
+				return errors.New("pods --selector=run=nginx1 are remaining")
 			}
 			return nil
 		}).Should(Succeed())
 
 		for _, pod := range podList.Items {
-			By("checking veth for Pod exists in node")
+			By("checking veth for nginx1 Pod does not exist in node")
 			ip := net.ParseIP(pod.Status.PodIP)
 			stdout, _, err := execAt(pod.Status.HostIP, "ip", "-d", "route", "show", ip.String())
 			Expect(err).NotTo(HaveOccurred())
@@ -109,10 +132,10 @@ func TestPod() {
 		}
 
 		By("checking PodIPs are reused")
-		_, stderr, err = kubectl("run", "nginx", "--replicas=2", "--image=nginx")
+		_, stderr, err = kubectl("run", "nginx1", "--replicas=2", "--image=nginx")
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 		Eventually(func() error {
-			stdout, stderr, err := kubectl("get", "deployments/nginx", "-o=json")
+			stdout, stderr, err := kubectl("get", "deployments/nginx1", "-o=json")
 			if err != nil {
 				return fmt.Errorf("%v: stderr=%s", err, stderr)
 			}
@@ -130,7 +153,7 @@ func TestPod() {
 		}).Should(Succeed())
 
 		By("checking PodIPs are assigned")
-		stdout, stderr, err = kubectl("get", "pods", "--selector=run=nginx", "-o=json")
+		stdout, stderr, err = kubectl("get", "pods", "--selector=run=nginx1", "-o=json")
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 		podList2 := new(corev1.PodList)
 		err = json.Unmarshal(stdout, podList2)
