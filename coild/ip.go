@@ -31,7 +31,7 @@ func (s *Server) determinePoolName(ctx context.Context, podNS string) (string, e
 	}
 }
 
-func (s *Server) getAllocatedIP(ctx context.Context, containerID string) (net.IP, error) {
+func (s *Server) getAllocatedIP(ctx context.Context, containerID, podNSName string) (net.IP, error) {
 	blocks, err := s.db.GetMyBlocks(ctx, s.nodeName)
 	if err != nil {
 		return nil, err
@@ -47,6 +47,14 @@ func (s *Server) getAllocatedIP(ctx context.Context, containerID string) (net.IP
 			ip, ok := ips[containerID]
 			if ok {
 				return ip, nil
+			}
+
+			// In version 1.0.2 and before, <namespace>/<pod name> is used as key of ips.  It is up to caller to match such entries.
+			if len(podNSName) != 0 {
+				ip, ok := ips[podNSName]
+				if ok {
+					return ip, nil
+				}
 			}
 		}
 	}
@@ -92,7 +100,7 @@ func (s *Server) handleNewIP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	containerID := input.ContainerID
-	_, err = s.getAllocatedIP(r.Context(), containerID)
+	_, err = s.getAllocatedIP(r.Context(), containerID, "")
 	if err == nil {
 		renderError(r.Context(), w, APIErrConflict)
 		return
@@ -190,7 +198,7 @@ RETRY:
 }
 
 func (s *Server) handleIPGet(w http.ResponseWriter, r *http.Request, containerID string) {
-	ip, err := s.getAllocatedIP(r.Context(), containerID)
+	ip, err := s.getAllocatedIP(r.Context(), containerID, "")
 	if err == model.ErrNotFound {
 		renderError(r.Context(), w, APIErrNotFound)
 		return
@@ -214,19 +222,18 @@ func (s *Server) handleIPDelete(w http.ResponseWriter, r *http.Request, keys []s
 		Status:  http.StatusOK,
 	}
 
-	// Get my blocks first because IP and block may be freed by coil-controller after getAllocatedIP(), which will cause false-evaluation of orphaned IP.
-	blocks, err := s.db.GetMyBlocks(r.Context(), s.nodeName)
-	if err != nil {
-		renderError(r.Context(), w, InternalServerError(err))
-		return
-	}
-
-	// In older than version 1.0.2 namespace and pod name are stored in DB.  We cannot find such entry.  coil-controller will delete it later.
-	ip, err := s.getAllocatedIP(r.Context(), containerID)
+	// Handle IPs allocated in version 1.0.2 and before too.
+	ip, err := s.getAllocatedIP(r.Context(), containerID, keys[0]+"/"+keys[1])
 	if err == model.ErrNotFound {
 		renderJSON(w, respNotFoundOK, http.StatusOK)
 		return
 	} else if err != nil {
+		renderError(r.Context(), w, InternalServerError(err))
+		return
+	}
+
+	blocks, err := s.db.GetMyBlocks(r.Context(), s.nodeName)
+	if err != nil {
 		renderError(r.Context(), w, InternalServerError(err))
 		return
 	}
@@ -261,7 +268,8 @@ OUTER:
 		return
 	}
 
-	if assignment.ContainerID != containerID {
+	// If `ip` was allocated in version 1.0.2 and before, assignment.ContainerID == "".  In such case, free `ip` without checking container ID.
+	if assignment.ContainerID != "" && assignment.ContainerID != containerID {
 		renderJSON(w, respNotFoundOK, http.StatusOK)
 		return
 	}

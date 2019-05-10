@@ -5,44 +5,59 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
-	"strconv"
 	"strings"
+	"time"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/cybozu-go/coil"
 	"github.com/cybozu-go/netutil"
 )
 
 func (m etcdModel) GetAddressInfo(ctx context.Context, ip net.IP) (*coil.IPAssignment, int64, error) {
-	n := netutil.IP4ToInt(ip)
-
-	resp, err := m.etcd.Get(ctx, keyIP, clientv3.WithPrefix())
+	blocks, err := m.GetAssignedBlocks(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	for _, kv := range resp.Kvs {
-		ts := strings.Split(string(kv.Key)[len(keyIP):], "/")
-		if len(ts) != 2 {
-			return nil, 0, errors.New("invalid key in DB: " + string(kv.Key))
-		}
-
-		blockIP := net.ParseIP(ts[0])
-		offset, err := strconv.Atoi(ts[1])
-		if err != nil {
-			return nil, 0, err
-		}
-
-		if netutil.IP4ToInt(blockIP)+uint32(offset) == n {
-			assignment := new(coil.IPAssignment)
-			err = json.Unmarshal(kv.Value, assignment)
-			if err != nil {
-				// In older than version 1.0.2, non-json data is used. ignore it.
-				return nil, 0, err
+	var block *net.IPNet
+OUTER:
+	for _, bl := range blocks {
+		for _, b := range bl {
+			if b.Contains(ip) {
+				block = b
+				break OUTER
 			}
-			return assignment, kv.ModRevision, nil
 		}
 	}
+	if block == nil {
+		return nil, 0, ErrNotFound
+	}
 
-	return nil, 0, ErrNotFound
+	offset := netutil.IP4ToInt(ip) - netutil.IP4ToInt(block.IP)
+
+	resp, err := m.etcd.Get(ctx, ipKey(block, int(offset)))
+	if err != nil {
+		return nil, 0, err
+	}
+	if len(resp.Kvs) == 0 {
+		return nil, 0, ErrNotFound
+	}
+
+	kv := resp.Kvs[0]
+
+	assignment := new(coil.IPAssignment)
+	err = json.Unmarshal(kv.Value, assignment)
+	if err != nil {
+		// In older than version 1.0.2, non-json data is used.  Return assignment with empty container ID.
+		ts := strings.Split(string(kv.Value), "/")
+		if len(ts) != 2 {
+			return nil, 0, errors.New("invalid value for " + string(kv.Key) + " in DB: " + string(kv.Value))
+		}
+		assignment = &coil.IPAssignment{
+			ContainerID: "",
+			Namespace:   ts[0],
+			Pod:         ts[1],
+			CreatedAt:   time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
+		}
+	}
+	return assignment, kv.ModRevision, nil
 }

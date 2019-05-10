@@ -17,7 +17,17 @@ func testGetAddressInfo(t *testing.T) {
 	t.Parallel()
 	m := NewTestEtcdModel(t)
 
-	_, block, err := net.ParseCIDR("10.11.0.0/30")
+	_, subnet, err := net.ParseCIDR("10.11.0.0/28")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = m.AddPool(context.Background(), "default", subnet, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	block, err := m.AcquireBlock(context.Background(), "node1", "default")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,12 +38,12 @@ func testGetAddressInfo(t *testing.T) {
 		Pod:         "test",
 		CreatedAt:   time.Now().UTC(),
 	}
-	_, err = m.AllocateIP(context.Background(), block, assignment)
+	ip, err := m.AllocateIP(context.Background(), block, assignment)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	info, _, err := m.GetAddressInfo(context.Background(), net.ParseIP("10.11.0.0"))
+	info, _, err := m.GetAddressInfo(context.Background(), ip)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +52,7 @@ func testGetAddressInfo(t *testing.T) {
 		t.Errorf("expected info: %v, actual: %v", assignment, *info)
 	}
 
-	_, _, err = m.GetAddressInfo(context.Background(), net.ParseIP("10.11.0.1"))
+	_, _, err = m.GetAddressInfo(context.Background(), net.ParseIP("10.11.1.0"))
 	if err != ErrNotFound {
 		t.Errorf("expected error: ErrNotFound, actual: %v", err)
 	}

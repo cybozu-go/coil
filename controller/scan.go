@@ -96,7 +96,7 @@ OUTER:
 
 OUTER2:
 	for _, podIP := range podIPs {
-		for assignedIPStr, _ := range assigned {
+		for assignedIPStr := range assigned {
 			if assignedIPStr == podIP {
 				continue OUTER2
 			}

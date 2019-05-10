@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cybozu-go/coil"
+	"github.com/cybozu-go/netutil"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -16,10 +17,21 @@ func testAllocateIP(t *testing.T) {
 	t.Parallel()
 	m := NewTestEtcdModel(t)
 
-	_, block, err := net.ParseCIDR("10.11.0.0/30")
+	_, subnet, err := net.ParseCIDR("10.11.0.0/28")
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	err = m.AddPool(context.Background(), "default", subnet, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	block, err := m.AcquireBlock(context.Background(), "node1", "default")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	for i := 0; i < 4; i++ {
 		_, err := m.AllocateIP(context.Background(), block, coil.IPAssignment{
 			ContainerID: fmt.Sprintf("container-%d", i),
@@ -37,10 +49,10 @@ func testAllocateIP(t *testing.T) {
 	}
 
 	expected := map[string]net.IP{
-		"container-0": net.ParseIP("10.11.0.0"),
-		"container-1": net.ParseIP("10.11.0.1"),
-		"container-2": net.ParseIP("10.11.0.2"),
-		"container-3": net.ParseIP("10.11.0.3"),
+		"container-0": block.IP,
+		"container-1": netutil.IntToIP4(netutil.IP4ToInt(block.IP) + 1),
+		"container-2": netutil.IntToIP4(netutil.IP4ToInt(block.IP) + 2),
+		"container-3": netutil.IntToIP4(netutil.IP4ToInt(block.IP) + 3),
 	}
 	if !cmp.Equal(ips, expected) {
 		t.Errorf("!cmd.Equal(ips, expected): %+v, %+v", ips, expected)
@@ -56,7 +68,7 @@ func testAllocateIP(t *testing.T) {
 		t.Error(err)
 	}
 
-	ip := net.ParseIP("10.11.0.1")
+	ip := expected["container-1"]
 	_, modRev, err := m.GetAddressInfo(context.Background(), ip)
 	if err != nil {
 		t.Error(err)
