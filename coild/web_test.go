@@ -18,7 +18,7 @@ import (
 
 func testNewServer(t *testing.T) *Server {
 	db := model.NewTestEtcdModel(t)
-	s := NewServer(db, nil, 119, 30)
+	s := NewServer(db, 119, 30)
 	s.nodeName = "node-0"
 	s.dryRun = true
 
