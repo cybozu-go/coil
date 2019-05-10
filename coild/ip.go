@@ -232,11 +232,13 @@ func (s *Server) handleIPDelete(w http.ResponseWriter, r *http.Request, keys []s
 	}
 
 	var block *net.IPNet
+	var poolName string
 OUTER:
-	for _, bl := range blocks {
+	for k, bl := range blocks {
 		for _, b := range bl {
 			if b.Contains(ip) {
 				block = b
+				poolName = k
 				break OUTER
 			}
 		}
@@ -282,4 +284,33 @@ OUTER:
 	fields["containerid"] = keys[2]
 	fields["ip"] = ip.String()
 	log.Info("free an address", fields)
+
+	// Try to release address block and delete routing table, but this is not critical error even failed.
+	ips, err := s.db.GetAllocatedIPs(r.Context(), block)
+	if err != nil {
+		log.Warn("failed to get allocated IPs", map[string]interface{}{
+			log.FnError: err,
+			"block":     block.String(),
+		})
+		return
+	}
+	if len(ips) > 0 {
+		return
+	}
+	err = s.db.ReleaseBlock(r.Context(), s.nodeName, poolName, block, false)
+	if err != nil {
+		log.Warn("failed to release address block", map[string]interface{}{
+			log.FnError: err,
+			"block":     block.String(),
+		})
+		return
+	}
+	err = deleteBlockRouting(s.tableID, s.protocolID, block)
+	if err != nil {
+		log.Warn("failed to delete routing table", map[string]interface{}{
+			log.FnError: err,
+			"block":     block.String(),
+		})
+	}
+	return
 }

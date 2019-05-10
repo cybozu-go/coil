@@ -29,7 +29,7 @@ Address block
 -------------
 
 In order to reduce the number of routes in the system, Coil divides a large
-subnet into small fixed-size blocks called _address block__.  For example,
+subnet into small fixed-size blocks called __address block__.  For example,
 if coil is configured to allocate IP addresses from `10.1.0.0/16`, it may
 divides the subnet into 4096 blocks of the size of `/28` (16 addresses).
 
@@ -45,23 +45,18 @@ Coil need to reclaim IP addresses, address blocks and routing table when they ar
 
 ### IP addresses
 
-`coil-controller` periodically examines which IP addresses are kept for the node by examining etcd.
-It then queries the API server to obtain the currently running Pods,
-and reclaim IP addresses kept for missing Pods for a long time.
-
 `coild` periodically examines which IP addresses are kept for the node by examining etcd.
 If the IP address is no longer used by Pod even it is stored on etcd, `coild` frees the IP address.
 
 ### Address blocks
 
 When a node is removed from Kubernetes cluster, `coil-controller` reclaims address blocks kept for that node.
-If no IP addresses are kept for an address block, `coil-controller` returns it to the pool.
-
-`coild` periodically examines which address blocks are kep for the node by examining etcd.
-If the address block does not keep assigned IP addresses, `coild` returns the address block.
 
 When a Pod is removed, `coil` CNI plugins requests `coild` frees the IP address for the Pod by REST API.
 It also returns address blocks to the pool at the same time if they are no longer used.
+
+`coild` periodically examines which address blocks are kept for the node by examining etcd.
+If the address block does not keep assigned IP addresses, `coild` returns the address block.
 
 ### Routing tables
 
