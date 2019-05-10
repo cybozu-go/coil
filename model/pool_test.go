@@ -11,7 +11,7 @@ import (
 
 func testAddPool(t *testing.T) {
 	t.Parallel()
-	m := NewTestEtcdModel(t)
+	m := NewTestEtcdModel(t, clientPort)
 
 	_, subnet1, _ := net.ParseCIDR("10.11.0.0/16")
 	_, subnet2, _ := net.ParseCIDR("10.12.0.0/16")
@@ -65,7 +65,7 @@ func testAddPool(t *testing.T) {
 
 func testAddSubnet(t *testing.T) {
 	t.Parallel()
-	m := NewTestEtcdModel(t)
+	m := NewTestEtcdModel(t, clientPort)
 
 	_, subnet1, _ := net.ParseCIDR("10.12.0.0/24")
 	_, subnet2, _ := net.ParseCIDR("10.12.1.0/24")
@@ -105,7 +105,7 @@ func testAddSubnet(t *testing.T) {
 
 func testRemovePool(t *testing.T) {
 	t.Parallel()
-	m := NewTestEtcdModel(t)
+	m := NewTestEtcdModel(t, clientPort)
 
 	err := m.RemovePool(context.Background(), "default")
 	if err != ErrNotFound {

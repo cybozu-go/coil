@@ -13,11 +13,12 @@ import (
 
 	"github.com/cybozu-go/coil"
 	"github.com/cybozu-go/coil/model"
+	"github.com/cybozu-go/coil/test"
 	"github.com/google/go-cmp/cmp"
 )
 
 func testNewServer(t *testing.T) *Server {
-	db := model.NewTestEtcdModel(t)
+	db := model.NewTestEtcdModel(t, clientPort)
 	s := NewServer(db, 119, 30)
 	s.nodeName = "node-0"
 	s.dryRun = true
@@ -46,10 +47,7 @@ func testNewServer(t *testing.T) *Server {
 		t.Fatal(err)
 	}
 	// Format of older than version 1.0.2 or before
-	client, err := model.NewTestEtcdClient(t.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
+	client := test.NewTestEtcdClient(t, clientPort)
 	_, err = client.Put(context.Background(), fmt.Sprintf("ip/%s/%d", block.IP.String(), 1), "default/pod-1")
 	if err != nil {
 		t.Fatal(err)

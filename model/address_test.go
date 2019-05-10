@@ -16,7 +16,7 @@ const (
 
 func testGetAddressInfo(t *testing.T) {
 	t.Parallel()
-	m := NewTestEtcdModel(t)
+	m := NewTestEtcdModel(t, clientPort)
 
 	_, subnet, err := net.ParseCIDR("10.11.0.0/28")
 	if err != nil {

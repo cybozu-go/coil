@@ -3,8 +3,15 @@ package model
 import (
 	"os"
 	"testing"
+
+	"github.com/cybozu-go/coil/test"
+)
+
+const (
+	clientPort = "22379"
+	peerPort   = "22380"
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(TestEtcdRun(m))
+	os.Exit(test.TestEtcdRun(m, clientPort, peerPort))
 }

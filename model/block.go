@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"log"
 	"net"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/clientv3/clientv3util"
 	"github.com/cybozu-go/coil"
+	"github.com/cybozu-go/log"
 )
 
 func (m etcdModel) GetMyBlocks(ctx context.Context, node string) (map[string][]*net.IPNet, error) {
@@ -136,7 +136,7 @@ RETRY:
 		return err
 	}
 	if gresp.Count == 0 {
-		log.Fatal("block assignment information has been lost for "+bkey, nil)
+		log.Error("block assignment information has been lost for "+bkey, nil)
 		return ErrNotFound
 	}
 	rev := gresp.Kvs[0].ModRevision
