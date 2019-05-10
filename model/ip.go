@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/coreos/etcd/clientv3"
+	"github.com/coreos/etcd/clientv3/clientv3util"
 	"github.com/cybozu-go/coil"
 	"github.com/cybozu-go/netutil"
 )
@@ -58,11 +59,17 @@ func (m etcdModel) AllocateIP(ctx context.Context, block *net.IPNet, assignment 
 		if allocated[k] {
 			continue
 		}
-		offset = i
-		_, err = m.etcd.Put(ctx, k, string(val))
+		resp, err := m.etcd.Txn(ctx).
+			If(clientv3util.KeyMissing(k)).
+			Then(clientv3.OpPut(k, string(val))).
+			Commit()
 		if err != nil {
 			return nil, err
 		}
+		if !resp.Succeeded {
+			continue
+		}
+		offset = i
 		break
 	}
 	if offset == -1 {
