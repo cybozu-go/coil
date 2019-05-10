@@ -32,7 +32,7 @@ func testAllocateIP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 3; i++ {
 		_, err := m.AllocateIP(context.Background(), block, coil.IPAssignment{
 			ContainerID: fmt.Sprintf("container-%d", i),
 			Namespace:   "default",
@@ -43,16 +43,22 @@ func testAllocateIP(t *testing.T) {
 			t.Error(err)
 		}
 	}
+	// Format of older than version 1.0.2 or before
+	_, err = m.etcd.Put(context.Background(), ipKey(block, 3), "default/pod-3")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	ips, err := m.GetAllocatedIPs(context.Background(), block)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	expected := map[string]net.IP{
-		"container-0": block.IP,
-		"container-1": netutil.IntToIP4(netutil.IP4ToInt(block.IP) + 1),
-		"container-2": netutil.IntToIP4(netutil.IP4ToInt(block.IP) + 2),
-		"container-3": netutil.IntToIP4(netutil.IP4ToInt(block.IP) + 3),
+		"container-0":   block.IP,
+		"container-1":   netutil.IntToIP4(netutil.IP4ToInt(block.IP) + 1),
+		"container-2":   netutil.IntToIP4(netutil.IP4ToInt(block.IP) + 2),
+		"default/pod-3": netutil.IntToIP4(netutil.IP4ToInt(block.IP) + 3),
 	}
 	if !cmp.Equal(ips, expected) {
 		t.Errorf("!cmd.Equal(ips, expected): %+v, %+v", ips, expected)

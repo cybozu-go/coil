@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cybozu-go/coil"
+	"github.com/cybozu-go/netutil"
 )
 
 const (
@@ -55,6 +56,28 @@ func testGetAddressInfo(t *testing.T) {
 	_, _, err = m.GetAddressInfo(context.Background(), net.ParseIP("10.11.1.0"))
 	if err != ErrNotFound {
 		t.Errorf("expected error: ErrNotFound, actual: %v", err)
+	}
+
+	// Format of older than version 1.0.2 or before
+	_, err = m.etcd.Put(context.Background(), ipKey(block, 1), "default/pod-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	info, _, err = m.GetAddressInfo(context.Background(), netutil.IntToIP4(netutil.IP4ToInt(block.IP)+1))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assignment = coil.IPAssignment{
+		ContainerID: "",
+		Namespace:   "default",
+		Pod:         "pod-1",
+		CreatedAt:   time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	if *info != assignment {
+		t.Errorf("expected info: %v, actual: %v", assignment, *info)
 	}
 }
 

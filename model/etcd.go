@@ -61,7 +61,8 @@ func TestEtcdRun(m *testing.M) int {
 	return m.Run()
 }
 
-func newTestEtcdClient(prefix string) (*clientv3.Client, error) {
+// NewTestEtcdClient returns a etcd client for testing
+func NewTestEtcdClient(prefix string) (*clientv3.Client, error) {
 	var clientURL string
 	circleci := os.Getenv("CIRCLECI") == "true"
 	if circleci {
@@ -77,7 +78,7 @@ func newTestEtcdClient(prefix string) (*clientv3.Client, error) {
 
 // NewTestEtcdModel return a Model that works on etcd for testing.
 func NewTestEtcdModel(t *testing.T) etcdModel {
-	etcd, err := newTestEtcdClient(t.Name())
+	etcd, err := NewTestEtcdClient(t.Name())
 	if err != nil {
 		t.Fatal(err)
 	}

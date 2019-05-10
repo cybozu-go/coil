@@ -45,6 +45,16 @@ func testNewServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Format of older than version 1.0.2 or before
+	client, err := model.NewTestEtcdClient(t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.Put(context.Background(), fmt.Sprintf("ip/%s/%d", block.IP.String(), 1), "default/pod-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	return s
 }
 
@@ -67,7 +77,8 @@ func testGetStatus(t *testing.T) {
 		t.Error(`expected: []string{"10.10.0.0/30"}, actual:`, st.AddressBlocks)
 	}
 	if !cmp.Equal(st.Pods, map[string]string{
-		"container-0": "10.10.0.0",
+		"container-0":   "10.10.0.0",
+		"default/pod-1": "10.10.0.1",
 	}) {
 		t.Error(`expected: "container-0": "10.10.0.0", actual:`, st.Pods)
 	}
@@ -150,7 +161,7 @@ func testIPNew(t *testing.T) {
 		t.Error("http status should be 409, actual:", resp.StatusCode)
 	}
 
-	for i := 0; i < 14; i++ {
+	for i := 0; i < 13; i++ {
 		w = httptest.NewRecorder()
 		r = httptest.NewRequest("POST", "/ip",
 			strings.NewReader(`{"pod-namespace": "default", "pod-name": "bbb", "container-id": "`+fmt.Sprintf("ddd-%d", i)+`"}`))
@@ -246,14 +257,6 @@ func testIPDelete(t *testing.T) {
 		t.Error("invalid status:", response.Status)
 	}
 
-	blocks, err := server.db.GetMyBlocks(context.Background(), server.nodeName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(blocks) != 0 {
-		t.Error("block still exists:", blocks)
-	}
-
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest("DELETE", "/ip/default/pod-0/container-0", nil)
 	server.ServeHTTP(w, r)
@@ -272,6 +275,35 @@ func testIPDelete(t *testing.T) {
 	}
 	if response.Status != http.StatusOK {
 		t.Error("invalid status:", response.Status)
+	}
+
+	// Format of older than version 1.0.2 or before
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest("DELETE", "/ip/default/pod-1/container-1", nil)
+	server.ServeHTTP(w, r)
+	resp = w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Error("http status should be 200, actual:", resp.StatusCode)
+	}
+
+	response = addressInfo{}
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if net.ParseIP(response.Address).IsUnspecified() {
+		t.Error("invalid IP address:", response.Address)
+	}
+	if response.Status != http.StatusOK {
+		t.Error("invalid status:", response.Status)
+	}
+
+	blocks, err := server.db.GetMyBlocks(context.Background(), server.nodeName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(blocks) != 0 {
+		t.Error("block still exists:", blocks)
 	}
 }
 
