@@ -41,18 +41,31 @@ address blocks.  `coil` only receives a single IP address (not a subnet).
 House-keeping
 -------------
 
-Coil need to reclaim IP addresses and address blocks when they are no longer used.
+Coil need to reclaim IP addresses, address blocks and routing table when they are no longer used.
 
-When a node is removed from Kubernetes cluster, `coil-controller` will reclaim
-IP addresses and address blocks kept for that node.
+### IP addresses
 
-When a Pod is removed, `coild` will free the IP address for the Pod.  It will also
-return address blocks to the pool at the same time if they are no longer used.
+`coil-controller` periodically examines which IP addresses are kept for the node by examining etcd.
+It then queries the API server to obtain the currently running Pods,
+and reclaim IP addresses kept for missing Pods for a long time.
 
-`coil-controller` will periodically examine which IP addresses are kept for the node by
-examining etcd database.  It then queries the API server to obtain the currently
-running Pods, and reclaim IP addresses kept for missing Pods for a long time.
-If no IP addresses are kept for an address block, `coil-controller` will return it to the pool.
+`coild` periodically examines which IP addresses are kept for the node by examining etcd.
+If the IP address is no longer used by Pod even it is stored on etcd, `coild` frees the IP address.
+
+### Address blocks
+
+When a node is removed from Kubernetes cluster, `coil-controller` reclaims address blocks kept for that node.
+If no IP addresses are kept for an address block, `coil-controller` returns it to the pool.
+
+`coild` periodically examines which address blocks are kep for the node by examining etcd.
+If the address block does not keep assigned IP addresses, `coild` returns the address block.
+
+When a Pod is removed, `coil` CNI plugins requests `coild` frees the IP address for the Pod by REST API.
+It also returns address blocks to the pool at the same time if they are no longer used.
+
+### Routing tables
+
+When `coild` returns the address block to the pool by house-keeping, it removes its routing table.
 
 Routing
 -------
