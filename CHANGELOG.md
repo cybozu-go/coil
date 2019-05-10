@@ -5,6 +5,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2019-05-10
+
+### Changed
+
+- circleci: do not push branch tag for pre-releases (#52).
+- coild: fix error handling (#53).
+- Manage resources by container-id and fix potential race condition and http statuses of coild (#54).
+- Run `nilerr` and `restrictpkg` for testing and fix running multiple etcd (#56).
+
 ## [1.0.2] - 2019-04-19
 
 ### Changed
@@ -57,7 +66,8 @@ This is the first release
 
 - Implement CNI plugin, coild, coilctl and coil-controller
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/cybozu-go/coil/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/cybozu-go/coil/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/cybozu-go/coil/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/cybozu-go/coil/compare/v0.4...v1.0.0
