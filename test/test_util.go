@@ -11,8 +11,8 @@ import (
 	"github.com/cybozu-go/log"
 )
 
-// TestEtcdRun starts etcd for testing
-func TestEtcdRun(m *testing.M, clientPort, peerPort string) int {
+// RunEtcd starts etcd for testing
+func RunEtcd(m *testing.M, clientPort, peerPort string) int {
 	circleci := os.Getenv("CIRCLECI") == "true"
 	if circleci {
 		code := m.Run()

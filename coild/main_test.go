@@ -13,5 +13,5 @@ const (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(test.TestEtcdRun(m, clientPort, peerPort))
+	os.Exit(test.RunEtcd(m, clientPort, peerPort))
 }
