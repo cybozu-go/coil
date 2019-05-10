@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/cybozu-go/coil"
 	"github.com/cybozu-go/coil/controller"
@@ -14,16 +13,6 @@ import (
 	"github.com/cybozu-go/well"
 	"github.com/spf13/cobra"
 )
-
-const (
-	defaultScanInterval      = time.Minute * 10
-	defaultAddressExpiration = time.Hour * 24
-)
-
-var config struct {
-	scanInterval      time.Duration
-	addressExpiration time.Duration
-}
 
 var etcdConfig *etcdutil.Config
 
@@ -70,10 +59,6 @@ It should be deployed as a Deployment pod in Kunernetes.
 			return cntl.Watch(ctx, rev)
 		})
 
-		well.Go(func(ctx context.Context) error {
-			return cntl.ScanLoop(ctx, config.scanInterval, config.addressExpiration)
-		})
-
 		err = well.Wait()
 		if err != nil && !well.IsSignaled(err) {
 			log.ErrorExit(err)
@@ -93,8 +78,4 @@ func Execute() {
 func init() {
 	etcdConfig = coil.NewEtcdConfig()
 	etcdConfig.AddPFlags(rootCmd.PersistentFlags())
-
-	fs := rootCmd.Flags()
-	fs.DurationVar(&config.scanInterval, "scan-interval", defaultScanInterval, "Scan interval of IP address inconsistency")
-	fs.DurationVar(&config.addressExpiration, "address-expiration", defaultAddressExpiration, "Expiration for releasing unused address")
 }
