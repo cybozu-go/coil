@@ -3,8 +3,8 @@ package controller
 import (
 	"context"
 	"fmt"
-	"log"
 
+	"github.com/cybozu-go/log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ func (c *Controller) Watch(ctx context.Context, rev string) error {
 		node, ok := ev.Object.(*corev1.Node)
 		if !ok {
 			vk := ev.Object.GetObjectKind().GroupVersionKind()
-			log.Fatal("unexpected object from watch", map[string]interface{}{
+			log.Error("unexpected object from watch", map[string]interface{}{
 				"group":   vk.Group,
 				"version": vk.Version,
 				"kind":    vk.Kind,
