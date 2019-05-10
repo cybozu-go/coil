@@ -144,6 +144,7 @@ spec:
             - "--etcd-tls-ca=/coil-secrets/cacert"
             - "--etcd-tls-cert=/coil-secrets/cert"
             - "--etcd-tls-key=/coil-secrets/key"
+            - "--scan-interval=10m"
           env:
             - name: COIL_NODE_NAME
               valueFrom:
@@ -255,6 +256,8 @@ spec:
             - "--etcd-tls-ca=/coil-secrets/cacert"
             - "--etcd-tls-cert=/coil-secrets/cert"
             - "--etcd-tls-key=/coil-secrets/key"
+            - "--scan-interval=10m"
+            - "--address-expiration=24h"
           # for "kubectl exec POD coilctl"
           env:
             - name: COILCTL_ENDPOINTS

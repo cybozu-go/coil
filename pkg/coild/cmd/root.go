@@ -34,8 +34,6 @@ import (
 	"github.com/cybozu-go/log"
 	"github.com/cybozu-go/well"
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 const (
@@ -87,17 +85,7 @@ Following environment variable needs to be set:
 
 		db := model.NewEtcdModel(etcd)
 
-		clusterConfig, err := rest.InClusterConfig()
-		if err != nil {
-			log.ErrorExit(err)
-		}
-
-		clientset, err := kubernetes.NewForConfig(clusterConfig)
-		if err != nil {
-			log.ErrorExit(err)
-		}
-
-		server := coild.NewServer(db, clientset, config.tableID, config.protocolID)
+		server := coild.NewServer(db, config.tableID, config.protocolID)
 
 		well.Go(func(ctx context.Context) error {
 			return subMain(ctx, server)
