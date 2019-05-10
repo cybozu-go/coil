@@ -20,4 +20,7 @@ var (
 
 	// ErrNotFound is returned when a key does not exist.
 	ErrNotFound = errors.New("not found")
+
+	// ErrModRevDiffers is returned when a key is updated since it was retrieved with ModRevision.
+	ErrModRevDiffers = errors.New("ModRevision differs")
 )

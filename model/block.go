@@ -8,6 +8,7 @@ import (
 	"net"
 
 	"github.com/coreos/etcd/clientv3"
+	"github.com/coreos/etcd/clientv3/clientv3util"
 	"github.com/cybozu-go/coil"
 )
 
@@ -29,6 +30,29 @@ func (m etcdModel) GetMyBlocks(ctx context.Context, node string) (map[string][]*
 		if len(blocks) > 0 {
 			t := kv.Key[len(keyBlock):]
 			poolName := string(t[0:bytes.IndexByte(t, '/')])
+			ret[poolName] = append(ret[poolName], blocks...)
+		}
+	}
+	return ret, nil
+}
+
+func (m etcdModel) GetAssignedBlocks(ctx context.Context) (map[string][]*net.IPNet, error) {
+	resp, err := m.etcd.Get(ctx, keyBlock, clientv3.WithPrefix())
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make(map[string][]*net.IPNet)
+	for _, kv := range resp.Kvs {
+		ba := new(coil.BlockAssignment)
+		err = json.Unmarshal(kv.Value, ba)
+		if err != nil {
+			return nil, err
+		}
+
+		t := kv.Key[len(keyBlock):]
+		poolName := string(t[0:bytes.IndexByte(t, '/')])
+		for _, blocks := range ba.Nodes {
 			ret[poolName] = append(ret[poolName], blocks...)
 		}
 	}
@@ -88,7 +112,7 @@ RETRY:
 	return first, nil
 }
 
-func (m etcdModel) ReleaseBlock(ctx context.Context, node, poolName string, block *net.IPNet) error {
+func (m etcdModel) ReleaseBlock(ctx context.Context, node, poolName string, block *net.IPNet, force bool) error {
 	pool, err := m.GetPool(ctx, poolName)
 	if err != nil {
 		return err
@@ -134,12 +158,26 @@ RETRY:
 	if err != nil {
 		return err
 	}
-	tresp, err := m.etcd.Txn(ctx).
-		If(clientv3.Compare(clientv3.ModRevision(bkey), "=", rev)).
-		Then(
+
+	var thenOps []clientv3.Op
+	if force {
+		thenOps = []clientv3.Op{
 			clientv3.OpPut(bkey, string(output)),
 			clientv3.OpDelete(ipKeyPrefix(block), clientv3.WithPrefix()),
-		).Commit()
+		}
+	} else {
+		thenOps = []clientv3.Op{
+			clientv3.OpTxn(
+				[]clientv3.Cmp{clientv3util.KeyMissing(ipKeyPrefix(block)).WithPrefix()},
+				[]clientv3.Op{clientv3.OpPut(bkey, string(output))},
+				nil,
+			),
+		}
+	}
+
+	tresp, err := m.etcd.Txn(ctx).
+		If(clientv3.Compare(clientv3.ModRevision(bkey), "=", rev)).
+		Then(thenOps...).Commit()
 	if err != nil {
 		return err
 	}

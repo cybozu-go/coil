@@ -29,7 +29,7 @@ Address block
 -------------
 
 In order to reduce the number of routes in the system, Coil divides a large
-subnet into small fixed-size blocks called _address block__.  For example,
+subnet into small fixed-size blocks called __address block__.  For example,
 if coil is configured to allocate IP addresses from `10.1.0.0/16`, it may
 divides the subnet into 4096 blocks of the size of `/28` (16 addresses).
 
@@ -41,21 +41,29 @@ address blocks.  `coil` only receives a single IP address (not a subnet).
 House-keeping
 -------------
 
-Coil need to reclaim IP addresses and address blocks when they are no longer used.
+Coil need to reclaim IP addresses, address blocks and routing table entries when they are no longer used.
 
-When a node is removed from Kubernetes cluster, `coil-controller` will reclaim
-IP addresses and address blocks kept for that node.
+### IP addresses
 
-When a Pod is removed, `coild` will free the IP address for the Pod.  It will *not*
-return address blocks to the pool at the same time to avoid complex concurrency
-control.
+When a Pod is removed, `coil` CNI plugins requests `coild` frees the IP address for the Pod by REST API.
 
-When `coild` starts or restarts, it will first examine which address blocks and
-IP addresses are kept for the node by examining etcd database.  It then queries
-the API server to obtain the currently running Pods, and reclaim IP addresses
-kept for missing Pods.  If no IP addresses are kept for an address block, `coild`
-will return it to the pool.  Once `coild` completes this house-keeping, it starts
-accepting REST API requests.
+`coil-controller` periodically examines which IP addresses are kept for the node by examining etcd.
+If the IP address is no longer used by Pod even it is stored on etcd, `coil-controller` raises an alert.
+If the IP address used by Pod is not stored on etcd, `coil-controller` raises a higher-level alert.
+
+### Address blocks
+
+When a Pod is removed and `coild` frees the IP address, it also returns an address block to the pool
+at the same time if it is no longer used.
+
+`coild` periodically examines which address blocks are kept for the node by examining etcd.
+If the address block does not keep assigned IP addresses, `coild` returns the address block.
+
+When a node is removed from Kubernetes cluster, `coil-controller` reclaims address blocks kept for that node.
+
+### Routing table entries
+
+When `coild` returns the address block to the pool by house-keeping, it removes its routing table entry.
 
 Routing
 -------

@@ -21,18 +21,32 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		Pods:          make(map[string]string),
 		Status:        http.StatusOK,
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
-	for k, v := range s.addressBlocks {
+	blocks, err := s.db.GetMyBlocks(r.Context(), s.nodeName)
+	if err != nil {
+		renderError(r.Context(), w, InternalServerError(err))
+		return
+	}
+
+	for k, v := range blocks {
 		bl := make([]string, len(v))
 		for i, block := range v {
 			bl[i] = block.String()
 		}
 		st.AddressBlocks[k] = bl
 	}
-	for k, v := range s.podIPs {
-		st.Pods[k] = v.String()
+
+	for _, v := range blocks {
+		for _, block := range v {
+			podIPs, err := s.db.GetAllocatedIPs(r.Context(), block)
+			if err != nil {
+				renderError(r.Context(), w, InternalServerError(err))
+				return
+			}
+			for k2, v2 := range podIPs {
+				st.Pods[k2] = v2.String()
+			}
+		}
 	}
 
 	renderJSON(w, st, http.StatusOK)

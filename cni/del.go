@@ -27,7 +27,7 @@ func Del(args *skel.CmdArgs) error {
 		return err
 	}
 
-	err = returnIPToCoild(coildURL, podNS, podName)
+	err = returnIPToCoild(coildURL, podNS, podName, args.ContainerID)
 	if err != nil {
 		return err
 	}

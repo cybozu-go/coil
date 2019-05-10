@@ -169,13 +169,13 @@ func Add(args *skel.CmdArgs) error {
 		return err
 	}
 
-	ip, err := getIPFromCoild(coildURL, podNS, podName)
+	ip, err := getIPFromCoild(coildURL, podNS, podName, args.ContainerID)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if !success {
-			returnIPToCoild(coildURL, podNS, podName)
+			returnIPToCoild(coildURL, podNS, podName, args.ContainerID)
 		}
 	}()
 

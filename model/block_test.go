@@ -11,7 +11,7 @@ import (
 func testGetMyBlocks(t *testing.T) {
 	t.Parallel()
 
-	m := newModel(t)
+	m := NewTestEtcdModel(t)
 
 	_, subnet1, _ := net.ParseCIDR("10.1.2.0/24")
 	_, subnet2, _ := net.ParseCIDR("10.1.3.0/24")
@@ -98,7 +98,7 @@ func testGetMyBlocks(t *testing.T) {
 func testAcquireBlock(t *testing.T) {
 	t.Parallel()
 
-	m := newModel(t)
+	m := NewTestEtcdModel(t)
 
 	_, subnet, _ := net.ParseCIDR("10.11.0.0/16")
 	err := m.AddPool(context.Background(), "default", subnet, 5)
@@ -132,7 +132,7 @@ func testAcquireBlock(t *testing.T) {
 func testReleaseBlock(t *testing.T) {
 	t.Parallel()
 
-	m := newModel(t)
+	m := NewTestEtcdModel(t)
 
 	_, subnet, _ := net.ParseCIDR("10.11.0.0/16")
 	err := m.AddPool(context.Background(), "default", subnet, 5)
@@ -145,12 +145,12 @@ func testReleaseBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = m.ReleaseBlock(context.Background(), "node1", "default", ipnet1)
+	err = m.ReleaseBlock(context.Background(), "node1", "default", ipnet1, true)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = m.ReleaseBlock(context.Background(), "node1", "default", ipnet1)
+	err = m.ReleaseBlock(context.Background(), "node1", "default", ipnet1, true)
 	if err != ErrNotFound {
 		t.Error("double release should return ErrNotFound")
 	}
@@ -160,7 +160,7 @@ func testReleaseBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = m.ReleaseBlock(context.Background(), "node1", "default", ipnet2)
+	err = m.ReleaseBlock(context.Background(), "node1", "default", ipnet2, true)
 	if err != ErrNotFound {
 		t.Error("double release should return ErrNotFound")
 	}

@@ -37,15 +37,17 @@ import (
 )
 
 const (
-	defaultListenHTTP = "127.0.0.1:9383"
-	defaultTableID    = 119
-	defaultProtocolID = 30
+	defaultListenHTTP   = "127.0.0.1:9383"
+	defaultTableID      = 119
+	defaultProtocolID   = 30
+	defaultScanInterval = time.Minute * 10
 )
 
 var config struct {
-	endpoint   string
-	tableID    int
-	protocolID int
+	endpoint     string
+	tableID      int
+	protocolID   int
+	scanInterval time.Duration
 }
 
 var etcdConfig *etcdutil.Config
@@ -82,11 +84,17 @@ Following environment variable needs to be set:
 		defer etcd.Close()
 
 		db := model.NewEtcdModel(etcd)
+
 		server := coild.NewServer(db, config.tableID, config.protocolID)
 
 		well.Go(func(ctx context.Context) error {
 			return subMain(ctx, server)
 		})
+
+		well.Go(func(ctx context.Context) error {
+			return server.ScanLoop(ctx, config.scanInterval)
+		})
+
 		err = well.Wait()
 		if err != nil && !well.IsSignaled(err) {
 			log.ErrorExit(err)
@@ -128,4 +136,5 @@ func init() {
 	fs.StringVar(&config.endpoint, "http", defaultListenHTTP, "REST API endpoint")
 	fs.IntVar(&config.tableID, "table-id", defaultTableID, "Routing table ID to export routes")
 	fs.IntVar(&config.protocolID, "protocol-id", defaultProtocolID, "Route author ID")
+	fs.DurationVar(&config.scanInterval, "scan-interval", defaultScanInterval, "Scan interval of unused IP address block")
 }
