@@ -305,12 +305,14 @@ OUTER:
 		})
 		return
 	}
-	err = deleteBlockRouting(s.tableID, s.protocolID, block)
-	if err != nil {
-		log.Warn("failed to delete routing table", map[string]interface{}{
-			log.FnError: err,
-			"block":     block.String(),
-		})
+	if !s.dryRun {
+		err = deleteBlockRouting(s.tableID, s.protocolID, block)
+		if err != nil {
+			log.Warn("failed to delete routing table", map[string]interface{}{
+				log.FnError: err,
+				"block":     block.String(),
+			})
+		}
 	}
 	return
 }

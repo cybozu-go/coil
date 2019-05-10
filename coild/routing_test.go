@@ -26,6 +26,46 @@ func routeExists(r *net.IPNet, tableID string) bool {
 	return false
 }
 
+func testRoutingSync(t *testing.T) {
+	t.Parallel()
+
+	err := exec.Command("ip", "route", "flush", "table", "117").Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, block1, _ := net.ParseCIDR("192.168.100.1/32")
+	_, block2, _ := net.ParseCIDR("192.168.100.2/32")
+	_, block3, _ := net.ParseCIDR("192.168.100.3/32")
+
+	err = syncRoutingTable(117, 30, []*net.IPNet{block1, block2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !routeExists(block1, "117") {
+		t.Error("route not found:", block1)
+	}
+	if !routeExists(block2, "117") {
+		t.Error("route not found:", block2)
+	}
+
+	err = syncRoutingTable(117, 30, []*net.IPNet{block1, block3})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !routeExists(block1, "117") {
+		t.Error("route not found:", block1)
+	}
+	if routeExists(block2, "117") {
+		t.Error("route not removed:", block2)
+	}
+	if !routeExists(block3, "117") {
+		t.Error("route not found:", block3)
+	}
+}
+
 func testRoutingAdd(t *testing.T) {
 	t.Parallel()
 
@@ -45,7 +85,7 @@ func testRoutingAdd(t *testing.T) {
 	}
 }
 
-func testRoutingSync(t *testing.T) {
+func testRoutingDelete(t *testing.T) {
 	t.Parallel()
 
 	err := exec.Command("ip", "route", "flush", "table", "119").Run()
@@ -53,35 +93,24 @@ func testRoutingSync(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, block1, _ := net.ParseCIDR("192.168.100.1/32")
-	_, block2, _ := net.ParseCIDR("192.168.100.2/32")
-	_, block3, _ := net.ParseCIDR("192.168.100.3/32")
+	_, block, _ := net.ParseCIDR("192.168.100.1/32")
+	err = deleteBlockRouting(119, 30, block)
+	if err == nil {
+		t.Error("unknown succeeds")
+	}
 
-	err = syncRoutingTable(119, 30, []*net.IPNet{block1, block2})
+	err = addBlockRouting(119, 30, block)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !routeExists(block1, "119") {
-		t.Error("route not found:", block1)
-	}
-	if !routeExists(block2, "119") {
-		t.Error("route not found:", block2)
-	}
-
-	err = syncRoutingTable(119, 30, []*net.IPNet{block1, block3})
+	err = deleteBlockRouting(119, 30, block)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
-	if !routeExists(block1, "119") {
-		t.Error("route not found:", block1)
-	}
-	if routeExists(block2, "119") {
-		t.Error("route not removed:", block2)
-	}
-	if !routeExists(block3, "119") {
-		t.Error("route not found:", block3)
+	if routeExists(block, "119") {
+		t.Error("route still exists:", block)
 	}
 }
 
@@ -97,6 +126,7 @@ func TestRouting(t *testing.T) {
 	if u.Uid != "0" {
 		t.Skip("only for root user")
 	}
-	t.Run("Add", testRoutingAdd)
 	t.Run("Sync", testRoutingSync)
+	t.Run("Add", testRoutingAdd)
+	t.Run("Delete", testRoutingDelete)
 }

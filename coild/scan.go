@@ -122,9 +122,11 @@ OUTER:
 			if err != nil {
 				return err
 			}
-			err = deleteBlockRouting(s.tableID, s.protocolID, block)
-			if err != nil {
-				return err
+			if !s.dryRun {
+				err = deleteBlockRouting(s.tableID, s.protocolID, block)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}

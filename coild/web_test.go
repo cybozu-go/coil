@@ -246,6 +246,14 @@ func testIPDelete(t *testing.T) {
 		t.Error("invalid status:", response.Status)
 	}
 
+	blocks, err := server.db.GetMyBlocks(context.Background(), server.nodeName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(blocks) != 0 {
+		t.Error("block still exists:", blocks)
+	}
+
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest("DELETE", "/ip/default/pod-0/container-0", nil)
 	server.ServeHTTP(w, r)
