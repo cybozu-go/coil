@@ -19,6 +19,7 @@ commands:
       - run:
           command: |
             ./bin/run-mtest.sh <<parameters.runtime>> <<parameters.suite>> <<parameters.target>>
+          no_output_timeout: 20m
 
 jobs:
   build:

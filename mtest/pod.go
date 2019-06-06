@@ -178,6 +178,38 @@ func TestPod() {
 			peerName := fmt.Sprintf("%s%s", "veth", hex.EncodeToString(h.Sum(nil))[:11])
 			execSafeAt(pod.Status.HostIP, "ip", "link", "show", peerName)
 		}
+
+		By("checking use same veth name when container crashed")
+		podName := podList2.Items[0].Name
+		_, stderr, err = kubectl("exec", podName, "--", "/bin/bash", "-c", "'kill 1'")
+		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
+
+		Eventually(func() error {
+			stdout, stderr, err := kubectl("get", "pods", podName, "-o=json")
+			if err != nil {
+				return fmt.Errorf("%v: stderr=%s", err, stderr)
+			}
+
+			pod := new(corev1.Pod)
+			err = json.Unmarshal(stdout, pod)
+			if err != nil {
+				return err
+			}
+
+			if !pod.Status.ContainerStatuses[0].Ready {
+				return errors.New("pod is not ready yet")
+			}
+
+			h := sha1.New()
+			h.Write([]byte(fmt.Sprintf("%s.%s", pod.Namespace, pod.Name)))
+			peerName := fmt.Sprintf("%s%s", "veth", hex.EncodeToString(h.Sum(nil))[:11])
+			_, stderr, err = execAt(pod.Status.HostIP, "ip", "link", "show", peerName)
+			if err != nil {
+				return fmt.Errorf("%v: stderr=%s", err, stderr)
+			}
+
+			return nil
+		}).Should(Succeed())
 	})
 
 	It("should expose all blocks", func() {
