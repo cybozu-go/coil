@@ -1,6 +1,8 @@
 package mtest
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -168,6 +170,14 @@ func TestPod() {
 			podList2.Items[1].Status.PodIP: podList2.Items[1].Status.HostIP,
 		}
 		Expect(ips1).To(Equal(ips2))
+
+		By("checking veth name")
+		for _, pod := range podList2.Items {
+			h := sha1.New()
+			h.Write([]byte(fmt.Sprintf("%s.%s", pod.Namespace, pod.Name)))
+			peerName := fmt.Sprintf("%s%s", "veth", hex.EncodeToString(h.Sum(nil))[:11])
+			execSafeAt(pod.Status.HostIP, "ip", "link", "show", peerName)
+		}
 	})
 
 	It("should expose all blocks", func() {

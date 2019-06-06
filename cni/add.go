@@ -1,3 +1,18 @@
+// Copyright 2015 CNI authors
+// Copyright 2019 Cybozu
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cni
 
 import (
@@ -126,29 +141,18 @@ func generateHostVethName(prefix, namespace, podname string) string {
 }
 
 func makeVeth(name, namespace, podname string, mtu int) (peerName string, veth netlink.Link, err error) {
-	for i := 0; i < 10; i++ {
-		peerName = generateHostVethName("veth", namespace, podname)
+	peerName = generateHostVethName("veth", namespace, podname)
 
-		veth, err = makeVethPair(name, peerName, mtu)
-		switch {
-		case err == nil:
-			return
-
-		case os.IsExist(err):
-			if peerExists(peerName) {
-				continue
-			}
-			err = fmt.Errorf("container veth name provided (%v) already exists", name)
-			return
-
-		default:
-			err = fmt.Errorf("failed to make veth pair: %v", err)
-			return
-		}
+	err = deletePeerIfExists(peerName)
+	if err != nil {
+		return
 	}
 
-	// should really never be hit
-	err = fmt.Errorf("failed to find a unique veth name")
+	veth, err = makeVethPair(name, peerName, mtu)
+	if os.IsExist(err) {
+		err = fmt.Errorf("container veth name provided (%v) already exists", name)
+		return
+	}
 	return
 }
 
@@ -161,6 +165,7 @@ func makeVethPair(name, peer string, mtu int) (netlink.Link, error) {
 		},
 		PeerName: peer,
 	}
+
 	if err := netlink.LinkAdd(veth); err != nil {
 		return nil, err
 	}
@@ -174,11 +179,14 @@ func makeVethPair(name, peer string, mtu int) (netlink.Link, error) {
 	return veth2, nil
 }
 
-func peerExists(name string) bool {
-	if _, err := netlink.LinkByName(name); err != nil {
-		return false
+func deletePeerIfExists(name string) error {
+	if oldHostVeth, err := netlink.LinkByName(name); err == nil {
+		err := netlink.LinkDel(oldHostVeth)
+		if err != nil {
+			return err
+		}
 	}
-	return true
+	return nil
 }
 
 // addRouteInHost does:
