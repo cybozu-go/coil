@@ -1,14 +1,32 @@
+// Copyright 2015 CNI authors
+// Copyright 2019 Cybozu
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cni
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/url"
+	"os"
 
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
 	"github.com/containernetworking/cni/pkg/types/current"
-	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/containernetworking/plugins/pkg/ipam"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
@@ -35,12 +53,12 @@ func ipToIPNet(ip net.IP) *net.IPNet {
 // 2. moves one side of the pair to the host NS, and
 // 3. fill "Interface" objects which will be used in the plugin result, and
 // 4. sets a link local address to the host-side veth.
-func setupVeth(netns ns.NetNS, ifName string) (*current.Interface, *current.Interface, error) {
+func setupVeth(netns ns.NetNS, ifName, namespace, podname string) (*current.Interface, *current.Interface, error) {
 	contIface := new(current.Interface)
 	hostIface := new(current.Interface)
 
 	err := netns.Do(func(hostNS ns.NetNS) error {
-		hostVeth, containerVeth, err := ip.SetupVeth(ifName, 0, hostNS)
+		hostVeth, containerVeth, err := setupVethPair(ifName, namespace, podname, 0, hostNS)
 		if err != nil {
 			return err
 		}
@@ -67,6 +85,108 @@ func setupVeth(netns ns.NetNS, ifName string) (*current.Interface, *current.Inte
 	}
 
 	return hostIface, contIface, nil
+}
+
+func setupVethPair(contVethName, namespace, podname string, mtu int, hostNS ns.NetNS) (net.Interface, net.Interface, error) {
+	hostVethName, contVeth, err := makeVeth(contVethName, namespace, podname, mtu)
+	if err != nil {
+		return net.Interface{}, net.Interface{}, err
+	}
+
+	if err = netlink.LinkSetUp(contVeth); err != nil {
+		return net.Interface{}, net.Interface{}, fmt.Errorf("failed to set %q up: %v", contVethName, err)
+	}
+
+	hostVeth, err := netlink.LinkByName(hostVethName)
+	if err != nil {
+		return net.Interface{}, net.Interface{}, fmt.Errorf("failed to lookup %q: %v", hostVethName, err)
+	}
+
+	if err = netlink.LinkSetNsFd(hostVeth, int(hostNS.Fd())); err != nil {
+		return net.Interface{}, net.Interface{}, fmt.Errorf("failed to move veth to host netns: %v", err)
+	}
+
+	err = hostNS.Do(func(_ ns.NetNS) error {
+		hostVeth, err = netlink.LinkByName(hostVethName)
+		if err != nil {
+			return fmt.Errorf("failed to lookup %q in %q: %v", hostVethName, hostNS.Path(), err)
+		}
+
+		if err = netlink.LinkSetUp(hostVeth); err != nil {
+			return fmt.Errorf("failed to set %q up: %v", hostVethName, err)
+		}
+		return nil
+	})
+	if err != nil {
+		return net.Interface{}, net.Interface{}, err
+	}
+	return ifaceFromNetlinkLink(hostVeth), ifaceFromNetlinkLink(contVeth), nil
+}
+
+func ifaceFromNetlinkLink(l netlink.Link) net.Interface {
+	a := l.Attrs()
+	return net.Interface{
+		Index:        a.Index,
+		MTU:          a.MTU,
+		Name:         a.Name,
+		HardwareAddr: a.HardwareAddr,
+		Flags:        a.Flags,
+	}
+}
+
+func generateHostVethName(prefix, namespace, podname string) string {
+	h := sha1.New()
+	h.Write([]byte(fmt.Sprintf("%s.%s", namespace, podname)))
+	return fmt.Sprintf("%s%s", prefix, hex.EncodeToString(h.Sum(nil))[:11])
+}
+
+func makeVeth(name, namespace, podname string, mtu int) (peerName string, veth netlink.Link, err error) {
+	peerName = generateHostVethName("veth", namespace, podname)
+
+	err = deletePeerIfExists(peerName)
+	if err != nil {
+		return
+	}
+
+	veth, err = makeVethPair(name, peerName, mtu)
+	if os.IsExist(err) {
+		err = fmt.Errorf("container veth name provided (%v) already exists", name)
+		return
+	}
+	return
+}
+
+func makeVethPair(name, peer string, mtu int) (netlink.Link, error) {
+	veth := &netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{
+			Name:  name,
+			Flags: net.FlagUp,
+			MTU:   mtu,
+		},
+		PeerName: peer,
+	}
+
+	if err := netlink.LinkAdd(veth); err != nil {
+		return nil, err
+	}
+	// Re-fetch the link to get its creation-time parameters, e.g. index and mac
+	veth2, err := netlink.LinkByName(name)
+	if err != nil {
+		netlink.LinkDel(veth) // try and clean up the link if possible.
+		return nil, err
+	}
+
+	return veth2, nil
+}
+
+func deletePeerIfExists(name string) error {
+	if oldHostVeth, err := netlink.LinkByName(name); err == nil {
+		err := netlink.LinkDel(oldHostVeth)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // addRouteInHost does:
@@ -158,13 +278,13 @@ func Add(args *skel.CmdArgs) error {
 	}
 	defer netns.Close()
 
-	hostInterface, containerInterface, err := setupVeth(netns, args.IfName)
+	kv := parseArgs(args.Args)
+	podNS, podName, err := getPodInfo(kv)
 	if err != nil {
 		return err
 	}
 
-	kv := parseArgs(args.Args)
-	podNS, podName, err := getPodInfo(kv)
+	hostInterface, containerInterface, err := setupVeth(netns, args.IfName, podNS, podName)
 	if err != nil {
 		return err
 	}
