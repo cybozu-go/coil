@@ -5,11 +5,17 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.2] - 2019-06-10
+
+### Changed
+
+- This release is the same as v1.1.1, just bumping version to update the [artifacts.go](https://github.com/cybozu-go/neco/blob/master/artifacts.go).
+
 ## [1.1.2-beta] - 2019-06-07
 
 ### Changed
 
-- Pre-release.
+- Pre-release to avoid including v1.1.1 on the [artifacts.go](https://github.com/cybozu-go/neco/blob/master/artifacts.go).
 
 ## [1.1.1] - 2019-06-07
 
@@ -78,7 +84,8 @@ This is the first release
 
 - Implement CNI plugin, coild, coilctl and coil-controller
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v1.1.2...HEAD
+[1.1.2]: https://github.com/cybozu-go/coil/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/cybozu-go/coil/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/cybozu-go/coil/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/cybozu-go/coil/compare/v1.0.1...v1.0.2
