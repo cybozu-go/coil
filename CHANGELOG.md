@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.4] - 2019-07-11
+
+Just bump version because v1.1.3 is accidentally unreleased.
+
 ## [1.1.3] - 2019-07-11
 
 ### Changed
@@ -90,7 +94,8 @@ This is the first release
 
 - Implement CNI plugin, coild, coilctl and coil-controller
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v1.1.3...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v1.1.4...HEAD
+[1.1.4]: https://github.com/cybozu-go/coil/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/cybozu-go/coil/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/cybozu-go/coil/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/cybozu-go/coil/compare/v1.1.0...v1.1.1
