@@ -38,7 +38,7 @@ func TestCoilController() {
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 		Eventually(func() error {
-			stdout, stderr, err := kubectl("get", "pods", "--selector=run=nginx", "-o=json")
+			stdout, stderr, err := kubectl("get", "pods", "--selector=app.kubernetes.io/name=nginx", "-o=json")
 			if err != nil {
 				return fmt.Errorf("%v: stderr=%s", err, stderr)
 			}
@@ -87,7 +87,7 @@ func TestCoilController() {
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 		Eventually(func() error {
-			stdout, stderr, err := kubectl("get", "pods", "--selector=run=nginx", "-o=json")
+			stdout, stderr, err := kubectl("get", "pods", "--selector=app.kubernetes.io/name=nginx", "-o=json")
 			if err != nil {
 				return fmt.Errorf("%v: stderr=%s", err, stderr)
 			}
@@ -109,7 +109,7 @@ func TestCoilController() {
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
 		Eventually(func() error {
-			stdout, stderr, err := kubectl("get", "deployment", "--selector=k8s-app=coil-controllers", "--namespace=kube-system", "-o=json")
+			stdout, stderr, err := kubectl("get", "deployment", "--selector=app.kubernetes.io/name=coil-controllers", "--namespace=kube-system", "-o=json")
 			if err != nil {
 				return fmt.Errorf("%v: stderr=%s", err, stderr)
 			}
