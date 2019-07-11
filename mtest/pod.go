@@ -285,7 +285,7 @@ func TestPod() {
 			}
 
 			if pod.Status.Phase != corev1.PodRunning {
-				return errors.New("pod is not Running")
+				return fmt.Errorf("pod is not Running: %v", pod)
 			}
 			if len(pod.Status.PodIP) == 0 {
 				return errors.New("pod is not assigned IP")
