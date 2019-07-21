@@ -53,6 +53,9 @@ func (m etcdModel) AllocateIP(ctx context.Context, block *net.IPNet, assignment 
 	blockSize := int(1 << uint(bits-ones))
 
 	val, err := json.Marshal(assignment)
+	if err != nil {
+		return nil, err
+	}
 	offset := -1
 	for i := 0; i < blockSize; i++ {
 		k := ipKey(block, i)
