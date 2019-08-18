@@ -13,19 +13,17 @@ RUNTIME_ENDPOINT = unix:///var/run/k8s-containerd.sock
 endif
 PLACEMAT = /usr/bin/placemat
 GINKGO = env GOFLAGS=-mod=vendor $(GOPATH)/bin/ginkgo
-MANAGEMENT_ETCD_VERSION = 3.3.12
+CURL = curl -fsL
+MANAGEMENT_ETCD_VERSION = 3.3.14
 VAULT_VERSION = 1.0.2
 K8S_VERSION = 1.14.1
 PLACEMAT_DATADIR = /var/scratch/placemat
 VM_SHARED_DIR = /mnt/placemat
-CONTAINERD_VERSION = 1.2.6
-PROTOBUF_VERSION = 3.7.0
-PROTOC = /usr/local/bin/protoc
+CONTAINERD_VERSION = 1.2.7
 CRITOOLS_VERSION = 1.14.0
 CT_VERSION = 0.9.0
 CT = /usr/local/bin/ct
 SUDO = sudo
-PACKAGES = libseccomp-dev automake autoconf libtool
 SUITE = ./functions
 ifeq ($(findstring /,$(SUITE)),)
   SUITE_PACKAGE = ./$(SUITE)
@@ -109,13 +107,13 @@ $(OUTPUT)/coilctl: $(OUTPUT)/coil.img
 
 # PLACEMAT_DEPS
 $(MANAGEMENT_ETCD_ARCHIVE):
-	curl -sSLf -o $@ https://github.com/coreos/etcd/releases/download/v$(MANAGEMENT_ETCD_VERSION)/etcd-v$(MANAGEMENT_ETCD_VERSION)-linux-amd64.tar.gz
+	$(CURL) -o $@ https://github.com/coreos/etcd/releases/download/v$(MANAGEMENT_ETCD_VERSION)/etcd-v$(MANAGEMENT_ETCD_VERSION)-linux-amd64.tar.gz
 
 $(VAULT_ARCHIVE):
-	curl -sSLf -o $@ https://releases.hashicorp.com/vault/$(VAULT_VERSION)/$(VAULT_ARCHIVE)
+	$(CURL) -o $@ https://releases.hashicorp.com/vault/$(VAULT_VERSION)/$(VAULT_ARCHIVE)
 
 $(COREOS_IMAGE):
-	curl -sSLf -o $@.bz2 https://stable.release.core-os.net/amd64-usr/current/$@.bz2
+	$(CURL) -o $@.bz2 https://stable.release.core-os.net/amd64-usr/current/$@.bz2
 	bunzip2 -q $@.bz2
 
 $(OUTPUT)/etcd $(OUTPUT)/etcdctl: $(MANAGEMENT_ETCD_ARCHIVE)
@@ -130,7 +128,7 @@ $(OUTPUT)/vault: $(VAULT_ARCHIVE)
 
 $(OUTPUT)/kubectl:
 	mkdir -p $(OUTPUT)
-	curl -o $@ -Lf $(KUBECTL_URL)
+	$(CURL) -o $@ $(KUBECTL_URL)
 	chmod a+x $@
 
 $(OUTPUT)/setup-cke.sh: setup-cke.sh
@@ -175,7 +173,7 @@ $(OUTPUT)/host1.ign: host.ign
 		-e 's/__NODE_ADDRESS__/$(HOST1)/' $< > $@
 
 $(CT):
-	curl -fsSL -o ct https://github.com/coreos/container-linux-config-transpiler/releases/download/v$(CT_VERSION)/ct-v$(CT_VERSION)-x86_64-unknown-linux-gnu
+	$(CURL) -o ct https://github.com/coreos/container-linux-config-transpiler/releases/download/v$(CT_VERSION)/ct-v$(CT_VERSION)-x86_64-unknown-linux-gnu
 	chmod +x ct
 	$(SUDO) mv ct $@
 
@@ -214,36 +212,16 @@ $(OUTPUT)/deploy.yml: deploy.yml
 	mkdir -p $(OUTPUT)
 	cp $< $@
 
-$(PROTOC):
-	curl -fsSL -o /tmp/protobuf.tar.gz https://github.com/protocolbuffers/protobuf/archive/v$(PROTOBUF_VERSION).tar.gz
-	tar -x -z -f /tmp/protobuf.tar.gz -C /tmp
-	(cd /tmp/protobuf-$(PROTOBUF_VERSION); ./autogen.sh && ./configure && make && $(SUDO) make install)
-	$(SUDO) ldconfig
-	rm -rf /tmp/protobuf.tar.gz /tmp/protobuf-$(PROTOBUF_VERSION)
-
-build-containerd: $(PROTOC)
-	rm -rf $(GOPATH)/src/github.com/containerd/containerd
-	mkdir -p $(GOPATH)/src/github.com/containerd/containerd
-	curl -fsSL -o containerd.tar.gz https://github.com/containerd/containerd/archive/v${CONTAINERD_VERSION}.tar.gz
-	tar -x -z --strip-components 1 -f containerd.tar.gz -C $(GOPATH)/src/github.com/containerd/containerd
-	rm -f containerd.tar.gz
-	(cd $(GOPATH)/src/github.com/containerd/containerd; env GO111MODULE=off make VERSION=$(CONTAINERD_VERSION))
-
-$(OUTPUT)/containerd: build-containerd
+unpack-containerd:
 	mkdir -p $(OUTPUT)
-	cp $(GOPATH)/src/github.com/containerd/containerd/bin/containerd $@
+	$(CURL) https://github.com/containerd/containerd/releases/download/v$(CONTAINERD_VERSION)/containerd-$(CONTAINERD_VERSION).linux-amd64.tar.gz | \
+	tar xzf - --strip-components=1 -C $(OUTPUT) bin/containerd bin/containerd-shim bin/ctr
 
-$(OUTPUT)/containerd-shim: build-containerd
-	mkdir -p $(OUTPUT)
-	cp $(GOPATH)/src/github.com/containerd/containerd/bin/containerd-shim $@
-
-$(OUTPUT)/ctr: build-containerd
-	mkdir -p $(OUTPUT)
-	cp $(GOPATH)/src/github.com/containerd/containerd/bin/ctr $@
+$(CONTAINERD_FILES): unpack-containerd
 
 $(OUTPUT)/crictl:
 	mkdir -p $(OUTPUT)
-	curl -fsSL -o crictl.tar.gz https://github.com/kubernetes-sigs/cri-tools/releases/download/v$(CRITOOLS_VERSION)/crictl-v$(CRITOOLS_VERSION)-linux-amd64.tar.gz
+	$(CURL) -o crictl.tar.gz https://github.com/kubernetes-sigs/cri-tools/releases/download/v$(CRITOOLS_VERSION)/crictl-v$(CRITOOLS_VERSION)-linux-amd64.tar.gz
 	tar zxvf crictl.tar.gz -C $(OUTPUT)
 
 # Targets
@@ -268,7 +246,5 @@ clean:
 
 setup:
 	go install -mod=vendor github.com/onsi/ginkgo/ginkgo
-	$(SUDO) apt-get update
-	$(SUDO) apt-get -y install --no-install-recommends $(PACKAGES)
 
-.PHONY: all test placemat stop clean setup
+.PHONY: all test placemat stop clean setup unpack-containerd
