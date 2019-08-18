@@ -9,7 +9,7 @@ fin() {
 }
 trap fin INT TERM HUP 0
 
-$GINKGO -v -focus="${TARGET}" $SUITE_PACKAGE
+$GINKGO -v -failFast -focus="${TARGET}" $SUITE_PACKAGE
 RET=$?
 
 exit $RET

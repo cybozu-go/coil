@@ -54,10 +54,10 @@ The default location of YAML is "$HOME/.coilctl.yml".`,
 			log.ErrorExit(err)
 		}
 
-		yamlTagOption := func(c *mapstructure.DecoderConfig) {
-			c.TagName = "yaml"
+		jsonTagOption := func(c *mapstructure.DecoderConfig) {
+			c.TagName = "json"
 		}
-		viper.Unmarshal(etcdConfig, yamlTagOption)
+		viper.Unmarshal(etcdConfig, jsonTagOption)
 
 		err = coil.ResolveEtcdEndpoints(etcdConfig)
 		if err != nil {
