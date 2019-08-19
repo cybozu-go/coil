@@ -2,7 +2,6 @@
 
 CONTAINER_RUNTIME=$1
 SUITE=$2
-TARGET=$3
 
 . $(dirname $0)/env
 
@@ -64,13 +63,13 @@ cp /assets/coreos_production_qemu_image.img .
 make setup
 make placemat
 sleep 3
-exec make test CONTAINER_RUNTIME=${CONTAINER_RUNTIME} SUITE=${SUITE} TARGET="${TARGET}"
+exec make test CONTAINER_RUNTIME=${CONTAINER_RUNTIME} SUITE=${SUITE}
 EOF
 chmod +x run.sh
 
 $GCLOUD compute scp --zone=${ZONE} run.sh cybozu@${INSTANCE_NAME}:
 set +e
-$GCLOUD compute ssh --zone=${ZONE} cybozu@${INSTANCE_NAME} --command='sudo /home/cybozu/run.sh'
+$GCLOUD compute ssh --zone=${ZONE} cybozu@${INSTANCE_NAME} --command='sudo -H /home/cybozu/run.sh'
 RET=$?
 
 exit $RET

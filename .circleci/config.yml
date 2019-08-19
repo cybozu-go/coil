@@ -7,9 +7,6 @@ commands:
         type: string
       suite:
         type: string
-      target:
-        type: string
-        default: ""
     steps:
       - run:
           name: Store Service Account
@@ -18,7 +15,7 @@ commands:
             gcloud auth activate-service-account --key-file=account.json
       - run:
           command: |
-            ./bin/run-mtest.sh <<parameters.runtime>> <<parameters.suite>> <<parameters.target>>
+            ./bin/run-mtest.sh <<parameters.runtime>> <<parameters.suite>>
           no_output_timeout: 20m
 
 jobs:
@@ -102,7 +99,6 @@ jobs:
       - run-mtest:
           runtime: docker
           suite: ./functions
-          target: "should access pod in different node"
 
 workflows:
   version: 2
