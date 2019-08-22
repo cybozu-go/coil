@@ -3,14 +3,15 @@ module github.com/cybozu-go/coil
 require (
 	github.com/containernetworking/cni v0.6.0
 	github.com/containernetworking/plugins v0.7.4
-	github.com/coreos/etcd v0.0.0-20190816232144-5cf5d88a18ae
+	github.com/coreos/etcd v3.3.15+incompatible
 	github.com/coreos/go-iptables v0.4.0 // indirect
-	github.com/cybozu-go/etcdutil v1.3.2
+	github.com/cybozu-go/etcdutil v1.3.3
 	github.com/cybozu-go/log v1.5.0
 	github.com/cybozu-go/netutil v1.2.0
 	github.com/cybozu-go/well v1.8.1
 	github.com/google/go-cmp v0.3.0
 	github.com/googleapis/gnostic v0.2.0 // indirect
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/mitchellh/go-homedir v1.0.0
 	github.com/mitchellh/mapstructure v1.0.0
 	github.com/onsi/ginkgo v1.8.0
