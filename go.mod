@@ -9,11 +9,10 @@ require (
 	github.com/cybozu-go/log v1.5.0
 	github.com/cybozu-go/netutil v1.2.0
 	github.com/cybozu-go/well v1.8.1
-	github.com/google/go-cmp v0.2.0
+	github.com/google/go-cmp v0.3.0
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.0.0
 	github.com/mitchellh/mapstructure v1.0.0
-	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/onsi/ginkgo v1.8.0
 	github.com/onsi/gomega v1.5.0
 	github.com/spf13/cobra v0.0.3
@@ -22,11 +21,10 @@ require (
 	github.com/vishvananda/netlink v1.0.0
 	github.com/vishvananda/netns v0.0.0-20180720170159-13995c7128cc // indirect
 	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
-	golang.org/x/sys v0.0.0-20190222072716-a9d3bda3a223
+	golang.org/x/sys v0.0.0-20190312061237-fead79001313
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/api v0.0.0-20190313235455-40a48860b5ab
-	k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d
-	k8s.io/client-go v11.0.0+incompatible
-	k8s.io/klog v0.1.0 // indirect
+	k8s.io/api v0.0.0-20190819141258-3544db3b9e44
+	k8s.io/apimachinery v0.0.0-20190817020851-f2f3a405f61d
+	k8s.io/client-go v0.0.0-20190819141724-e14f31a72a77
 	k8s.io/utils v0.0.0-20190308190857-21c4ce38f2a7 // indirect
 )
