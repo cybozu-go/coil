@@ -220,7 +220,7 @@ func TestPod() {
 		coilctlSafe("pool", "show", "--json", "default", addressPool)
 
 		By("creating 4 pods to node1")
-		overrides := fmt.Sprintf(`{ "apiVersion": "apps/v1beta1", "spec": { "template": { "spec": { "nodeSelector": { "kubernetes.io/hostname": "%s" } } } } }`, node1)
+		overrides := fmt.Sprintf(`{ "apiVersion": "apps/v1", "spec": { "template": { "spec": { "nodeSelector": { "kubernetes.io/hostname": "%s" } } } } }`, node1)
 		overrideFile := remoteTempFile(overrides)
 		_, stderr, err := kubectl("run", "nginx", "--image=nginx", "--replicas=4", "--overrides=\"$(cat "+overrideFile+")\"")
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)

@@ -29,8 +29,9 @@ var etcdConfig *etcdutil.Config
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "coil-controller",
-	Short: "A kubernetes controller for coil",
+	Use:     "coil-controller",
+	Version: coil.Version,
+	Short:   "A kubernetes controller for coil",
 	Long: `coil-controller is a Kubernetes controller to maintain coil resources.
 
 It should be deployed as a Deployment pod in Kunernetes.

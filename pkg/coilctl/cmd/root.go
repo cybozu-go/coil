@@ -40,8 +40,9 @@ var etcdConfig *etcdutil.Config
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "coilctl",
-	Short: "control and show coil settings",
+	Use:     "coilctl",
+	Version: coil.Version,
+	Short:   "control and show coil settings",
 	Long: `coilctl is a command-line tool to control and show coil settings.
 
 It directly communicates with etcd.  You need to prepare a

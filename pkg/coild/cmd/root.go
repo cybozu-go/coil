@@ -54,8 +54,9 @@ var etcdConfig *etcdutil.Config
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "coild",
-	Short: "Backend service to allocate IP address",
+	Use:     "coild",
+	Version: coil.Version,
+	Short:   "Backend service to allocate IP address",
 	Long: `coild is a backend service to allocate IP address.
 
 It normally run as a DaemonSet container in Kubernetes.
