@@ -16,24 +16,19 @@ with routing daemons like [BIRD][].  It does not implement
 
 Instead, users can choose their favorite routing daemons and/or network
 policy implementations for use with coil.
+There is a real-world example of using coil with [MetalLB][] (for LoadBalancer)
+and [Calico][] (for network policies) at [github.com/cybozu-go/neco-apps](https://github.com/cybozu-go/neco-apps).
 
 **Project Status**: General Availability (GA)
 
 Requirements
 ------------
 
-* Linux Distribution
-  - [CoreOS Container Linux][] stable
-  - Other distributions are likely to work, but not tested.
+* Linux with routing software such as [BIRD][].
 * Kubernetes Version
-  - 1.12.x
-  - 1.13.x
-  - 1.14.x
+  - 1.12, 1.13, 1.14, 1.15
   - Other versions are likely to work, but not tested.
 * [etcd][]: coil requires etcd v3 API, does not support v2.
-* Routing Software
-  - [Bird][]
-  - Other software that can import a kernel routing table and advertise them via BGP, RIP, OSPF.
 
 Features
 --------
@@ -106,6 +101,8 @@ Documentation
 
 [docs](docs/) directory contains documents about designs and specifications.
 
+[mtest/bird.conf](mtest/bird.conf) is an example configuration for [BIRD][] to make it work with coil.
+
 License
 -------
 
@@ -117,4 +114,5 @@ MIT
 [BIRD]: https://bird.network.cz/
 [NetworkPolicy]: https://kubernetes.io/docs/concepts/services-networking/network-policies/
 [etcd]: https://github.com/etcd-io/etcd
-[CoreOS Container Linux]: https://coreos.com/os/docs/latest/
+[MetalLB]: https://metallb.universe.tf
+[Calico]: https://www.projectcalico.org
