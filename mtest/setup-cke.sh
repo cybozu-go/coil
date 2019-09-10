@@ -2,7 +2,7 @@
 
 VAULT=/data/vault
 CKECLI=/opt/bin/ckecli
-CKE_VERSION=1.15.0-rc.1
+CKE_VERSION=__CKE_VERSION__
 
 if [ ! -f /usr/bin/jq ]; then
     echo "please wait; cloud-init will install jq."

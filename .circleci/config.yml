@@ -7,6 +7,8 @@ commands:
         type: string
       suite:
         type: string
+      kubernetes-version:
+        type: string
     steps:
       - run:
           name: Store Service Account
@@ -15,7 +17,7 @@ commands:
             gcloud auth activate-service-account --key-file=account.json
       - run:
           command: |
-            ./bin/run-mtest.sh <<parameters.runtime>> <<parameters.suite>>
+            ./bin/run-mtest.sh <<parameters.runtime>> <<parameters.suite>> <<parameters.kubernetes-version>>
           no_output_timeout: 20m
 
 jobs:
@@ -91,6 +93,7 @@ jobs:
       - run-mtest:
           runtime: remote
           suite: ./functions
+          kubernetes-version: "1.15"
   mtest-docker:
     docker:
       - image: google/cloud-sdk
@@ -99,6 +102,25 @@ jobs:
       - run-mtest:
           runtime: docker
           suite: ./functions
+          kubernetes-version: "1.15"
+  mtest-k8s-v1_14:
+    docker:
+      - image: google/cloud-sdk
+    steps:
+      - checkout
+      - run-mtest:
+          runtime: remote
+          suite: ./functions
+          kubernetes-version: "1.14"
+  mtest-k8s-v1_13:
+    docker:
+      - image: google/cloud-sdk
+    steps:
+      - checkout
+      - run-mtest:
+          runtime: remote
+          suite: ./functions
+          kubernetes-version: "1.13"
 
 workflows:
   version: 2
@@ -110,6 +132,8 @@ workflows:
             - build
       - mtest-containerd
       - mtest-docker
+      - mtest-k8s-v1_14
+      - mtest-k8s-v1_13
   release:
     jobs:
       - build:

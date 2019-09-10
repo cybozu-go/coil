@@ -11,4 +11,4 @@ How to manually run coil using placemat
     ```
 
 4. Run `/data/setup-cke.sh` on `host1`.
-5. To stop placemat, run `sudo pkill placemat`.
+5. To stop placemat, run `make stop`.
