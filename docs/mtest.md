@@ -52,3 +52,17 @@ The value can be `functions` (default).
 The value of `SUITE` is interpreted as a Go package name.  You can write
 a new test suite and specify its package name by `SUITE`.  As a side note,
 the forms of `./functions` is more proper.
+
+### `CONTAINER_RUNTIME`
+
+You can choose the container runtime by specifying `CONTAINER_RUNTIME` make variable.
+The value can be `remote` (default) or `docker`.
+
+`make test` accepts this variable.
+
+### `KUBERNETES_VERSION`
+
+You can choose the Kubernetes major/minor version for mtest by specifying `KUBERNETES_VERSION` make variable.
+The value can be `1.15` (default), `1.14` or `1.13`.
+
+`make placemat` accepts this variable.
