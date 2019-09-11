@@ -209,6 +209,11 @@ func remoteTempFile(body string) string {
 	return remoteFile
 }
 
+func ckecli(args ...string) ([]byte, []byte, error) {
+	args = append([]string{"/opt/bin/ckecli"}, args...)
+	return execAt(host1, args...)
+}
+
 func coilctl(args ...string) ([]byte, []byte, error) {
 	args = append([]string{"/opt/bin/coilctl"}, args...)
 	return execAt(host1, args...)

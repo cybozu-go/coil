@@ -121,8 +121,6 @@ spec:
         app.kubernetes.io/name: coil-node
     spec:
       priorityClassName: system-node-critical
-      nodeSelector:
-        kubernetes.io/os: linux
       hostNetwork: true
       tolerations:
         # Make sure coil gets scheduled on all nodes.
@@ -243,8 +241,6 @@ spec:
         app.kubernetes.io/name: coil-controllers
     spec:
       priorityClassName: system-cluster-critical
-      nodeSelector:
-        kubernetes.io/os: linux
       hostNetwork: true
       tolerations:
         # Mark the pod as a critical add-on for rescheduling.

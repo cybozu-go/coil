@@ -57,6 +57,16 @@ func RunBeforeSuite() {
 		return nil
 	}).Should(Succeed())
 
+	By("printing CKE version")
+	stdout, stderr, err := ckecli("--version")
+	Expect(err).NotTo(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+	fmt.Println(string(stdout))
+
+	By("printing Kubernetes version")
+	stdout, stderr, err = kubectl("version", "--short")
+	Expect(err).NotTo(HaveOccurred(), "stdout=%s, stderr=%s", stdout, stderr)
+	fmt.Println(string(stdout))
+
 	By("copying test files")
 	for _, testFile := range []string{coilctlPath} {
 		f, err := os.Open(testFile)

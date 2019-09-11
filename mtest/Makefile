@@ -16,7 +16,6 @@ GINKGO = env GOFLAGS=-mod=vendor $(GOPATH)/bin/ginkgo
 CURL = curl -fsL
 MANAGEMENT_ETCD_VERSION = 3.3.15
 VAULT_VERSION = 1.2.2
-K8S_VERSION = 1.15.3
 PLACEMAT_DATADIR = /var/scratch/placemat
 VM_SHARED_DIR = /mnt/placemat
 CONTAINERD_VERSION = 1.2.7
@@ -31,12 +30,26 @@ else
   SUITE_PACKAGE = $(SUITE)
 endif
 
+# If you want to change the Kubernetes version for mtest, specify this variable from command line.
+# e.g. $ make KUBERNETES_VERSION=1.14 placemat
+KUBERNETES_VERSION=1.15
+ifeq ($(KUBERNETES_VERSION),1.15)
+KUBECTL_VERSION = 1.15.3
+CKE_VERSION = 1.15.1
+else ifeq ($(KUBERNETES_VERSION),1.14)
+KUBECTL_VERSION = 1.14.6
+CKE_VERSION = 1.14.15
+else ifeq ($(KUBERNETES_VERSION),1.13)
+KUBECTL_VERSION = 1.13.10
+CKE_VERSION = 1.13.18
+endif
+
 export BRIDGE_ADDRESS HOST1 NODE1 NODE2 PLACEMAT GINKGO CONTAINER_RUNTIME SUITE_PACKAGE
 
 # non-configuration variables
 MANAGEMENT_ETCD_ARCHIVE := etcd-v$(MANAGEMENT_ETCD_VERSION)-linux-amd64.tar.gz
 VAULT_ARCHIVE := vault_$(VAULT_VERSION)_linux_amd64.zip
-KUBECTL_URL := https://storage.googleapis.com/kubernetes-release/release/v$(K8S_VERSION)/bin/linux/amd64/kubectl
+KUBECTL_URL := https://storage.googleapis.com/kubernetes-release/release/v$(KUBECTL_VERSION)/bin/linux/amd64/kubectl
 SSH_PRIVKEY = $(realpath ./mtest_key)
 OUTPUT := ./output
 CKECONFIG := $(abspath $(OUTPUT))/cke.yml
@@ -133,7 +146,7 @@ $(OUTPUT)/kubectl:
 
 $(OUTPUT)/setup-cke.sh: setup-cke.sh
 	mkdir -p $(OUTPUT)
-	cp $< $@
+	sed -e 's/__CKE_VERSION__/$(CKE_VERSION)/' $< > $@
 	chmod a+x $@
 
 $(OUTPUT)/setup-coil.sh: setup-coil.sh
