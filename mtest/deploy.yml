@@ -121,11 +121,6 @@ spec:
         app.kubernetes.io/name: coil-node
     spec:
       priorityClassName: system-node-critical
-      nodeSelector:
-        # `beta.kubernetes.io/os` is deprecated from Kubernetes v1.14.
-        # When Kubernetes v1.13 is the end of support, change the label to `kubernetes.io/os`.
-        # ref: https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG-1.14.md#deprecations
-        beta.kubernetes.io/os: linux
       hostNetwork: true
       tolerations:
         # Make sure coil gets scheduled on all nodes.
@@ -246,11 +241,6 @@ spec:
         app.kubernetes.io/name: coil-controllers
     spec:
       priorityClassName: system-cluster-critical
-      nodeSelector:
-        # `beta.kubernetes.io/os` is deprecated from Kubernetes v1.14.
-        # When Kubernetes v1.13 is the end of support, change the label to `kubernetes.io/os`.
-        # ref: https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG-1.14.md#deprecations
-        beta.kubernetes.io/os: linux
       hostNetwork: true
       tolerations:
         # Mark the pod as a critical add-on for rescheduling.
