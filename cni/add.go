@@ -102,6 +102,13 @@ func setupVethPair(contVethName, namespace, podname string, mtu int, hostNS ns.N
 		return net.Interface{}, net.Interface{}, fmt.Errorf("failed to lookup %q: %v", hostVethName, err)
 	}
 
+	err = hostNS.Do(func(_ ns.NetNS) error {
+		return deleteVethIfExists(hostVethName)
+	})
+	if err != nil {
+		return net.Interface{}, net.Interface{}, fmt.Errorf("failed to delete host veth %q: %v", hostVethName, err)
+	}
+
 	if err = netlink.LinkSetNsFd(hostVeth, int(hostNS.Fd())); err != nil {
 		return net.Interface{}, net.Interface{}, fmt.Errorf("failed to move veth to host netns: %v", err)
 	}
@@ -143,8 +150,9 @@ func generateHostVethName(prefix, namespace, podname string) string {
 func makeVeth(name, namespace, podname string, mtu int) (peerName string, veth netlink.Link, err error) {
 	peerName = generateHostVethName("veth", namespace, podname)
 
-	err = deletePeerIfExists(peerName)
+	err = deleteVethIfExists(peerName)
 	if err != nil {
+		err = fmt.Errorf("failed to delete peer veth %q: %v", peerName, err)
 		return
 	}
 
@@ -179,14 +187,16 @@ func makeVethPair(name, peer string, mtu int) (netlink.Link, error) {
 	return veth2, nil
 }
 
-func deletePeerIfExists(name string) error {
-	if oldHostVeth, err := netlink.LinkByName(name); err == nil {
-		err := netlink.LinkDel(oldHostVeth)
-		if err != nil {
-			return err
-		}
+func deleteVethIfExists(name string) error {
+	oldVeth, err := netlink.LinkByName(name)
+	switch err.(type) {
+	case nil:
+		return netlink.LinkDel(oldVeth)
+	case netlink.LinkNotFoundError:
+		return nil
+	default:
+		return err
 	}
-	return nil
 }
 
 // addRouteInHost does:
