@@ -96,6 +96,9 @@ func setupVethPair(contVethName, namespace, podname string, mtu int, hostNS ns.N
 	if err = netlink.LinkSetUp(contVeth); err != nil {
 		return net.Interface{}, net.Interface{}, fmt.Errorf("failed to set %q up: %v", contVethName, err)
 	}
+	if injectFailures {
+		panicForFirstRun("AfterMakingVethPairInContainerNS")
+	}
 
 	hostVeth, err := netlink.LinkByName(hostVethName)
 	if err != nil {
@@ -298,6 +301,9 @@ func Add(args *skel.CmdArgs) error {
 	if err != nil {
 		return err
 	}
+	if injectFailures {
+		panicForFirstRun("AfterMakingVethPair")
+	}
 
 	ip, err := getIPFromCoild(coildURL, podNS, podName, args.ContainerID)
 	if err != nil {
@@ -308,6 +314,9 @@ func Add(args *skel.CmdArgs) error {
 			returnIPToCoild(coildURL, podNS, podName, args.ContainerID)
 		}
 	}()
+	if injectFailures {
+		panicForFirstRun("AfterGettingIP")
+	}
 
 	err = addRouteInHost(ip, hostInterface.Name)
 	if err != nil {
@@ -327,6 +336,9 @@ func Add(args *skel.CmdArgs) error {
 	err = configureInterface(netns, args.IfName, result)
 	if err != nil {
 		return err
+	}
+	if injectFailures {
+		panicForFirstRun("AfterConfiguringInterfaces")
 	}
 
 	success = true

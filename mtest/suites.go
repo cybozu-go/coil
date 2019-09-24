@@ -9,3 +9,8 @@ var FunctionsSuite = func() {
 	Context("pod", TestPod)
 	Context("pool", TestPool)
 }
+
+// FailuresSuite is a test suite that runs test cases with failure injection
+var FailuresSuite = func() {
+	Context("pod", TestPod)
+}
