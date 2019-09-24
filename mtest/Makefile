@@ -116,7 +116,7 @@ $(OUTPUT)/coil.img:
 	ln -s hypercoil tmpbin/coil-installer
 	sudo docker build --no-cache --rm=false -f Dockerfile -t quay.io/cybozu/coil:dev tmpbin
 	mkdir -p $(OUTPUT)
-	sudo docker save -o $@ quay.io/cybozu/coil:dev
+	sudo docker save quay.io/cybozu/coil:dev > $@
 
 $(OUTPUT)/coilctl: $(OUTPUT)/coil.img
 	cp tmpbin/coilctl $@

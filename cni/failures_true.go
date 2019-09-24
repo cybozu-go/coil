@@ -16,10 +16,10 @@ func panicForFirstRun(name string) {
 	fileName := filepath.Join("/tmp", "coil_failures_"+name)
 
 	_, err := os.Stat(fileName)
-	if os.IsNotExist(err) {
-		panic("injected failure: " + name)
+	if err == nil {
+		return
 	}
-	if err != nil {
+	if !os.IsNotExist(err) {
 		panic(err)
 	}
 
@@ -27,4 +27,5 @@ func panicForFirstRun(name string) {
 	if err != nil {
 		panic(err)
 	}
+	panic("injected failure: " + name)
 }
