@@ -15,7 +15,10 @@ import (
 
 // TestPodStartup tests pod startup, especially under failure injection.
 func TestPodStartup() {
-	BeforeEach(initializeCoil)
+	BeforeEach(func() {
+		initializeCoil()
+		coilctlSafe("pool", "create", "default", "10.0.1.0/24", "2")
+	})
 	AfterEach(cleanCoil)
 
 	It("should confirm successful creation of CKE-managed pods", func() {
@@ -42,7 +45,7 @@ func TestPodStartup() {
 	It("should starts up pod on half-cleaned node", func() {
 		By("making uncleaned veth artificially")
 		h := sha1.New()
-		h.Write([]byte("default.foo"))
+		h.Write([]byte("mtest.foo"))
 		vethName := "veth" + hex.EncodeToString(h.Sum(nil))[:11]
 		execSafeAt(node1, "sudo", "ip", "netns", "add", "foo")
 		execSafeAt(node1, "sudo", "ip", "netns", "exec", "foo", "ip", "link", "add", "eth0", "type", "veth", "peer", "name", vethName)
@@ -54,7 +57,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: foo
-  namespace: default
+  namespace: mtest
 spec:
   nodeName: %s
   containers:
@@ -66,7 +69,7 @@ spec:
 
 		By("waiting for pod to become ready")
 		Eventually(func() error {
-			stdout, stderr, err := kubectl("get", "-n", "default", "pod", "foo", "-o", "json")
+			stdout, stderr, err := kubectl("get", "pod", "foo", "-o", "json")
 			if err != nil {
 				return fmt.Errorf("err=%v, stdout=%s, stderr=%s", err, stdout, stderr)
 			}
