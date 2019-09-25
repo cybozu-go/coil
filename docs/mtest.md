@@ -12,6 +12,10 @@ There are following types of test suites.
 
     This suite tests coil controller, coil installer, `coilctl` command and kubernetes workloads deployments.
 
+2. failures
+
+    This suite tests kubernetes workloads deployments under failure injection.
+
 Each test suite has an entry point of test as `<suite>/suite_test.go`.
 
 Synopsis
@@ -45,7 +49,7 @@ Options
 ### `SUITE`
 
 You can choose the type of test suite by specifying `SUITE` make variable.
-The value can be `functions` (default).
+The value can be `functions` (default) or `failures`.
 
 `make test` accepts this variable.
 

@@ -103,6 +103,15 @@ jobs:
           runtime: docker
           suite: ./functions
           kubernetes-version: "1.15"
+  mtest-failures:
+    docker:
+      - image: google/cloud-sdk
+    steps:
+      - checkout
+      - run-mtest:
+          runtime: remote
+          suite: ./failures
+          kubernetes-version: "1.15"
   mtest-k8s-v1_14:
     docker:
       - image: google/cloud-sdk
@@ -132,6 +141,7 @@ workflows:
             - build
       - mtest-containerd
       - mtest-docker
+      - mtest-failures
       - mtest-k8s-v1_14
       - mtest-k8s-v1_13
   release:
