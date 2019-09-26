@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.6] - 2019-09-26
+
+### Changed
+- Delete host-side veth if exists in CNI ADD (#71).
+
 ## [1.1.5] - 2019-08-23
 
 ### Added
@@ -103,7 +108,8 @@ This is the first release
 
 - Implement CNI plugin, coild, coilctl and coil-controller
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v1.1.5...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v1.1.6...HEAD
+[1.1.6]: https://github.com/cybozu-go/coil/compare/v1.1.5...v1.1.6
 [1.1.5]: https://github.com/cybozu-go/coil/compare/v1.1.4...v1.1.5
 [1.1.4]: https://github.com/cybozu-go/coil/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/cybozu-go/coil/compare/v1.1.2...v1.1.3
