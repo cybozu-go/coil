@@ -29,6 +29,9 @@ ifeq ($(findstring /,$(SUITE)),)
 else
   SUITE_PACKAGE = $(SUITE)
 endif
+ifeq ($(SUITE_PACKAGE),./failures)
+  HYPERCOIL_TAGS := $(HYPERCOIL_TAGS) -tags failures
+endif
 
 # If you want to change the Kubernetes version for mtest, specify this variable from command line.
 # e.g. $ make KUBERNETES_VERSION=1.14 placemat
@@ -105,7 +108,7 @@ all:
 $(OUTPUT)/coil.img:
 	rm -rf tmpbin
 	mkdir tmpbin
-	cd ..; GOBIN=$(shell pwd)/tmpbin CGO_ENABLED=0 go install -mod=vendor ./pkg/hypercoil
+	cd ..; GOBIN=$(shell pwd)/tmpbin CGO_ENABLED=0 go install -mod=vendor $(HYPERCOIL_TAGS) ./pkg/hypercoil
 	ln -s hypercoil tmpbin/coil
 	ln -s hypercoil tmpbin/coild
 	ln -s hypercoil tmpbin/coil-controller
@@ -113,7 +116,7 @@ $(OUTPUT)/coil.img:
 	ln -s hypercoil tmpbin/coil-installer
 	sudo docker build --no-cache --rm=false -f Dockerfile -t quay.io/cybozu/coil:dev tmpbin
 	mkdir -p $(OUTPUT)
-	sudo docker save -o $@ quay.io/cybozu/coil:dev
+	sudo docker save quay.io/cybozu/coil:dev > $@
 
 $(OUTPUT)/coilctl: $(OUTPUT)/coil.img
 	cp tmpbin/coilctl $@

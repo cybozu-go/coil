@@ -31,6 +31,9 @@ func Del(args *skel.CmdArgs) error {
 	if err != nil {
 		return err
 	}
+	if injectFailures {
+		panicForFirstRun("AfterReturingIP")
+	}
 
 	// Kubernetes sends multiple DEL for dead containers.
 	// See: https://github.com/kubernetes/kubernetes/issues/44100
@@ -41,6 +44,9 @@ func Del(args *skel.CmdArgs) error {
 	return ns.WithNetNSPath(args.Netns, func(_ ns.NetNS) error {
 		err := ip.DelLinkByName(args.IfName)
 		if err == nil || err == ip.ErrLinkNotFound {
+			if injectFailures {
+				panicForFirstRun("AfterDeletingVethPair")
+			}
 			return nil
 		}
 		return err
