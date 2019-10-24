@@ -5,7 +5,7 @@ require (
 	github.com/containernetworking/plugins v0.7.4
 	github.com/coreos/etcd v3.3.15+incompatible
 	github.com/coreos/go-iptables v0.4.0 // indirect
-	github.com/cybozu-go/etcdutil v1.3.3
+	github.com/cybozu-go/etcdutil v1.3.4
 	github.com/cybozu-go/log v1.5.0
 	github.com/cybozu-go/netutil v1.2.0
 	github.com/cybozu-go/well v1.8.1
@@ -29,3 +29,5 @@ require (
 	k8s.io/client-go v0.0.0-20190819141724-e14f31a72a77
 	k8s.io/utils v0.0.0-20190308190857-21c4ce38f2a7 // indirect
 )
+
+go 1.13
