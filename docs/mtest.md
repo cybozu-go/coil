@@ -67,6 +67,6 @@ The value can be `remote` (default) or `docker`.
 ### `KUBERNETES_VERSION`
 
 You can choose the Kubernetes major/minor version for mtest by specifying `KUBERNETES_VERSION` make variable.
-The value can be `1.15` (default), `1.14` or `1.13`.
+The three latest Kubernetes versions are supported (e.g. "1.16").
 
 `make placemat` accepts this variable.
