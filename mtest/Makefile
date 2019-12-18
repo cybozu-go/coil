@@ -14,12 +14,12 @@ endif
 PLACEMAT = /usr/bin/placemat
 GINKGO = env GOFLAGS=-mod=vendor $(GOPATH)/bin/ginkgo
 CURL = curl -fsL
-MANAGEMENT_ETCD_VERSION = 3.3.15
-VAULT_VERSION = 1.2.2
+MANAGEMENT_ETCD_VERSION = 3.3.18
+VAULT_VERSION = 1.3.0
 PLACEMAT_DATADIR = /var/scratch/placemat
 VM_SHARED_DIR = /mnt/placemat
-CONTAINERD_VERSION = 1.2.7
-CRITOOLS_VERSION = 1.15.0
+CONTAINERD_VERSION = 1.3.2
+CRITOOLS_VERSION = 1.16.1
 CT_VERSION = 0.9.0
 CT = /usr/local/bin/ct
 SUDO = sudo
@@ -34,17 +34,17 @@ ifeq ($(SUITE_PACKAGE),./failures)
 endif
 
 # If you want to change the Kubernetes version for mtest, specify this variable from command line.
-# e.g. $ make KUBERNETES_VERSION=1.14 placemat
-KUBERNETES_VERSION=1.15
-ifeq ($(KUBERNETES_VERSION),1.15)
+# e.g. $ make KUBERNETES_VERSION=1.16 placemat
+KUBERNETES_VERSION=1.16
+ifeq ($(KUBERNETES_VERSION),1.16)
+KUBECTL_VERSION = 1.16.4
+CKE_VERSION = 1.16.0-rc.1
+else ifeq ($(KUBERNETES_VERSION),1.15)
 KUBECTL_VERSION = 1.15.3
 CKE_VERSION = 1.15.1
 else ifeq ($(KUBERNETES_VERSION),1.14)
 KUBECTL_VERSION = 1.14.6
 CKE_VERSION = 1.14.15
-else ifeq ($(KUBERNETES_VERSION),1.13)
-KUBECTL_VERSION = 1.13.10
-CKE_VERSION = 1.13.18
 endif
 
 export BRIDGE_ADDRESS HOST1 NODE1 NODE2 PLACEMAT GINKGO CONTAINER_RUNTIME SUITE_PACKAGE
@@ -67,6 +67,8 @@ export SSH_PRIVKEY CKECONFIG COILCTL COILIMAGE KUBECTL DEPLOYYAML
 CONTAINERD_FILES = \
 	$(OUTPUT)/containerd \
 	$(OUTPUT)/containerd-shim \
+	$(OUTPUT)/containerd-shim-runc-v1 \
+	$(OUTPUT)/containerd-shim-runc-v2 \
 	$(OUTPUT)/ctr
 
 TEST_DEPS = \
@@ -231,7 +233,7 @@ $(OUTPUT)/deploy.yml: deploy.yml
 unpack-containerd:
 	mkdir -p $(OUTPUT)
 	$(CURL) https://github.com/containerd/containerd/releases/download/v$(CONTAINERD_VERSION)/containerd-$(CONTAINERD_VERSION).linux-amd64.tar.gz | \
-	tar xzf - --strip-components=1 -C $(OUTPUT) bin/containerd bin/containerd-shim bin/ctr
+	tar xzf - --strip-components=1 -C $(OUTPUT) bin/containerd bin/containerd-shim bin/containerd-shim-runc-v1 bin/containerd-shim-runc-v2 bin/ctr
 
 $(CONTAINERD_FILES): unpack-containerd
 

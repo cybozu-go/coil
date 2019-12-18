@@ -93,7 +93,7 @@ jobs:
       - run-mtest:
           runtime: remote
           suite: ./functions
-          kubernetes-version: "1.15"
+          kubernetes-version: "1.16"
   mtest-docker:
     docker:
       - image: google/cloud-sdk
@@ -102,7 +102,7 @@ jobs:
       - run-mtest:
           runtime: docker
           suite: ./functions
-          kubernetes-version: "1.15"
+          kubernetes-version: "1.16"
   mtest-failures:
     docker:
       - image: google/cloud-sdk
@@ -111,6 +111,15 @@ jobs:
       - run-mtest:
           runtime: remote
           suite: ./failures
+          kubernetes-version: "1.16"
+  mtest-k8s-v1_15:
+    docker:
+      - image: google/cloud-sdk
+    steps:
+      - checkout
+      - run-mtest:
+          runtime: remote
+          suite: ./functions
           kubernetes-version: "1.15"
   mtest-k8s-v1_14:
     docker:
@@ -121,15 +130,6 @@ jobs:
           runtime: remote
           suite: ./functions
           kubernetes-version: "1.14"
-  mtest-k8s-v1_13:
-    docker:
-      - image: google/cloud-sdk
-    steps:
-      - checkout
-      - run-mtest:
-          runtime: remote
-          suite: ./functions
-          kubernetes-version: "1.13"
 
 workflows:
   version: 2
@@ -142,8 +142,8 @@ workflows:
       - mtest-containerd
       - mtest-docker
       - mtest-failures
+      - mtest-k8s-v1_15
       - mtest-k8s-v1_14
-      - mtest-k8s-v1_13
   release:
     jobs:
       - build:
