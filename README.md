@@ -26,7 +26,7 @@ Requirements
 
 * Linux with routing software such as [BIRD][].
 * Kubernetes Version
-  - 1.13, 1.14, 1.15
+  - 1.14, 1.15, 1.16
   - Other versions are likely to work, but not tested.
 * [etcd][]: coil requires etcd v3 API, does not support v2.
 
