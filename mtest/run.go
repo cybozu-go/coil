@@ -297,7 +297,7 @@ func cleanCoil() {
 	Expect(err).ShouldNot(HaveOccurred(), "stderr: %s", stderr)
 
 	_, stderr, err = kubectl("delete", "namespace", "mtest")
-	Expect(err).ShouldNot(HaveOccurred(), "stderr: %s", stderr)
+	Expect(err).ShouldNot(HaveOccurred(), "unable to delete namespaces; stderr: %s", stderr)
 
 	deploy, err := ioutil.ReadFile(deployYAMLPath)
 	Expect(err).ShouldNot(HaveOccurred())

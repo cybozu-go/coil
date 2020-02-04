@@ -24,6 +24,9 @@ func TestCoilController() {
 		kubectl("get", "nodes/"+node2, "-o=json", ">/tmp/node2.json")
 	})
 	AfterEach(func() {
+		// To resolve race condition, delete pods before deleting mtest namespace
+		kubectl("delete", "pod", "--all", "-n=mtest")
+
 		cleanCoil()
 
 		kubectl("apply", "-f", "/tmp/node1.json")
@@ -50,7 +53,7 @@ func TestCoilController() {
 			}
 
 			if len(podList.Items) > 0 && podList.Items[0].Status.Phase != corev1.PodRunning {
-				return errors.New("Pod is not created")
+				return errors.New("unable to run a pod")
 			}
 			return nil
 		}).Should(Succeed())
@@ -59,7 +62,7 @@ func TestCoilController() {
 		_, stderr, err = kubectl("delete", "-f", "/tmp/node1.json")
 		Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 
-		By("checking block is released")
+		By("checking the block have been released")
 		Eventually(func() error {
 			stdout, stderr, err := coilctl("pool", "show", "default", "10.1.0.0/16", "--json")
 			if err != nil {
