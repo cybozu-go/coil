@@ -79,7 +79,7 @@ func TestCoilController() {
 				return errors.New("node1 is still in block assignments")
 			}
 			return nil
-		})
+		}).Should(Succeed())
 	})
 
 	It("deletes node's block on initialization of the controller", func() {
@@ -173,6 +173,6 @@ func TestCoilController() {
 				return errors.New("node1 is still in block assignments")
 			}
 			return nil
-		})
+		}).Should(Succeed())
 	})
 }
