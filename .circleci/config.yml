@@ -174,8 +174,8 @@ workflows:
       - mtest-containerd
       - mtest-docker
       - mtest-failures
+      - mtest-k8s-v1_16
       - mtest-k8s-v1_15
-      - mtest-k8s-v1_14
   release:
     jobs:
       - build:
