@@ -1,5 +1,7 @@
 module github.com/cybozu-go/coil
 
+replace google.golang.org/grpc => google.golang.org/grpc v1.26.0
+
 require (
 	github.com/containernetworking/cni v0.6.0
 	github.com/containernetworking/plugins v0.7.4
