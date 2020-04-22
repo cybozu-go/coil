@@ -1,4 +1,4 @@
 package coil
 
 // Version represents the version of coil
-const Version = "1.1.8"
+const Version = "1.1.9"
