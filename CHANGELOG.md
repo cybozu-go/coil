@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.9] - 2020-04-22
+
+### Changed
+- Update k8s.io/* v0.17.5 (#87).
+
 ## [1.1.8] - 2020-04-03
 
 ### Changed
@@ -118,7 +123,8 @@ This is the first release
 
 - Implement CNI plugin, coild, coilctl and coil-controller
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v1.1.8...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v1.1.9...HEAD
+[1.1.9]: https://github.com/cybozu-go/coil/compare/v1.1.8...v1.1.9
 [1.1.8]: https://github.com/cybozu-go/coil/compare/v1.1.7...v1.1.8
 [1.1.7]: https://github.com/cybozu-go/coil/compare/v1.1.6...v1.1.7
 [1.1.6]: https://github.com/cybozu-go/coil/compare/v1.1.5...v1.1.6
