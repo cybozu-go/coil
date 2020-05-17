@@ -2,7 +2,6 @@
 [![CircleCI](https://circleci.com/gh/cybozu-go/coil.svg?style=svg)](https://circleci.com/gh/cybozu-go/coil)
 [![GoDoc](https://godoc.org/github.com/cybozu-go/coil?status.svg)][godoc]
 [![Go Report Card](https://goreportcard.com/badge/github.com/cybozu-go/coil)](https://goreportcard.com/report/github.com/cybozu-go/coil)
-[![Docker Repository on Quay](https://quay.io/repository/cybozu/coil/status "Docker Repository on Quay")](https://quay.io/repository/cybozu/coil)
 
 Coil
 ====
@@ -116,3 +115,8 @@ MIT
 [etcd]: https://github.com/etcd-io/etcd
 [MetalLB]: https://metallb.universe.tf
 [Calico]: https://www.projectcalico.org
+
+Docker images
+-------------
+
+Docker images are available on [Quay.io](https://quay.io/repository/cybozu/coil)
