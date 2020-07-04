@@ -15,4 +15,4 @@
 /.vscode
 
 # ignore go.sum
-/go.sum
+go.sum
