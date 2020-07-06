@@ -6,94 +6,86 @@
 Coil
 ====
 
-**Coil** is a [CNI][] plugin that automates IP address management (IPAM)
-and programs intra-node Pod routing for Kubernetes.
+**Coil** is a [CNI][]-based network plugin for Kubernetes.
 
-Coil is designed in favor of UNIX philosophy.  It is not tightly integrated
-with routing daemons like [BIRD][].  It does not implement
+Coil is designed with respect to the UNIX philosophy.  It is not tightly
+integrated with routing daemons like [BIRD][].  It does not implement
 [Kubernetes Network Policies][NetworkPolicy] either.
 
-Instead, users can choose their favorite routing daemons and/or network
-policy implementations for use with coil.
-There is a real-world example of using coil with [MetalLB][] (for LoadBalancer)
-and [Calico][] (for network policies) at [github.com/cybozu-go/neco-apps](https://github.com/cybozu-go/neco-apps).
+Instead, you can use Coil with any routing software and policy
+implementation of your choice.
 
-**Project Status**: General Availability (GA)
+Status
+------
+
+Version 2 is under **active development**.
+
+Coil version 1 is in [release-1.1](https://github.com/cybozu-go/coil/tree/release-1.1) branch.
 
 Requirements
 ------------
 
-* Linux with routing software such as [BIRD][].
-* Kubernetes Version
-  - 1.15, 1.16, 1.17
-  - Other versions are likely to work, but not tested.
-* [etcd][]: coil requires etcd v3 API, does not support v2.
+- Linux with routing software such as [BIRD][].
+- Kubernetes Version
+    - 1.18
+    - Other versions are likely to work, but not tested.
 
 Features
 --------
 
-* IP address management (IPAM)
+Refer to [the design document](./docs/design.md) for more information on these features.
 
-    Coil dynamically allocates IP addresses to Pods.
+- Address pools
 
-    Coil has a mechanism called _address pool_ so that the administrator
-    can control to assign special/global IP addresses only to some Pods.
+    Coil can have multiple pools of IP addresses for different purposes.
+    For instance, you may have a pool of global IP addresses for Internet-facing pods
+    and a pool of private IP addresses for the other pods.
 
-* Address pools
+    If you run out of addresses, you can add additional addresses to the pool.
 
-    An address pool is a pool of allocatable IP addresses.  In addition to
-    the _default_ pool, users can define arbitrary address pools.
+- Running with any routing software
 
-    Pods in a specific Kubernetes namespace take their IP addresses from
-    the address pool whose name matches the namespace if such a pool exists.
+    Each node is assigned blocks of addresses, and these addresses need to be
+    advertised by some routing software to enable inter-node communication.
 
-    This way, only users who can create Pods in the namespace can use
-    special/global IP addresses.
+    Coil exports these addresses to an unused Linux kernel routing table.
+    Routing software such as [BIRD][] can import routes from the table and
+    advertise them.
 
-* Address block
+- On-demand NAT for egress traffics
 
-    Coil divides a large subnet into small fixed size blocks (e.g. `/27`),
-    and assign them to nodes.  Nodes then allocate IP addresses to Pods
-    from the assigned blocks.
+    Coil can implement SNAT _on_ Kubernetes.  You can define SNAT routers
+    for external networks as many as you want.
 
-* Intra-node Pod routing
+    Only selected pods can communicate with external networks via SNAT
+    routers.
 
-    Coil programs _intra_-node routing for Pods.
+Examples
+--------
 
-    As to inter-node routing, coil publishes address blocks assigned to
-    the node to an unused kernel routing table as described next.
+A real world usage example of Coil can be found in [Project Neco](https://blog.kintone.io/entry/neco).
+The project uses Coil with:
 
-* Publish address blocks to implement inter-node Pod routing
-
-    Coil registers address blocks assigned to a node with an unused
-    kernel routing table.  The default table ID is `119`.
-
-    The routing table can be referenced by other routing programs
-    such as [BIRD][] to implement inter-node routing.
-
-    An example BIRD configuration file that advertises address blocks
-    via BGP is available at [mtest/bird.conf](mtest/bird.conf).
+- [BIRD][] to advertise routes over BGP,
+- [MetalLB][] to implement [LoadBalancer] Service, and
+- [Calico][] to implement [NetworkPolicy][].
 
 Programs
 --------
 
 This repository contains these programs:
 
-* `coil`: [CNI][] plugin.
-* `coilctl`: CLI tool to configure coil IPAM.
-* `coild`: A background service to manage IP address.
-* `coil-controller`: watches kubernetes resources for coil.
-* `coil-installer`: installs `coil` and CNI configuration file.
-* `hypercoil`: all-in-one binary just like `hyperkube`.
+- `coil`: [CNI][] plugin.
+- `coild`: A background service to manage IP address.
+- `coil-installer`: installs `coil` and CNI configuration file.
+- `coil-controller`: watches kubernetes resources for coil.
+- `coil-egress`: controls SNAT router pods.
+* `hypercoil`: all-in-one binary.
 
-`coil` should be installed in `/opt/cni/bin` directory.
+Install
+-------
 
-`coilctl` directly communicates with etcd.
-Therefore it can be installed any host that can connect to etcd cluster.
-
-`coild` and `coil-installer` should run as [`DaemonSet`](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/).
-
-`coil-controller` should be deployed as [`Deployment`](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/).
+TBD
 
 Documentation
 -------------
@@ -101,6 +93,11 @@ Documentation
 [docs](docs/) directory contains documents about designs and specifications.
 
 [mtest/bird.conf](mtest/bird.conf) is an example configuration for [BIRD][] to make it work with coil.
+
+Docker images
+-------------
+
+The official Docker image is on [Quay.io](https://quay.io/repository/cybozu/coil)
 
 License
 -------
@@ -111,12 +108,7 @@ MIT
 [godoc]: https://godoc.org/github.com/cybozu-go/coil
 [CNI]: https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/
 [BIRD]: https://bird.network.cz/
+[LoadBalancer]: https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer
 [NetworkPolicy]: https://kubernetes.io/docs/concepts/services-networking/network-policies/
-[etcd]: https://github.com/etcd-io/etcd
 [MetalLB]: https://metallb.universe.tf
 [Calico]: https://www.projectcalico.org
-
-Docker images
--------------
-
-Docker images are available on [Quay.io](https://quay.io/repository/cybozu/coil)
