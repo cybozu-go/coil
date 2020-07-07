@@ -1,0 +1,16 @@
+domain: cybozu.com
+repo: github.com/cybozu-go/coil/v2
+resources:
+- group: coil
+  kind: AddressPool
+  version: v2
+- group: coil
+  kind: AddressBlock
+  version: v2
+- group: coil
+  kind: BlockRequest
+  version: v2
+- group: coil
+  kind: Egress
+  version: v2
+version: "2"

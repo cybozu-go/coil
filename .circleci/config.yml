@@ -59,6 +59,13 @@ jobs:
     working_directory: /work
     steps:
     - checkout
+    - run:
+        name: Run tests
+        command: |
+          cd v2
+          make setup
+          make test
+          make check-generate
 
 workflows:
   version: 2

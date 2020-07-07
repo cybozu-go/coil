@@ -1,0 +1,20 @@
+# permissions for end users to view addressblocks.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: addressblock-viewer-role
+rules:
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - addressblocks
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - addressblocks/status
+  verbs:
+  - get
