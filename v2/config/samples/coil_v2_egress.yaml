@@ -1,0 +1,7 @@
+apiVersion: coil.cybozu.com/v2
+kind: Egress
+metadata:
+  name: egress-sample
+spec:
+  # Add fields here
+  foo: bar

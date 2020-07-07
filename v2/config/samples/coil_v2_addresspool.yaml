@@ -1,0 +1,7 @@
+apiVersion: coil.cybozu.com/v2
+kind: AddressPool
+metadata:
+  name: addresspool-sample
+spec:
+  # Add fields here
+  foo: bar

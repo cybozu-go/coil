@@ -1,0 +1,68 @@
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - addressblocks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - addressblocks/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - blockrequests
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - blockrequests/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - egresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - egresses/status
+  verbs:
+  - get
+  - patch
+  - update

@@ -1,0 +1,24 @@
+# permissions for end users to edit addressblocks.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: addressblock-editor-role
+rules:
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - addressblocks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - addressblocks/status
+  verbs:
+  - get
