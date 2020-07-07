@@ -37,7 +37,7 @@ Bump version
 2. Checkout `master` branch.
 3. Make a branch to release, for example by `git neco dev "bump-$VERSION"`
 4. Edit `CHANGELOG.md` for the new version ([example][]).
-5. Edit `version.go` for the new version.
+5. Edit `v2/version.go` for the new version.
 6. Commit the changes and push it.
 
     ```console
