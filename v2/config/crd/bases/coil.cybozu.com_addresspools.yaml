@@ -16,7 +16,11 @@ spec:
     singular: addresspool
   scope: Cluster
   versions:
-  - name: v2
+  - additionalPrinterColumns:
+    - jsonPath: .spec.blockSizeBits
+      name: BlockSize Bits
+      type: integer
+    name: v2
     schema:
       openAPIV3Schema:
         description: AddressPool is the Schema for the addresspools API
@@ -36,17 +40,41 @@ spec:
           spec:
             description: AddressPoolSpec defines the desired state of AddressPool
             properties:
-              foo:
-                description: Foo is an example field of AddressPool. Edit AddressPool_types.go
-                  to remove/update
-                type: string
-            type: object
-          status:
-            description: AddressPoolStatus defines the observed state of AddressPool
+              blockSizeBits:
+                default: 5
+                description: BlockSizeBits specifies the size of the address blocks
+                  curved from this pool. If this is 5, a block will have 2^5 = 32
+                  addresses.  Default is 5.
+                format: int32
+                minimum: 0
+                type: integer
+              subnets:
+                description: "Subnets is a list of IPv4, or IPv6, or dual stack IPv4/IPv6
+                  subnets in this pool. All items in the list should be consistent
+                  to have the same set of subnets. For example, if the first item
+                  is an IPv4 subnet, the other items must also be an IPv4 subnet.
+                  \n This field can be updated only by adding subnets to the list."
+                items:
+                  description: SubnetSet defines a IPv4-only or IPv6-only or IPv4/v6
+                    dual stack subnet A dual stack subnet must has the same size subnet
+                    of IPv4 and IPv6.
+                  properties:
+                    ipv4:
+                      description: IPv4 is an IPv4 subnet like "10.2.0.0/16"
+                      type: string
+                    ipv6:
+                      description: IPv6 is an IPv6 subnet like "fd00:0200::/112"
+                      type: string
+                  type: object
+                minItems: 1
+                type: array
+            required:
+            - subnets
             type: object
         type: object
     served: true
     storage: true
+    subresources: {}
 status:
   acceptedNames:
     kind: ""

@@ -29,6 +29,9 @@ manifests: $(CONTROLLER_GEN)
 generate: $(CONTROLLER_GEN)
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
+ $(CONTROLLER_GEN):
+	$(MAKE) setup
+
 setup:
 	mkdir -p bin
 	curl -sfL https://go.kubebuilder.io/dl/$(KUBEBUILDER_VERSION)/$(GOOS)/$(GOARCH) | tar -xz -C /tmp/
@@ -36,4 +39,4 @@ setup:
 	rm -rf /tmp/kubebuilder_*
 	cd /tmp; GOBIN=$(PWD)/bin go get sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
-.PHONY: test manifests generate setup
+.PHONY: test check-generate manifests generate setup
