@@ -466,9 +466,9 @@ metadata:
     kind: AddressPool
     name: pool1
     uid: d9607e19-f88f-11e6-a518-42010a800195
-spec:
-  ipv4: 10.2.2.0/27
-  ipv6: fd01:0203:0405:0607::0200/123
+index: 16
+ipv4: 10.2.2.0/27
+ipv6: fd01:0203:0405:0607::0200/123
 ```
 
 ### BlockRequest
