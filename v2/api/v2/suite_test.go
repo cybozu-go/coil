@@ -75,6 +75,8 @@ var _ = BeforeSuite(func(done Done) {
 
 	err = (&AddressPool{}).SetupWebhookWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
+	err = (&Egress{}).SetupWebhookWithManager(mgr)
+	Expect(err).ToNot(HaveOccurred())
 
 	go func() {
 		err := mgr.Start(stopCh)
