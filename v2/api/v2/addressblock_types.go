@@ -7,31 +7,25 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// AddressBlockSpec defines the desired state of AddressBlock
-type AddressBlockSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of AddressBlock. Edit AddressBlock_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
-}
-
-// AddressBlockStatus defines the observed state of AddressBlock
-type AddressBlockStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Cluster
 
 // AddressBlock is the Schema for the addressblocks API
+//
+// The ownerReferences field contains the AddressPool where the block is curved from.
 type AddressBlock struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   AddressBlockSpec   `json:"spec,omitempty"`
-	Status AddressBlockStatus `json:"status,omitempty"`
+	// Index indicates the index of this block from the origin pool
+	// +kubebuilder:validation:Minimum=0
+	Index int32 `json:"index"`
+
+	// IPv4 is an IPv4 subnet address
+	IPv4 *string `json:"ipv4,omitempty"`
+
+	// IPv6 is an IPv6 subnet address
+	IPv6 *string `json:"ipv6,omitempty"`
 }
 
 // +kubebuilder:object:root=true

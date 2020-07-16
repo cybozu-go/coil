@@ -20,6 +20,7 @@ Design notes for Coil v2
   - [Bidirectional tunneling](#bidirectional-tunneling)
   - [Working with Service](#working-with-service)
   - [Session persistence](#session-persistence)
+  - [Auto-scaling with HPA](#auto-scaling-with-hpa)
   - [Implementation](#implementation)
 - [Garbage Collection](#garbage-collection)
   - [AddressBlock](#addressblock)
@@ -222,7 +223,7 @@ To satisfy this condition, we use the port number 5555 for FoU on both client po
 ### Session persistence
 
 To tunnel TCP packets, we need to keep sending the packets to the same SNAT router.
-This can be achieved by setting Service's [`spec.sessionAffinity`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#servicespec-v1-core) to `true`.
+This can be achieved by setting Service's [`spec.sessionAffinity`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#servicespec-v1-core) to `ClientIP`.
 
 One subtle problem of this is that the affinity can't be kept forever.
 
@@ -230,6 +231,13 @@ One subtle problem of this is that the affinity can't be kept forever.
 - For `kube-proxy` running in IPVS mode, this can be changed through `net.ipv4.vs.timeout_udp` sysctl value.
 
 If `kube-proxy` runs in IPVS mode, we have an alternative method to keep sessions; use source-hash (`sh`) scheduling algorithm.  This can be done by giving `--ipvs-scheduler=sh` option to `kube-proxy`.
+
+### Auto-scaling with HPA
+
+To enable auto-scaling with horizontal pod autoscaler (HPA), `Egress` implements `scale` subresource.
+
+- [Scale subresource](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#scale-subresource)
+- [Autoscaling Kubernetes Custom Resource using the HPA](https://medium.com/@thescott111/957d00bb7993)
 
 ### Implementation
 
@@ -466,9 +474,9 @@ metadata:
     kind: AddressPool
     name: pool1
     uid: d9607e19-f88f-11e6-a518-42010a800195
-spec:
-  ipv4: 10.2.2.0/27
-  ipv6: fd01:0203:0405:0607::0200/123
+index: 16
+ipv4: 10.2.2.0/27
+ipv6: fd01:0203:0405:0607::0200/123
 ```
 
 ### BlockRequest
@@ -499,6 +507,11 @@ status:
 
 ### Egress
 
+Egress generates a Deployment and a Service.
+So it has fields to customize them.
+
+To support auto scaling by HPA, it has some status fields for it.
+
 ```yaml
 apiVersion: coil.cybozu.com/v2
 kind: Egress
@@ -506,9 +519,32 @@ metadata:
   name: internet
   namespace: internet-egress
 spec:
-  networks:
+  destinations:
     - 0.0.0.0/0
   replicas: 2
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        foo: bar
+      labels:
+        name: coil-egress
+      spec:
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  name: coil-egress
+              topologyKey: topology.kubernetes.io/zone
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 43200  # 12 hours
+status:
+  replicas: 1
+  selector: "coil.cybozu.com%2Fname=internet"
 ```
 
 [CNI]: https://github.com/containernetworking/cni

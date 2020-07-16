@@ -63,7 +63,7 @@ jobs:
         name: Run tests
         command: |
           cd v2
-          make setup
+          make setup SUDO=
           make test
           make check-generate
 

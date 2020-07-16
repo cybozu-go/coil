@@ -19,7 +19,9 @@ spec:
   - name: v2
     schema:
       openAPIV3Schema:
-        description: BlockRequest is the Schema for the blockrequests API
+        description: "BlockRequest is the Schema for the blockrequests API \n The
+          ownerReferences field contains the Node on which coild that created this
+          run."
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -36,17 +38,60 @@ spec:
           spec:
             description: BlockRequestSpec defines the desired state of BlockRequest
             properties:
-              foo:
-                description: Foo is an example field of BlockRequest. Edit BlockRequest_types.go
-                  to remove/update
+              nodeName:
+                description: NodeName is the requesting node name.
                 type: string
+              poolName:
+                description: PoolName is the target AddressPool name.
+                type: string
+            required:
+            - nodeName
+            - poolName
             type: object
           status:
             description: BlockRequestStatus defines the observed state of BlockRequest
+            properties:
+              addressBlockName:
+                description: AddressBlockName is the allocated address block name.
+                type: string
+              conditions:
+                description: Conditions is the list of conditions.
+                items:
+                  description: BlockRequestCondition defines the condition of a BlockRequest
+                  properties:
+                    lastProbeTime:
+                      description: Last time the condition was checked.
+                      format: date-time
+                      type: string
+                    lastTransitionTime:
+                      description: Last time the condition transit from one status
+                        to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Human readable message indicating details about
+                        last transition.
+                      type: string
+                    reason:
+                      description: Reason for the condition's last transition.
+                      type: string
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: Type of condition, Complete or Failed.
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
             type: object
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

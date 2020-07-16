@@ -19,12 +19,25 @@ spec:
   - name: v2
     schema:
       openAPIV3Schema:
-        description: AddressBlock is the Schema for the addressblocks API
+        description: "AddressBlock is the Schema for the addressblocks API \n The
+          ownerReferences field contains the AddressPool where the block is curved
+          from."
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
               of an object. Servers should convert recognized schemas to the latest
               internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          index:
+            description: Index indicates the index of this block from the origin pool
+            format: int32
+            minimum: 0
+            type: integer
+          ipv4:
+            description: IPv4 is an IPv4 subnet address
+            type: string
+          ipv6:
+            description: IPv6 is an IPv6 subnet address
             type: string
           kind:
             description: 'Kind is a string value representing the REST resource this
@@ -33,17 +46,8 @@ spec:
             type: string
           metadata:
             type: object
-          spec:
-            description: AddressBlockSpec defines the desired state of AddressBlock
-            properties:
-              foo:
-                description: Foo is an example field of AddressBlock. Edit AddressBlock_types.go
-                  to remove/update
-                type: string
-            type: object
-          status:
-            description: AddressBlockStatus defines the observed state of AddressBlock
-            type: object
+        required:
+        - index
         type: object
     served: true
     storage: true
