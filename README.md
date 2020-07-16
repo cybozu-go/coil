@@ -1,6 +1,6 @@
 [![GitHub release](https://img.shields.io/github/release/cybozu-go/coil.svg?maxAge=60)][releases]
 [![CircleCI](https://circleci.com/gh/cybozu-go/coil.svg?style=svg)](https://circleci.com/gh/cybozu-go/coil)
-[![GoDoc](https://godoc.org/github.com/cybozu-go/coil?status.svg)][godoc]
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/cybozu-go/coil?tab=overview)](https://pkg.go.dev/github.com/cybozu-go/coil?tab=overview)
 [![Go Report Card](https://goreportcard.com/badge/github.com/cybozu-go/coil)](https://goreportcard.com/report/github.com/cybozu-go/coil)
 
 Coil
@@ -12,7 +12,7 @@ Coil is designed with respect to the UNIX philosophy.  It is not tightly
 integrated with routing daemons like [BIRD][].  It does not implement
 [Kubernetes Network Policies][NetworkPolicy] either.
 
-Instead, you can use Coil with any routing software and policy
+Instead, you can use Coil with any routing software and network policy
 implementation of your choice.
 
 Status
@@ -85,6 +85,8 @@ This repository contains these programs:
 Install
 -------
 
+The official Docker image is on [Quay.io](https://quay.io/repository/cybozu/coil)
+
 TBD
 
 Documentation
@@ -94,18 +96,12 @@ Documentation
 
 [mtest/bird.conf](mtest/bird.conf) is an example configuration for [BIRD][] to make it work with coil.
 
-Docker images
--------------
-
-The official Docker image is on [Quay.io](https://quay.io/repository/cybozu/coil)
-
 License
 -------
 
 MIT
 
 [releases]: https://github.com/cybozu-go/coil/releases
-[godoc]: https://godoc.org/github.com/cybozu-go/coil
 [CNI]: https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/
 [BIRD]: https://bird.network.cz/
 [LoadBalancer]: https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer
