@@ -1,6 +1,7 @@
 package v2
 
 import (
+	"net"
 	"testing"
 )
 
@@ -8,6 +9,7 @@ func TestSubnetSet(t *testing.T) {
 	t.Run("Validate", testSubnetSetValidate)
 	t.Run("Is", testSubnetSetIs)
 	t.Run("Equal", testSubnetSetEqual)
+	t.Run("GetBlock", testSubnetSetGetBlock)
 }
 
 func makeSubnetSet(ipv4, ipv6 string) SubnetSet {
@@ -170,6 +172,97 @@ func testSubnetSetEqual(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.equal != tc.r1.Equal(tc.r2) {
 				t.Error("wrong")
+			}
+		})
+	}
+}
+
+func makeSubnet(s string) *net.IPNet {
+	_, n, _ := net.ParseCIDR(s)
+	return n
+}
+
+func testSubnetSetGetBlock(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+		r    SubnetSet
+		n    uint
+		bits int
+		ipv4 *net.IPNet
+		ipv6 *net.IPNet
+	}{
+		{
+			"ipv4-n0-bits0",
+			makeSubnetSet("10.2.0.0/24", ""),
+			0, 0,
+			makeSubnet("10.2.0.0/32"), nil,
+		},
+		{
+			"ipv4-n3-bits0",
+			makeSubnetSet("10.2.0.0/24", ""),
+			3, 0,
+			makeSubnet("10.2.0.3/32"), nil,
+		},
+		{
+			"ipv4-n3-bits2",
+			makeSubnetSet("10.2.0.0/24", ""),
+			3, 2,
+			makeSubnet("10.2.0.12/30"), nil,
+		},
+		{
+			"ipv6-n0-bits0",
+			makeSubnetSet("", "fd02::0900:0000/116"),
+			0, 0,
+			nil, makeSubnet("fd02::0900:0000/128"),
+		},
+		{
+			"ipv6-n257-bits0",
+			makeSubnetSet("", "fd02::0900:0000/116"),
+			257, 0,
+			nil, makeSubnet("fd02::0900:0101/128"),
+		},
+		{
+			"ipv6-n10-bits5",
+			makeSubnetSet("", "fd02::0900:0000/116"),
+			10, 5,
+			nil, makeSubnet("fd02::0900:0140/123"),
+		},
+		{
+			"dual-n10-bits5",
+			makeSubnetSet("10.2.0.0/24", "fd02::0900:0000/120"),
+			10, 5,
+			makeSubnet("10.2.1.64/27"), makeSubnet("fd02::0900:0140/123"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ipv4, ipv6 := tc.r.GetBlock(tc.n, tc.bits)
+			if tc.ipv4 == nil && ipv4 != nil {
+				t.Error("unexpected ipv4:", ipv4)
+			}
+			if tc.ipv4 != nil {
+				if ipv4 == nil {
+					t.Error("ipv4 must be returned")
+				} else {
+					if tc.ipv4.String() != ipv4.String() {
+						t.Errorf("ipv4 mismatch: expected=%s, actual=%s", tc.ipv4.String(), ipv4.String())
+					}
+				}
+			}
+			if tc.ipv6 == nil && ipv6 != nil {
+				t.Error("unexpected ipv6:", ipv6)
+			}
+			if tc.ipv6 != nil {
+				if ipv6 == nil {
+					t.Error("ipv6 must be returned")
+				} else {
+					if tc.ipv6.String() != ipv6.String() {
+						t.Errorf("ipv4 mismatch: expected=%s, actual=%s", tc.ipv6.String(), ipv6.String())
+					}
+				}
 			}
 		})
 	}

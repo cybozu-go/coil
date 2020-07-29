@@ -19,7 +19,6 @@ type AddressBlockReconciler struct {
 }
 
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=addressblocks,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=coil.cybozu.com,resources=addressblocks/status,verbs=get;update;patch
 
 func (r *AddressBlockReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
