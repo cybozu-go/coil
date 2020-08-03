@@ -21,6 +21,8 @@ type EgressReconciler struct {
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses/status,verbs=get;update;patch
 
+// Reconcile implements Reconciler interface.
+// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.6.1/pkg/reconcile?tab=doc#Reconciler
 func (r *EgressReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
 	_ = r.Log.WithValues("egress", req.NamespacedName)
@@ -30,6 +32,7 @@ func (r *EgressReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
+// SetupWithManager registers this with the manager.
 func (r *EgressReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&coilv2.Egress{}).

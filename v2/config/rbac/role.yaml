@@ -12,6 +12,7 @@ rules:
   - nodes
   verbs:
   - get
+  - list
 - apiGroups:
   - coil.cybozu.com
   resources:
@@ -21,8 +22,6 @@ rules:
   - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - coil.cybozu.com
@@ -41,8 +40,6 @@ rules:
   - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - coil.cybozu.com

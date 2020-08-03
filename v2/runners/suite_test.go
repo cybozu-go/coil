@@ -1,4 +1,4 @@
-package controllers
+package runners
 
 import (
 	"context"
@@ -38,7 +38,7 @@ func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
 	RunSpecsWithDefaultAndCustomReporters(t,
-		"Controller Suite",
+		"Runner Suite",
 		[]Reporter{printer.NewlineReporter{}})
 }
 
@@ -68,25 +68,6 @@ var _ = BeforeSuite(func(done Done) {
 
 	// prepare resources
 	ctx := context.Background()
-	ap := &coilv2.AddressPool{}
-	ap.Name = "default"
-	ap.Spec.BlockSizeBits = 1
-	ap.Spec.Subnets = []coilv2.SubnetSet{
-		{IPv4: strPtr("10.2.0.0/29"), IPv6: strPtr("fd02::0200/125")},
-		{IPv4: strPtr("10.3.0.0/30"), IPv6: strPtr("fd02::0300/126")},
-	}
-	err = k8sClient.Create(ctx, ap)
-	Expect(err).ToNot(HaveOccurred())
-
-	ap = &coilv2.AddressPool{}
-	ap.Name = "v4"
-	ap.Spec.BlockSizeBits = 2
-	ap.Spec.Subnets = []coilv2.SubnetSet{
-		{IPv4: strPtr("10.4.0.0/29")},
-	}
-	err = k8sClient.Create(ctx, ap)
-	Expect(err).ToNot(HaveOccurred())
-
 	node1 := &corev1.Node{}
 	node1.Name = "node1"
 	err = k8sClient.Create(ctx, node1)
