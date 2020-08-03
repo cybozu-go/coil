@@ -1,6 +1,8 @@
 package v2
 
 import (
+	"errors"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -30,6 +32,24 @@ type BlockRequestStatus struct {
 
 	// Conditions is the list of conditions.
 	Conditions []BlockRequestCondition `json:"conditions,omitempty"`
+}
+
+func (bs BlockRequestStatus) getResult() (string, error) {
+	completed := false
+	for _, cond := range bs.Conditions {
+		if cond.Type == BlockRequestFailed && cond.Status == corev1.ConditionTrue {
+			return "", errors.New(cond.Reason)
+		}
+		if cond.Type == BlockRequestComplete && cond.Status == corev1.ConditionTrue {
+			completed = true
+		}
+	}
+
+	if !completed {
+		return "", errors.New("request is in progress")
+	}
+
+	return bs.AddressBlockName, nil
 }
 
 // BlockRequestCondition defines the condition of a BlockRequest
@@ -74,6 +94,11 @@ type BlockRequest struct {
 
 	Spec   BlockRequestSpec   `json:"spec,omitempty"`
 	Status BlockRequestStatus `json:"status,omitempty"`
+}
+
+// GetResult returns the request result
+func (br BlockRequest) GetResult() (string, error) {
+	return br.Status.getResult()
 }
 
 // +kubebuilder:object:root=true

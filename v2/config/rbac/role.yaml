@@ -7,6 +7,13 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+- apiGroups:
   - coil.cybozu.com
   resources:
   - addressblocks
@@ -15,17 +22,15 @@ rules:
   - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - coil.cybozu.com
   resources:
-  - addressblocks/status
+  - addresspools
   verbs:
   - get
-  - patch
-  - update
+  - list
+  - watch
 - apiGroups:
   - coil.cybozu.com
   resources:
@@ -35,8 +40,6 @@ rules:
   - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - coil.cybozu.com

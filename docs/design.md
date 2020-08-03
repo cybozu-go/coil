@@ -293,7 +293,7 @@ Therefore, when the owning `AddressPool` is deleted, all `AddressBlocks` from th
 That said, an `AddressBlock` should not be deleted until there are no more Pods with an address in the block.
 For this purpose, Coil adds a finalizer to each `AddressBlock`.  **`coild` checks the usage of addresses in the block**, and once there are no more Pods using the addresses, it removes the finalizer to delete the `AddressBlock`.
 
-`AddressBlock` should also be deleted when `Node` that acquired the block is deleted.  Since `coild` running as a DaemonSet pod cannot do this, **`coil-controller` watches Node deletions and removes `AddressBlocks`**.
+`AddressBlock` should also be deleted when `Node` that acquired the block is deleted.  Since `coild` running as a DaemonSet pod cannot do this, **`coil-controller` watches Node deletions and removes `AddressBlocks`**.  At its startup, `coil-controller` also checks dangling `AddressBlocks` and removes them.
 
 `coild` also deletes `AddressBlock` when it frees the last IP address used in the block.  At startup, `coild` also checks each `AddressBlock` for the Node, and if no Pod is using the addresses in the block, it deletes the `AddressBlock`.
 

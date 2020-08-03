@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net"
 
+	"github.com/cybozu-go/coil/v2/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
@@ -107,6 +108,41 @@ func (ss SubnetSet) Equal(x SubnetSet) bool {
 	}
 
 	return true
+}
+
+// GetBlock curves Nth block from the pool
+func (ss SubnetSet) GetBlock(n uint, sizeBits int) (ipv4 *net.IPNet, ipv6 *net.IPNet) {
+	blockOffset := (int64(1) << sizeBits) * int64(n)
+	if ss.IPv4 != nil {
+		_, n, err := net.ParseCIDR(*ss.IPv4)
+		if err != nil {
+			panic(err)
+		}
+
+		ipv4 = &net.IPNet{
+			IP:   util.IPAdd(n.IP, blockOffset),
+			Mask: net.CIDRMask(32-sizeBits, 32),
+		}
+		if ipv4.IP == nil {
+			panic("bug")
+		}
+	}
+	if ss.IPv6 != nil {
+		_, n, err := net.ParseCIDR(*ss.IPv6)
+		if err != nil {
+			panic(err)
+		}
+
+		ipv6 = &net.IPNet{
+			IP:   util.IPAdd(n.IP, blockOffset),
+			Mask: net.CIDRMask(128-sizeBits, 128),
+		}
+		if ipv6.IP == nil {
+			panic("bug")
+		}
+	}
+
+	return
 }
 
 // AddressPoolSpec defines the desired state of AddressPool
