@@ -30,7 +30,7 @@ manifests: $(CONTROLLER_GEN)
 
 	# workaround for CRD issue with k8s 1.18 & controller-gen 0.3
 	# ref: https://github.com/kubernetes/kubernetes/issues/91395
-	sed -i -r 's/^( +)  or SCTP\. Defaults to "TCP"\./\0\n\1default: TCP/' \
+	sed -i -r 's/^( +)description: Protocol for port\. Must be UDP, TCP, or SCTP\. Defaults to "TCP"\./\0\n\1default: TCP/' \
 	  config/crd/bases/coil.cybozu.com_egresses.yaml
 
 # Generate code
