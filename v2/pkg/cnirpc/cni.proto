@@ -1,0 +1,55 @@
+syntax = "proto3";
+package pkg.cnirpc;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/cybozu-go/coil/v2/pkg/cnirpc";
+
+// CNIArgs is a mirror of cni.pkg.skel.CmdArgs struct.
+// https://pkg.go.dev/github.com/containernetworking/cni@v0.8.0/pkg/skel?tab=doc#CmdArgs
+message CNIArgs {
+  string container_id = 1;
+  string netns = 2;
+  string ifname = 3;
+  map<string,string> args = 4;  // Key-Value pairs parsed from CNI_ARGS
+  string path = 5;
+  bytes stdin_data = 6;
+}
+
+// CNIError is a mirror of cin.pkg.types.Error struct.
+// https://pkg.go.dev/github.com/containernetworking/cni@v0.8.0/pkg/types?tab=doc#Error
+//
+// This should be added to *grpc.Status by WithDetails()
+// https://pkg.go.dev/google.golang.org/grpc@v1.31.0/internal/status?tab=doc#Status.WithDetails
+message CNIError {
+  enum ErrorCode {
+    ERR_UNKNOWN = 0;
+    ERR_INCOMPATIBLE_CNI_VERSION = 1;
+    ERR_UNSUPPORTED_FIELD = 2;
+    ERR_UNKNOWN_CONTAINER = 3;
+    ERR_INVALID_ENVIRONMENT_VARIABLES = 4;
+    ERR_IO_FAILURE = 5;
+    ERR_DECODING_FAILURE = 6;
+    ERR_INVALID_NETWORK_CONFIG = 7;
+    ERR_TRY_AGAIN_LATER = 11;
+    ERR_INTERNAL = 999;
+  }
+  ErrorCode code = 1;
+  string msg = 2;
+  string details = 3;
+}
+
+// AddResponse represents the response for ADD command.
+//
+// `result` is a types.current.Result serialized into JSON.
+// https://pkg.go.dev/github.com/containernetworking/cni@v0.8.0/pkg/types/current?tab=doc#Result
+message AddResponse {
+  bytes result = 1;
+}
+
+// CNI implements CNI commands over gRPC.
+service CNI {
+  rpc Add(CNIArgs) returns (AddResponse);
+  rpc Del(CNIArgs) returns (google.protobuf.Empty);
+  rpc Check(CNIArgs) returns (google.protobuf.Empty);
+}

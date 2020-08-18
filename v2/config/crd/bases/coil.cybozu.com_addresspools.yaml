@@ -26,14 +26,10 @@ spec:
         description: AddressPool is the Schema for the addresspools API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -42,22 +38,14 @@ spec:
             properties:
               blockSizeBits:
                 default: 5
-                description: BlockSizeBits specifies the size of the address blocks
-                  curved from this pool. If this is 5, a block will have 2^5 = 32
-                  addresses.  Default is 5.
+                description: BlockSizeBits specifies the size of the address blocks curved from this pool. If this is 5, a block will have 2^5 = 32 addresses.  Default is 5.
                 format: int32
                 minimum: 0
                 type: integer
               subnets:
-                description: "Subnets is a list of IPv4, or IPv6, or dual stack IPv4/IPv6
-                  subnets in this pool. All items in the list should be consistent
-                  to have the same set of subnets. For example, if the first item
-                  is an IPv4 subnet, the other items must also be an IPv4 subnet.
-                  \n This field can be updated only by adding subnets to the list."
+                description: "Subnets is a list of IPv4, or IPv6, or dual stack IPv4/IPv6 subnets in this pool. All items in the list should be consistent to have the same set of subnets. For example, if the first item is an IPv4 subnet, the other items must also be an IPv4 subnet. \n This field can be updated only by adding subnets to the list."
                 items:
-                  description: SubnetSet defines a IPv4-only or IPv6-only or IPv4/v6
-                    dual stack subnet A dual stack subnet must has the same size subnet
-                    of IPv4 and IPv6.
+                  description: SubnetSet defines a IPv4-only or IPv6-only or IPv4/v6 dual stack subnet A dual stack subnet must has the same size subnet of IPv4 and IPv6.
                   properties:
                     ipv4:
                       description: IPv4 is an IPv4 subnet like "10.2.0.0/16"
