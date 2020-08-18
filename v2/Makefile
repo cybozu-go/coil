@@ -1,8 +1,8 @@
 # Makefile for coil
 
 KUBEBUILDER_VERSION = 2.3.1
-CONTROLLER_TOOLS_VERSION = v0.3.0
 K8S_VERSION=1.18.6
+PROTOC_VERSION=3.12.4
 
 ## DON'T EDIT BELOW THIS LINE
 SUDO=sudo
@@ -12,6 +12,7 @@ GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
 GO111MODULE=on
 KUBEBUILDER_ASSETS := $(PWD)/bin
+PROTOC := PATH=$(PWD)/bin:$(PATH) $(PWD)/bin/protoc -I=$(PWD)/include:.
 export GO111MODULE KUBEBUILDER_ASSETS
 
 test:
@@ -35,24 +36,42 @@ manifests: $(CONTROLLER_GEN)
 # Generate code
 generate: $(CONTROLLER_GEN)
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(MAKE) pkg/cnirpc/cni.pb.go pkg/cnirpc/cni_grpc.pb.go ../docs/cni-grpc.md
 
  $(CONTROLLER_GEN):
 	$(MAKE) setup
 
+pkg/cnirpc/cni.pb.go: pkg/cnirpc/cni.proto
+	$(PROTOC) --go_out=module=github.com/cybozu-go/coil/v2:. $<
+
+pkg/cnirpc/cni_grpc.pb.go: pkg/cnirpc/cni.proto
+	$(PROTOC) --go-grpc_out=module=github.com/cybozu-go/coil/v2:. $<
+
+../docs/cni-grpc.md: pkg/cnirpc/cni.proto
+	$(PROTOC) --doc_out=../docs --doc_opt=markdown,$@ $<
+
 setup:
+	$(SUDO) apt-get update
+	$(SUDO) apt-get -y install --no-install-recommends rsync unzip
+
 	mkdir -p bin
 	curl -sfL https://go.kubebuilder.io/dl/$(KUBEBUILDER_VERSION)/$(GOOS)/$(GOARCH) | tar -xz -C /tmp/
 	mv /tmp/kubebuilder_$(KUBEBUILDER_VERSION)_$(GOOS)_$(GOARCH)/bin/* bin/
 	rm -rf /tmp/kubebuilder_*
-	cd /tmp; GOBIN=$(PWD)/bin go get sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+	GOBIN=$(PWD)/bin go install sigs.k8s.io/controller-tools/cmd/controller-gen
 	# we need kube-apiserver from k8s 1.18
-	$(SUDO) apt-get update
-	$(SUDO) apt-get -y install --no-install-recommends rsync
 	rm -rf tmp && mkdir -p tmp
 	curl -sfL https://github.com/kubernetes/kubernetes/archive/v$(K8S_VERSION).tar.gz | tar zxf - -C tmp
 	mv tmp/kubernetes-$(K8S_VERSION) tmp/kubernetes
 	cd tmp/kubernetes; make all WHAT="cmd/kube-apiserver"
 	mv tmp/kubernetes/_output/bin/kube-apiserver bin/
 	rm -rf tmp
+
+	curl -sfL -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-linux-x86_64.zip
+	unzip -o protoc.zip bin/protoc 'include/*'
+	rm -f protoc.zip
+	GOBIN=$(PWD)/bin go install google.golang.org/protobuf/cmd/protoc-gen-go
+	GOBIN=$(PWD)/bin go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
+	GOBIN=$(PWD)/bin go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
 .PHONY: test check-generate manifests generate setup
