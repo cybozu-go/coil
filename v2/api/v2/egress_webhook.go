@@ -18,7 +18,7 @@ func (r *Egress) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 
-// +kubebuilder:webhook:path=/mutate-coil-cybozu-com-v2-egress,mutating=true,failurePolicy=fail,groups=coil.cybozu.com,resources=egresses,verbs=create,versions=v2,name=megress.kb.io
+// +kubebuilder:webhook:webhookVersions=v1beta1,path=/mutate-coil-cybozu-com-v2-egress,mutating=true,failurePolicy=fail,sideEffects=None,groups=coil.cybozu.com,resources=egresses,verbs=create,versions=v2,name=megress.kb.io
 
 var _ webhook.Defaulter = &Egress{}
 
@@ -38,7 +38,7 @@ func (r *Egress) Default() {
 	}
 }
 
-// +kubebuilder:webhook:verbs=create;update,path=/validate-coil-cybozu-com-v2-egress,mutating=false,failurePolicy=fail,groups=coil.cybozu.com,resources=egresses,versions=v2,name=vegress.kb.io
+// +kubebuilder:webhook:webhookVersions=v1beta1,verbs=create;update,path=/validate-coil-cybozu-com-v2-egress,mutating=false,failurePolicy=fail,sideEffects=None,groups=coil.cybozu.com,resources=egresses,versions=v2,name=vegress.kb.io
 
 var _ webhook.Validator = &Egress{}
 

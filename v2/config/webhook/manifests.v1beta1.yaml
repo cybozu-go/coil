@@ -23,6 +23,7 @@ webhooks:
     - CREATE
     resources:
     - egresses
+  sideEffects: None
 
 ---
 apiVersion: admissionregistration.k8s.io/v1beta1
@@ -49,6 +50,7 @@ webhooks:
     - UPDATE
     resources:
     - addresspools
+  sideEffects: None
 - clientConfig:
     caBundle: Cg==
     service:
@@ -67,3 +69,4 @@ webhooks:
     - UPDATE
     resources:
     - egresses
+  sideEffects: None
