@@ -9,7 +9,7 @@
     - [CNIArgs.ArgsEntry](#pkg.cnirpc.CNIArgs.ArgsEntry)
     - [CNIError](#pkg.cnirpc.CNIError)
   
-    - [CNIError.ErrorCode](#pkg.cnirpc.CNIError.ErrorCode)
+    - [ErrorCode](#pkg.cnirpc.ErrorCode)
   
     - [CNI](#pkg.cnirpc.CNI)
   
@@ -91,7 +91,7 @@ https://pkg.go.dev/google.golang.org/grpc@v1.31.0/internal/status?tab=doc#Status
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| code | [CNIError.ErrorCode](#pkg.cnirpc.CNIError.ErrorCode) |  |  |
+| code | [ErrorCode](#pkg.cnirpc.ErrorCode) |  |  |
 | msg | [string](#string) |  |  |
 | details | [string](#string) |  |  |
 
@@ -102,23 +102,23 @@ https://pkg.go.dev/google.golang.org/grpc@v1.31.0/internal/status?tab=doc#Status
  
 
 
-<a name="pkg.cnirpc.CNIError.ErrorCode"></a>
+<a name="pkg.cnirpc.ErrorCode"></a>
 
-### CNIError.ErrorCode
-
+### ErrorCode
+ErrorCode enumerates errors for CNIError
 
 | Name | Number | Description |
 | ---- | ------ | ----------- |
-| ERR_UNKNOWN | 0 |  |
-| ERR_INCOMPATIBLE_CNI_VERSION | 1 |  |
-| ERR_UNSUPPORTED_FIELD | 2 |  |
-| ERR_UNKNOWN_CONTAINER | 3 |  |
-| ERR_INVALID_ENVIRONMENT_VARIABLES | 4 |  |
-| ERR_IO_FAILURE | 5 |  |
-| ERR_DECODING_FAILURE | 6 |  |
-| ERR_INVALID_NETWORK_CONFIG | 7 |  |
-| ERR_TRY_AGAIN_LATER | 11 |  |
-| ERR_INTERNAL | 999 |  |
+| UNKNOWN | 0 |  |
+| INCOMPATIBLE_CNI_VERSION | 1 |  |
+| UNSUPPORTED_FIELD | 2 |  |
+| UNKNOWN_CONTAINER | 3 |  |
+| INVALID_ENVIRONMENT_VARIABLES | 4 |  |
+| IO_FAILURE | 5 |  |
+| DECODING_FAILURE | 6 |  |
+| INVALID_NETWORK_CONFIG | 7 |  |
+| TRY_AGAIN_LATER | 11 |  |
+| INTERNAL | 999 |  |
 
 
  
