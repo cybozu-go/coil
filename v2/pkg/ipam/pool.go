@@ -118,7 +118,9 @@ func (p *pool) SyncBlocks(ctx context.Context) error {
 
 	p.allocated.ClearAll()
 	blocks := &coilv2.AddressBlockList{}
-	err := p.client.List(ctx, blocks, client.MatchingField(constants.IndexController, p.name))
+	err := p.client.List(ctx, blocks, client.MatchingFields{
+		constants.IndexController: p.name,
+	})
 	if err != nil {
 		return err
 	}
