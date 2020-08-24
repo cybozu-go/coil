@@ -18,9 +18,9 @@ implementation of your choice.
 Status
 ------
 
-Version 2 is under **active development**.
+Version 2 is under **active development**.  It conforms to [CNI spec 0.4.0](https://github.com/containernetworking/cni/blob/spec-v0.4.0/SPEC.md).
 
-Coil version 1 is in [release-1.1](https://github.com/cybozu-go/coil/tree/release-1.1) branch.
+Version 1 is maintained in [release-1.1](https://github.com/cybozu-go/coil/tree/release-1.1) branch.
 
 Requirements
 ------------

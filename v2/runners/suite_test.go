@@ -22,10 +22,6 @@ import (
 	// +kubebuilder:scaffold:imports
 )
 
-func strPtr(s string) *string {
-	return &s
-}
-
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 

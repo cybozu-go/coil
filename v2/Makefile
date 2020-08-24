@@ -15,9 +15,10 @@ KUBEBUILDER_ASSETS := $(PWD)/bin
 PROTOC := PATH=$(PWD)/bin:$(PATH) $(PWD)/bin/protoc -I=$(PWD)/include:.
 export GO111MODULE KUBEBUILDER_ASSETS
 
-test:
+test: test-tools
 	go test -race -v -count 1 ./...
 	go install ./...
+	staticcheck ./...
 
 check-generate:
 	$(MAKE) manifests
@@ -74,4 +75,11 @@ setup:
 	GOBIN=$(PWD)/bin go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 	GOBIN=$(PWD)/bin go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
-.PHONY: test check-generate manifests generate setup
+test-tools: staticcheck
+
+staticcheck:
+	if ! which staticcheck >/dev/null; then \
+		cd /tmp; go get honnef.co/go/tools/cmd/staticcheck; \
+	fi
+
+.PHONY: test test-tools staticcheck check-generate manifests generate setup
