@@ -12,7 +12,7 @@ func TestPluginEnvArgs(t *testing.T) {
 
 	args := "IgnoreUnknown=1;K8S_POD_NAMESPACE=test;K8S_POD_NAME=testhttpd-host1;K8S_POD_INFRA_CONTAINER_ID=c8f4a9c50c85b36eff718aab2ac39209e541a4551420488c33d9216cf1795b3a"
 	if err := types.LoadArgs(args, env); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	if env.K8S_POD_NAMESPACE != "test" {

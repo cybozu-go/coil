@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// makeCNIArgs creates *CNIArgs and returns it and the socket filename.
+// makeCNIArgs creates *CNIArgs.
 func makeCNIArgs(args *skel.CmdArgs) (*cnirpc.CNIArgs, error) {
 	env := &PluginEnvArgs{}
 	if err := types.LoadArgs(args.Args, env); err != nil {
