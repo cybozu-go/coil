@@ -18,7 +18,10 @@ export GO111MODULE KUBEBUILDER_ASSETS
 test: test-tools
 	go test -race -v -count 1 ./...
 	go install ./...
+	go vet ./...
+	test -z $$(go fmt -s -l . | tee /dev/stderr)
 	staticcheck ./...
+	nilerr ./...
 
 check-generate:
 	$(MAKE) manifests
@@ -75,11 +78,16 @@ setup:
 	GOBIN=$(PWD)/bin go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 	GOBIN=$(PWD)/bin go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
-test-tools: staticcheck
+test-tools: staticcheck nilerr
 
 staticcheck:
 	if ! which staticcheck >/dev/null; then \
-		cd /tmp; go get honnef.co/go/tools/cmd/staticcheck; \
+		cd /tmp; env GOFLAGS= GO111MODULE=on go get honnef.co/go/tools/cmd/staticcheck; \
 	fi
 
-.PHONY: test test-tools staticcheck check-generate manifests generate setup
+nilerr:
+	if ! which nilerr >/dev/null; then \
+		cd /tmp; env GOFLAGS= GO111MODULE=on go get github.com/gostaticanalysis/nilerr/cmd/nilerr; \
+	fi
+
+.PHONY: test test-tools staticcheck nilerr check-generate manifests generate setup
