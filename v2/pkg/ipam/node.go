@@ -9,6 +9,7 @@ import (
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
+	"github.com/cybozu-go/coil/v2/pkg/nodenet"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -78,6 +79,7 @@ type nodeIPAM struct {
 	client    client.Client
 	apiReader client.Reader
 	scheme    *runtime.Scheme
+	exporter  nodenet.RouteExporter
 
 	mu    sync.Mutex
 	pools map[string]*nodePool
@@ -87,15 +89,46 @@ type nodeIPAM struct {
 }
 
 // NewNodeIPAM creates a new NodeIPAM object.
-func NewNodeIPAM(nodeName string, l logr.Logger, mgr manager.Manager) NodeIPAM {
+//
+// If `exporter` is non-nil, this calls `exporter.Sync` to
+// add or delete routes when it allocate or delete AddressBlocks.
+func NewNodeIPAM(nodeName string, l logr.Logger, mgr manager.Manager, exporter nodenet.RouteExporter) NodeIPAM {
 	return &nodeIPAM{
 		nodeName:  nodeName,
 		log:       l,
 		client:    mgr.GetClient(),
 		apiReader: mgr.GetAPIReader(),
 		scheme:    mgr.GetScheme(),
+		exporter:  exporter,
 		pools:     make(map[string]*nodePool),
 	}
+}
+
+func (n *nodeIPAM) sync(ctx context.Context) error {
+	if n.exporter == nil {
+		return nil
+	}
+
+	blocks := &coilv2.AddressBlockList{}
+	if err := n.apiReader.List(ctx, blocks, client.MatchingLabels{
+		constants.LabelNode: n.nodeName,
+	}); err != nil {
+		return err
+	}
+
+	var subnets []*net.IPNet
+	for _, block := range blocks.Items {
+		if block.IPv4 != nil {
+			_, n, _ := net.ParseCIDR(*block.IPv4)
+			subnets = append(subnets, n)
+		}
+		if block.IPv6 != nil {
+			_, n, _ := net.ParseCIDR(*block.IPv6)
+			subnets = append(subnets, n)
+		}
+	}
+	return n.exporter.Sync(subnets)
+
 }
 
 func (n *nodeIPAM) Register(ctx context.Context, poolName, containerID, iface string, ipv4, ipv6 net.IP) error {
@@ -120,7 +153,7 @@ func (n *nodeIPAM) GC(ctx context.Context) error {
 			return err
 		}
 	}
-	return nil
+	return n.sync(ctx)
 }
 
 func (n *nodeIPAM) Allocate(ctx context.Context, poolName, containerID, iface string) (ipv4, ipv6 net.IP, err error) {
@@ -134,9 +167,14 @@ func (n *nodeIPAM) Allocate(ctx context.Context, poolName, containerID, iface st
 	if err != nil {
 		return nil, nil, err
 	}
-	ai, err := p.allocate(ctx)
+	ai, toSync, err := p.allocate(ctx)
 	if err != nil {
 		return nil, nil, err
+	}
+	if toSync {
+		if err := n.sync(ctx); err != nil {
+			return nil, nil, err
+		}
 	}
 	n.allocInfoMap.Store(key, ai)
 	return ai.IPv4, ai.IPv6, nil
@@ -150,9 +188,14 @@ func (n *nodeIPAM) Free(ctx context.Context, containerID, iface string) error {
 	}
 
 	ai := val.(*allocInfo)
-	err := ai.Pool.free(ctx, ai.BlockName, ai.Index)
+	toSync, err := ai.Pool.free(ctx, ai.BlockName, ai.Index)
 	if err != nil {
 		return err
+	}
+	if toSync {
+		if err := n.sync(ctx); err != nil {
+			return err
+		}
 	}
 	n.allocInfoMap.Delete(key)
 	return nil
@@ -329,7 +372,7 @@ func (p *nodePool) register(containerID, iface string, ipv4, ipv6 net.IP) *alloc
 	return nil
 }
 
-func (p *nodePool) allocateFrom(alloc allocator, block string) (*allocInfo, error) {
+func (p *nodePool) allocateFrom(alloc allocator, block string, toSync bool) (*allocInfo, bool, error) {
 	ipv4, ipv6, idx, ok := alloc.allocate()
 	if !ok {
 		panic("bug")
@@ -345,10 +388,10 @@ func (p *nodePool) allocateFrom(alloc allocator, block string) (*allocInfo, erro
 		BlockName: block,
 		Index:     idx,
 		Pool:      p,
-	}, nil
+	}, toSync, nil
 }
 
-func (p *nodePool) allocate(ctx context.Context) (*allocInfo, error) {
+func (p *nodePool) allocate(ctx context.Context) (*allocInfo, bool, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -357,7 +400,7 @@ func (p *nodePool) allocate(ctx context.Context) (*allocInfo, error) {
 			continue
 		}
 
-		return p.allocateFrom(alloc, block)
+		return p.allocateFrom(alloc, block, false)
 	}
 
 	p.log.Info("requesting a new block")
@@ -370,43 +413,43 @@ func (p *nodePool) allocate(ctx context.Context) (*allocInfo, error) {
 	// delete existing request, if any
 	err := p.client.Delete(ctx, req)
 	if err != nil && !apierrors.IsNotFound(err) {
-		return nil, fmt.Errorf("failed to delete existing BlockRequest: %w", err)
+		return nil, false, fmt.Errorf("failed to delete existing BlockRequest: %w", err)
 	}
 
 	if err := controllerutil.SetOwnerReference(p.node, req, p.scheme); err != nil {
-		return nil, fmt.Errorf("failed to set owner reference: %w", err)
+		return nil, false, fmt.Errorf("failed to set owner reference: %w", err)
 	}
 	req.Spec.NodeName = p.nodeName
 	req.Spec.PoolName = p.poolName
 	if err := p.client.Create(ctx, req); err != nil {
-		return nil, fmt.Errorf("failed to create BlockRequest: %w", err)
+		return nil, false, fmt.Errorf("failed to create BlockRequest: %w", err)
 	}
 
 	p.log.Info("waiting for request completion")
 	select {
 	case <-ctx.Done():
-		return nil, fmt.Errorf("aborting new block request: %w", ctx.Err())
+		return nil, false, fmt.Errorf("aborting new block request: %w", ctx.Err())
 	case <-p.requestCompletionCh:
 	}
 	if err := p.client.Get(ctx, client.ObjectKey{Name: req.Name}, req); err != nil {
-		return nil, fmt.Errorf("failed to get the request: %w", err)
+		return nil, false, fmt.Errorf("failed to get the request: %w", err)
 	}
 	block, err := req.GetResult()
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	if err := p.syncBlock(ctx); err != nil {
-		return nil, fmt.Errorf("failed to sync blocks: %w", err)
+		return nil, false, fmt.Errorf("failed to sync blocks: %w", err)
 	}
 	alloc, ok := p.blockAlloc[block]
 	if !ok {
 		panic("bug")
 	}
-	return p.allocateFrom(alloc, block)
+	return p.allocateFrom(alloc, block, true)
 }
 
-func (p *nodePool) free(ctx context.Context, blockName string, idx uint) error {
+func (p *nodePool) free(ctx context.Context, blockName string, idx uint) (bool, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -416,13 +459,13 @@ func (p *nodePool) free(ctx context.Context, blockName string, idx uint) error {
 	}
 	alloc.free(idx)
 	if !alloc.isEmpty() {
-		return nil
+		return false, nil
 	}
 
 	p.log.Info("freeing an empty block", "block", blockName)
 	if err := p.deleteBlock(ctx, blockName); err != nil {
-		return fmt.Errorf("failed to free block %s: %w", blockName, err)
+		return false, fmt.Errorf("failed to free block %s: %w", blockName, err)
 	}
 	delete(p.blockAlloc, blockName)
-	return nil
+	return true, nil
 }

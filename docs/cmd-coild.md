@@ -1,0 +1,45 @@
+coild
+=====
+
+`coild` is a gRPC server running on each node.
+
+## gRPC server
+
+`coild` listens on a UNIX domain socket and accepts requests from `coil`
+over gRPC protocol.  The default socket path is `/run/coild.sock`.
+
+## Route export
+
+`coild` exports address blocks owned by the running node to a kernel
+routing table.  The default routing table ID is **119**.
+
+The routes are created in that table with a specific author (protocol) ID.
+The default protocol ID is **30**.
+
+## Compatibility with Calico
+
+`coild` optionally can make veth interface names compatible with Calico.
+If you want to use Calico for network policy together with Coil, enable
+this feature with `--compat-calico` flag.
+
+## Environment variables
+
+`coild` references the following environment variables:
+
+| Name             | Required | Description                              |
+| ---------------- | -------- | ---------------------------------------- |
+| `COIL_NODE_NAME` | YES      | Kubernetes node name of the running node |
+
+## Command-line flags
+
+```
+Flags:
+      --compat-calico         make veth name compatible with Calico
+      --health-addr string    bind address of health/readiness probes (default ":9385")
+  -h, --help                  help for coild
+      --metrics-addr string   bind address of metrics endpoint (default ":9384")
+      --protocol-id int       route author ID (default 30)
+      --socket string         UNIX domain socket path (default "/run/coild.sock")
+      --table-id int          routing table ID to which coild exports routes (default 119)
+  -v, --version               version for coild
+```

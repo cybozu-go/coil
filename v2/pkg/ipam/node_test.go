@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"reflect"
 	"time"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
@@ -142,6 +143,26 @@ func testController(ctx context.Context, npMap map[string]NodeIPAM) {
 	}
 }
 
+type mockExporter struct {
+	subnets map[string]struct{}
+}
+
+func (m *mockExporter) Sync(subnets []*net.IPNet) error {
+	m.subnets = make(map[string]struct{})
+	for _, n := range subnets {
+		m.subnets[n.String()] = struct{}{}
+	}
+	return nil
+}
+
+func (m *mockExporter) Equal(subnets []string) bool {
+	t := make(map[string]struct{})
+	for _, n := range subnets {
+		t[n] = struct{}{}
+	}
+	return reflect.DeepEqual(m.subnets, t)
+}
+
 var _ = Describe("NodeIPAM", func() {
 	ctx := context.Background()
 
@@ -150,7 +171,7 @@ var _ = Describe("NodeIPAM", func() {
 	})
 
 	It("should timeout if there is no working controller", func() {
-		nodeIPAM := NewNodeIPAM("node1", ctrl.Log.WithName("NodeIPAM"), mgr)
+		nodeIPAM := NewNodeIPAM("node1", ctrl.Log.WithName("NodeIPAM"), mgr, nil)
 
 		ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
 		defer cancel()
@@ -160,8 +181,10 @@ var _ = Describe("NodeIPAM", func() {
 	})
 
 	It("should acquire block and allocate IP addresses", func() {
-		nodeIPAM := NewNodeIPAM("node1", ctrl.Log.WithName("NodeIPAM1"), mgr)
-		nodeIPAM2 := NewNodeIPAM("node2", ctrl.Log.WithName("NodeIPAM2"), mgr)
+		e1 := &mockExporter{}
+		e2 := &mockExporter{}
+		nodeIPAM := NewNodeIPAM("node1", ctrl.Log.WithName("NodeIPAM1"), mgr, e1)
+		nodeIPAM2 := NewNodeIPAM("node2", ctrl.Log.WithName("NodeIPAM2"), mgr, e2)
 
 		// run the dummy controller
 		ctx, cancel := context.WithCancel(ctx)
@@ -175,11 +198,18 @@ var _ = Describe("NodeIPAM", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(ipv4).To(EqualIP(net.ParseIP("10.2.0.0")))
 		Expect(ipv6).To(EqualIP(net.ParseIP("fd02::0200")))
+		Expect(e1.Equal([]string{"10.2.0.0/31", "fd02::200/127"})).To(BeTrue())
 
 		for i := 0; i < 3; i++ {
 			_, _, err := nodeIPAM.Allocate(ctx, "default", fmt.Sprintf("c%d", i+1), "eth0")
 			Expect(err).ToNot(HaveOccurred())
 		}
+		Expect(e1.Equal([]string{
+			"10.2.0.0/31",
+			"10.2.0.2/31",
+			"fd02::200/127",
+			"fd02::202/127",
+		})).To(BeTrue())
 
 		_, _, err = nodeIPAM.Allocate(ctx, "default", "cxx", "eth0")
 		Expect(err).To(HaveOccurred())
@@ -199,6 +229,7 @@ var _ = Describe("NodeIPAM", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(ipv4).To(EqualIP(net.ParseIP("10.4.0.0")))
 		Expect(ipv6).To(BeNil())
+		Expect(e2.Equal([]string{"10.4.0.0/32"})).To(BeTrue())
 
 		err = nodeIPAM2.Free(ctx, "d1", "eth0")
 		Expect(err).NotTo(HaveOccurred())
@@ -210,7 +241,7 @@ var _ = Describe("NodeIPAM", func() {
 	}, 5)
 
 	It("can restore state and return unused blocks", func() {
-		nodeIPAM := NewNodeIPAM("node1", ctrl.Log.WithName("NodeIPAM3"), mgr)
+		nodeIPAM := NewNodeIPAM("node1", ctrl.Log.WithName("NodeIPAM3"), mgr, nil)
 
 		// run the dummy controller
 		ctx, cancel := context.WithCancel(ctx)
@@ -235,12 +266,14 @@ var _ = Describe("NodeIPAM", func() {
 		Expect(blocks.Items).To(HaveLen(2))
 
 		// recreate node IPAM
-		nodeIPAM = NewNodeIPAM("node1", ctrl.Log.WithName("NodeIPAM-recreated"), mgr)
+		e1 := &mockExporter{}
+		nodeIPAM = NewNodeIPAM("node1", ctrl.Log.WithName("NodeIPAM-recreated"), mgr, e1)
 		err = nodeIPAM.Register(ctx, "default", "c0", "eth2", ipv4, ipv6)
 		Expect(err).ToNot(HaveOccurred())
 
 		err = nodeIPAM.GC(ctx)
 		Expect(err).ToNot(HaveOccurred())
+		Expect(e1.Equal([]string{"10.2.0.2/31", "fd02::202/127"})).To(BeTrue())
 
 		// confirm that 1 unused block is returned
 		blocks = &coilv2.AddressBlockList{}
