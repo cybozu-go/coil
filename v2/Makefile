@@ -13,7 +13,8 @@ GOARCH := $(shell go env GOARCH)
 GO111MODULE=on
 KUBEBUILDER_ASSETS := $(PWD)/bin
 PROTOC := PATH=$(PWD)/bin:$(PATH) $(PWD)/bin/protoc -I=$(PWD)/include:.
-export GO111MODULE KUBEBUILDER_ASSETS
+PODNSLIST = pod1 pod2 pod3
+export GO111MODULE KUBEBUILDER_ASSETS PODNSLIST
 
 test: test-tools
 	go test -race -v -count 1 ./...
@@ -22,6 +23,15 @@ test: test-tools
 	test -z $$(go fmt -s -l . | tee /dev/stderr)
 	staticcheck ./...
 	nilerr ./...
+
+test-nodenet:
+	go test -c ./pkg/nodenet
+	for i in $@ $(PODNSLIST); do $(SUDO) ip netns delete $$i 2>/dev/null || true; done
+	for i in $@ $(PODNSLIST); do $(SUDO) ip netns add $$i; done
+	for i in $@ $(PODNSLIST); do $(SUDO) ip netns exec $$i ip link set lo up; done
+	$(SUDO) ip netns exec $@ ./nodenet.test -test.v
+	#for i in $@ $(PODNSLIST); do $(SUDO) ip netns delete $$i; done
+	rm -f nodenet.test
 
 check-generate:
 	$(MAKE) manifests
@@ -90,4 +100,5 @@ nilerr:
 		cd /tmp; env GOFLAGS= GO111MODULE=on go get github.com/gostaticanalysis/nilerr/cmd/nilerr; \
 	fi
 
-.PHONY: test test-tools staticcheck nilerr check-generate manifests generate setup
+.PHONY: test test-tools test-nodenet staticcheck nilerr \
+	check-generate manifests generate setup

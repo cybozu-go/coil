@@ -22,6 +22,8 @@ The default protocol ID is **30**.
 If you want to use Calico for network policy together with Coil, enable
 this feature with `--compat-calico` flag.
 
+Calico needs to be configured to set [`FELIX_INTERFACEPREFIX`](https://github.com/projectcalico/calico/blob/c0fe9f811ea8721007df9362d63af6697b42f6f3/reference/felix/configuration.md#bare-metal-specific-configuration) to `veth`.
+
 ## Environment variables
 
 `coild` references the following environment variables:
