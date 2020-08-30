@@ -1,7 +1,9 @@
 package sub
 
 import (
+	"context"
 	"errors"
+	"net"
 	"os"
 	"time"
 
@@ -9,6 +11,8 @@ import (
 	"github.com/cybozu-go/coil/v2/controllers"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
 	"github.com/cybozu-go/coil/v2/pkg/nodenet"
+	"github.com/cybozu-go/coil/v2/runners"
+	"github.com/go-logr/zapr"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -22,7 +26,13 @@ const (
 )
 
 func subMain() error {
-	log := ctrl.Log.WithName("main")
+	// coild needs a raw zap logger for grpc_zip.
+	zapLogger := zap.NewRaw(zap.StacktraceLevel(zapcore.DPanicLevel))
+	defer zapLogger.Sync()
+
+	grpcLogger := zapLogger.Named("grpc")
+	ctrl.SetLogger(zapr.NewLogger(zapLogger))
+
 	nodeName := os.Getenv(nodeEnvName)
 	if nodeName == "" {
 		return errors.New(nodeEnvName + " environment variable should be set")
@@ -35,8 +45,6 @@ func subMain() error {
 	if err := coilv2.AddToScheme(scheme); err != nil {
 		return err
 	}
-
-	ctrl.SetLogger(zap.New(zap.StacktraceLevel(zapcore.DPanicLevel)))
 
 	timeout := gracefulTimeout
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
@@ -58,11 +66,40 @@ func subMain() error {
 		NodeIPAM: nodeIPAM,
 		Scheme:   mgr.GetScheme(),
 	}
-	err = watcher.SetupWithManager(mgr)
+	if err := watcher.SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	podNet := nodenet.NewPodNetwork(config.protocolId, config.compatCalico, ctrl.Log.WithName("pod-network"))
+	if err := podNet.Init(); err != nil {
+		return err
+	}
+	podConfigs, err := podNet.List()
 	if err != nil {
 		return err
 	}
 
+	ctx := context.Background()
+	for _, c := range podConfigs {
+		if err := nodeIPAM.Register(ctx, c.PoolName, c.ContainerId, c.IFace, c.IPv4, c.IPv6); err != nil {
+			return err
+		}
+	}
+	if err := nodeIPAM.GC(ctx); err != nil {
+		return err
+	}
+
+	os.Remove(config.socketPath)
+	l, err := net.Listen("unix", config.socketPath)
+	if err != nil {
+		return err
+	}
+	server := runners.NewCoildServer(l, mgr, nodeIPAM, podNet, grpcLogger)
+	if err := mgr.Add(server); err != nil {
+		return err
+	}
+
+	log := ctrl.Log.WithName("main")
 	log.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Error(err, "problem running manager")
