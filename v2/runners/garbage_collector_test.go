@@ -12,7 +12,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-var _ = Describe("BlockRequest watcher", func() {
+var _ = Describe("Garbage collector", func() {
 	ctx := context.Background()
 	var stopCh chan struct{}
 

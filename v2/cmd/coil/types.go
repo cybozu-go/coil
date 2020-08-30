@@ -20,9 +20,9 @@ type PluginEnvArgs struct {
 // Map returns a map[string]string
 func (e PluginEnvArgs) Map() map[string]string {
 	return map[string]string{
-		"K8S_POD_NAMESPACE":          string(e.K8S_POD_NAMESPACE),
-		"K8S_POD_NAME":               string(e.K8S_POD_NAME),
-		"K8S_POD_INFRA_CONTAINER_ID": string(e.K8S_POD_INFRA_CONTAINER_ID),
+		constants.PodNamespaceKey: string(e.K8S_POD_NAMESPACE),
+		constants.PodNameKey:      string(e.K8S_POD_NAME),
+		constants.PodContainerKey: string(e.K8S_POD_INFRA_CONTAINER_ID),
 	}
 }
 

@@ -69,6 +69,19 @@ var _ = BeforeSuite(func(done Done) {
 	err = k8sClient.Create(ctx, node1)
 	Expect(err).ToNot(HaveOccurred())
 
+	ns1 := &corev1.Namespace{}
+	ns1.Name = "ns1"
+	err = k8sClient.Create(ctx, ns1)
+	Expect(err).ToNot(HaveOccurred())
+
+	ns2 := &corev1.Namespace{}
+	ns2.Name = "ns2"
+	ns2.Annotations = map[string]string{
+		"coil.cybozu.com/pool": "global",
+	}
+	err = k8sClient.Create(ctx, ns2)
+	Expect(err).ToNot(HaveOccurred())
+
 	close(done)
 }, 60)
 

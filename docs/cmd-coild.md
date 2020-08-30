@@ -8,6 +8,12 @@ coild
 `coild` listens on a UNIX domain socket and accepts requests from `coil`
 over gRPC protocol.  The default socket path is `/run/coild.sock`.
 
+The gRPC server provides following additional features:
+
+- [gRPC Server Reflection](https://github.com/grpc/grpc-go/blob/master/Documentation/server-reflection-tutorial.md)
+- [gRPC metrics](https://github.com/grpc-ecosystem/go-grpc-prometheus#metrics)
+- Access logging
+
 ## Route export
 
 `coild` exports address blocks owned by the running node to a kernel
