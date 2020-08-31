@@ -9,10 +9,24 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - nodes
   verbs:
   - get
   - list
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
 - apiGroups:
   - coil.cybozu.com
   resources:
