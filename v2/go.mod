@@ -17,6 +17,7 @@ require (
 	github.com/prometheus/common v0.13.0
 	github.com/pseudomuto/protoc-gen-doc v1.3.2
 	github.com/spf13/cobra v1.0.0
+	github.com/spf13/viper v1.7.1
 	github.com/vishvananda/netlink v1.1.0
 	github.com/willf/bitset v1.1.11
 	go.uber.org/zap v1.15.0
