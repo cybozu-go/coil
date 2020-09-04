@@ -16,7 +16,6 @@ import (
 	"github.com/cybozu-go/coil/v2/pkg/nodenet"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	"github.com/vishvananda/netlink"
 	"go.uber.org/zap/zapcore"
@@ -383,20 +382,3 @@ var _ = Describe("Coild server", func() {
 		Expect(err).To(HaveOccurred())
 	})
 })
-
-func findMetric(mf *dto.MetricFamily, labels map[string]string) *dto.Metric {
-OUTER:
-	for _, m := range mf.Metric {
-		having := make(map[string]string)
-		for _, p := range m.Label {
-			having[*p.Name] = *p.Value
-		}
-		for k, v := range labels {
-			if having[k] != v {
-				continue OUTER
-			}
-		}
-		return m
-	}
-	return nil
-}

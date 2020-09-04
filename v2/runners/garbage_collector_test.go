@@ -44,6 +44,7 @@ var _ = Describe("Garbage collector", func() {
 	})
 
 	AfterEach(func() {
+		deleteAllAddressBlocks()
 		close(stopCh)
 		err := k8sClient.DeleteAllOf(ctx, &coilv2.BlockRequest{})
 		Expect(err).To(Succeed())

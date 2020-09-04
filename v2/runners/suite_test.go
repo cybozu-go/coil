@@ -7,6 +7,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	dto "github.com/prometheus/client_model/go"
 	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -68,6 +69,43 @@ var _ = BeforeSuite(func(done Done) {
 	node1.Name = "node1"
 	err = k8sClient.Create(ctx, node1)
 	Expect(err).ToNot(HaveOccurred())
+	node1.Status.Addresses = []corev1.NodeAddress{
+		{Type: corev1.NodeInternalIP, Address: "10.20.30.41"},
+		{Type: corev1.NodeInternalIP, Address: "fd10::41"},
+	}
+	err = k8sClient.Status().Update(ctx, node1)
+	Expect(err).ToNot(HaveOccurred())
+
+	node4 := &corev1.Node{}
+	node4.Name = "node4"
+	err = k8sClient.Create(ctx, node4)
+	Expect(err).ToNot(HaveOccurred())
+	node4.Status.Addresses = []corev1.NodeAddress{
+		{Type: corev1.NodeInternalIP, Address: "fd10::44"},
+	}
+	err = k8sClient.Status().Update(ctx, node4)
+	Expect(err).ToNot(HaveOccurred())
+
+	node5 := &corev1.Node{}
+	node5.Name = "node5"
+	err = k8sClient.Create(ctx, node5)
+	Expect(err).ToNot(HaveOccurred())
+	node5.Status.Addresses = []corev1.NodeAddress{
+		{Type: corev1.NodeInternalIP, Address: "10.20.30.45"},
+	}
+	err = k8sClient.Status().Update(ctx, node5)
+	Expect(err).ToNot(HaveOccurred())
+
+	node6 := &corev1.Node{}
+	node6.Name = "node6"
+	err = k8sClient.Create(ctx, node6)
+	Expect(err).ToNot(HaveOccurred())
+	node6.Status.Addresses = []corev1.NodeAddress{
+		{Type: corev1.NodeInternalIP, Address: "10.20.30.46"},
+		{Type: corev1.NodeInternalIP, Address: "fd10::46"},
+	}
+	err = k8sClient.Status().Update(ctx, node6)
+	Expect(err).ToNot(HaveOccurred())
 
 	ns1 := &corev1.Namespace{}
 	ns1.Name = "ns1"
@@ -90,3 +128,36 @@ var _ = AfterSuite(func() {
 	err := testEnv.Stop()
 	Expect(err).ToNot(HaveOccurred())
 })
+
+func deleteAllAddressBlocks() {
+	ctx := context.Background()
+	blocks := &coilv2.AddressBlockList{}
+	err := k8sClient.List(ctx, blocks)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	for _, b := range blocks.Items {
+		b.Finalizers = nil
+		err := k8sClient.Update(ctx, &b)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	}
+
+	err = k8sClient.DeleteAllOf(ctx, &coilv2.AddressBlock{})
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+}
+
+func findMetric(mf *dto.MetricFamily, labels map[string]string) *dto.Metric {
+OUTER:
+	for _, m := range mf.Metric {
+		having := make(map[string]string)
+		for _, p := range m.Label {
+			having[*p.Name] = *p.Value
+		}
+		for k, v := range labels {
+			if having[k] != v {
+				continue OUTER
+			}
+		}
+		return m
+	}
+	return nil
+}
