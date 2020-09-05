@@ -8,12 +8,12 @@ Coil
 
 **Coil** is a [CNI][]-based network plugin for Kubernetes.
 
-Coil is designed with respect to the UNIX philosophy.  It is not tightly
-integrated with routing daemons like [BIRD][].  It does not implement
-[Kubernetes Network Policies][NetworkPolicy] either.
+Coil is designed with respect to the UNIX philosophy.  You can combine
+Coil with any routing software and/or any network policy implementation.
 
-Instead, you can use Coil with any routing software and network policy
-implementation of your choice.
+Coil allows to define multiple IP address pools.  You can define a pool of
+global IPv4 addresses for a small number of pods and another pool of
+private IPv4 addresses for the remaining pods.
 
 Status
 ------
@@ -22,35 +22,38 @@ Version 2 is under **active development**.  It conforms to [CNI spec 0.4.0](http
 
 Version 1 is maintained in [release-1.1](https://github.com/cybozu-go/coil/tree/release-1.1) branch.
 
-Requirements
+Dependencies
 ------------
 
-- Linux with routing software such as [BIRD][].
-- Kubernetes Version
-    - 1.18
+- Kubernetes Version: 1.18
     - Other versions are likely to work, but not tested.
+
+- (Optional) Routing software
+    - Coil has a simple routing software for flat L2 networks.
+    - If your network is not flat, use BIRD or similar software to advertise the routes.
 
 Features
 --------
 
-Refer to [the design document](./docs/design.md) for more information on these features.
-
 - Address pools
 
     Coil can have multiple pools of IP addresses for different purposes.
-    For instance, you may have a pool of global IP addresses for Internet-facing pods
-    and a pool of private IP addresses for the other pods.
+    By setting a special annotation to a namespace, you can specify a pool
+    for the pods in that namespace.
 
-    If you run out of addresses, you can add additional addresses to the pool.
+- IPv4/IPv6 dual stack
+
+    In addition to IPv4-only and IPv6-only stacks, Coil can define dual stack
+    address pools.
 
 - Running with any routing software
 
-    Each node is assigned blocks of addresses, and these addresses need to be
-    advertised by some routing software to enable inter-node communication.
+    Coil provides a simple router for clusters where all the nodes are in
+    a flat L2 network.  This router, called `coil-router`, is optional.
 
-    Coil exports these addresses to an unused Linux kernel routing table.
-    Routing software such as [BIRD][] can import routes from the table and
-    advertise them.
+    For more complex networks, Coil exports routing information to an
+    unused kernel routing table.  By importing the routes from the table,
+    any routing software can advertise them.
 
 - On-demand NAT for egress traffics
 
@@ -60,27 +63,30 @@ Refer to [the design document](./docs/design.md) for more information on these f
     Only selected pods can communicate with external networks via SNAT
     routers.
 
-Examples
---------
+Refer to [the design document](./docs/design.md) for more information on these features.
 
-A real world usage example of Coil can be found in [Project Neco](https://blog.kintone.io/entry/neco).
-The project uses Coil with:
+Usage examples
+--------------
+
+[Project Neco](https://blog.kintone.io/entry/neco) uses Coil with these software:
 
 - [BIRD][] to advertise routes over BGP,
 - [MetalLB][] to implement [LoadBalancer] Service, and
 - [Calico][] to implement [NetworkPolicy][].
+
+Coil should also be able to work with [Cilium][] through its [generic veth chaining](https://docs.cilium.io/en/v1.8/gettingstarted/cni-chaining-generic-veth/) feature.
 
 Programs
 --------
 
 This repository contains these programs:
 
-- `coil`: [CNI][] plugin.
-- `coild`: A background service to manage IP address.
+- `coil`: [CNI][] plugin.  It simply delegates requests to `coild`.
+- `coild`: A gRPC server to accept requests from `coil`.
+- `coil-router`: An optional simple router for a flat L2 network.
 - `coil-installer`: installs `coil` and CNI configuration file.
 - `coil-controller`: watches kubernetes resources for coil.
 - `coil-egress`: controls SNAT router pods.
-* `hypercoil`: all-in-one binary.
 
 Install
 -------
@@ -92,7 +98,9 @@ TBD
 Documentation
 -------------
 
-[docs](docs/) directory contains documents about designs and specifications.
+The user manual is [./docs/usage.md](./docs/usage.md).
+
+[docs](docs/) directory contains other documents about designs and specifications.
 
 [mtest/bird.conf](mtest/bird.conf) is an example configuration for [BIRD][] to make it work with coil.
 
@@ -108,3 +116,4 @@ MIT
 [NetworkPolicy]: https://kubernetes.io/docs/concepts/services-networking/network-policies/
 [MetalLB]: https://metallb.universe.tf
 [Calico]: https://www.projectcalico.org
+[Cilium]: https://cilium.io/
