@@ -1,0 +1,69 @@
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: coil-controller
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - addressblocks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - addresspools
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - blockrequests
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - blockrequests/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - egresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - egresses/status
+  verbs:
+  - get
+  - patch
+  - update

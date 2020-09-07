@@ -8,6 +8,7 @@ PROTOC_VERSION=3.12.4
 SUDO=sudo
 CONTROLLER_GEN := $(PWD)/bin/controller-gen
 CRD_OPTIONS = "crd:crdVersions=v1"
+ROLES = config/rbac/coil-controller_role.yaml config/rbac/coild_role.yaml config/rbac/coil-router_role.yaml
 GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
 GO111MODULE=on
@@ -39,13 +40,60 @@ check-generate:
 	git diff --exit-code --name-only 
 
 # Generate manifests e.g. CRD, RBAC etc.
-manifests: $(CONTROLLER_GEN)
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+manifests: $(CONTROLLER_GEN) $(ROLES)
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 	# workaround for CRD issue with k8s 1.18 & controller-gen 0.3
 	# ref: https://github.com/kubernetes/kubernetes/issues/91395
 	sed -i -r 's/^( +)description: Protocol for port\. Must be UDP, TCP, or SCTP\. Defaults to "TCP"\./\0\n\1default: TCP/' \
 	  config/crd/bases/coil.cybozu.com_egresses.yaml
+
+COIL_CONTROLLER_ROLE_DEPENDS = controllers/addresspool_controller.go \
+	controllers/blockrequest_controller.go \
+	controllers/egress_controller.go \
+	pkg/ipam/pool.go \
+	runners/garbage_collector.go
+
+config/rbac/coil-controller_role.yaml: $(COIL_CONTROLLER_ROLE_DEPENDS)
+	-rm -rf work
+	mkdir work
+	sed '0,/^package/s/.*/package work/' controllers/addresspool_controller.go > work/addresspool_controller.go
+	sed '0,/^package/s/.*/package work/' controllers/blockrequest_controller.go > work/blockrequest_controller.go
+	sed '0,/^package/s/.*/package work/' controllers/egress_controller.go > work/egress_controller.go
+	sed '0,/^package/s/.*/package work/' pkg/ipam/pool.go > work/pool.go
+	sed '0,/^package/s/.*/package work/' runners/garbage_collector.go > work/garbage_collector.go
+	$(CONTROLLER_GEN) rbac:roleName=coil-controller paths=./work output:stdout > $@
+	rm -rf work
+
+COILD_DEPENDS = controllers/blockrequest_watcher.go \
+	pkg/ipam/node.go \
+	runners/coild_server.go
+
+config/rbac/coild_role.yaml: $(COILD_DEPENDS)
+	-rm -rf work
+	mkdir work
+	sed '0,/^package/s/.*/package work/' controllers/blockrequest_watcher.go > work/blockrequest_watcher.go
+	sed '0,/^package/s/.*/package work/' pkg/ipam/node.go > work/node.go
+	sed '0,/^package/s/.*/package work/' runners/coild_server.go > work/coild_server.go
+	$(CONTROLLER_GEN) rbac:roleName=coild paths=./work output:stdout > $@
+	rm -rf work
+
+COIL_ROUTER_DEPENDS = controllers/addressblock_controller.go \
+	runners/router.go
+
+config/rbac/coil-router_role.yaml: $(COIL_ROUTER_DEPENDS)
+	-rm -rf work
+	mkdir work
+	sed '0,/^package/s/.*/package work/' controllers/addressblock_controller.go > work/addressblock_controller.go
+	sed '0,/^package/s/.*/package work/' runners/router.go > work/router.go
+	$(CONTROLLER_GEN) rbac:roleName=coil-router paths=./work output:stdout > $@
+	rm -rf work
+
+# TLS certificates for webhook
+certs: config/default/cert.pem config/default/key.pem
+
+config/default/cert.pem config/default/key.pem:
+	go run ./cmd/gencert -outdir=$(PWD)/config/default
 
 # Generate code
 generate: $(CONTROLLER_GEN)
@@ -101,4 +149,4 @@ nilerr:
 	fi
 
 .PHONY: test test-tools test-nodenet staticcheck nilerr \
-	check-generate manifests generate setup
+	check-generate manifests certs generate setup

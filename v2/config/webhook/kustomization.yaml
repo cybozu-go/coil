@@ -1,3 +1,5 @@
+namePrefix: coilv2-
+
 resources:
 - manifests.yaml
 - service.yaml

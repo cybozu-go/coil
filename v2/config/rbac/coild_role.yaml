@@ -4,7 +4,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   creationTimestamp: null
-  name: manager-role
+  name: coild
 rules:
 - apiGroups:
   - ""
@@ -20,7 +20,6 @@ rules:
   - nodes
   verbs:
   - get
-  - list
 - apiGroups:
   - ""
   resources:
@@ -32,19 +31,9 @@ rules:
   resources:
   - addressblocks
   verbs:
-  - create
   - delete
   - get
   - list
-  - watch
-- apiGroups:
-  - coil.cybozu.com
-  resources:
-  - addresspools
-  verbs:
-  - get
-  - list
-  - watch
 - apiGroups:
   - coil.cybozu.com
   resources:
@@ -61,25 +50,3 @@ rules:
   - blockrequests/status
   verbs:
   - get
-  - patch
-  - update
-- apiGroups:
-  - coil.cybozu.com
-  resources:
-  - egresses
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - coil.cybozu.com
-  resources:
-  - egresses/status
-  verbs:
-  - get
-  - patch
-  - update
