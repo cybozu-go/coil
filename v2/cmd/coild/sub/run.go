@@ -9,6 +9,7 @@ import (
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/controllers"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
 	"github.com/cybozu-go/coil/v2/pkg/nodenet"
 	"github.com/cybozu-go/coil/v2/runners"
@@ -22,7 +23,6 @@ import (
 
 const (
 	gracefulTimeout = 20 * time.Second
-	nodeEnvName     = "COIL_NODE_NAME"
 )
 
 func subMain() error {
@@ -33,9 +33,9 @@ func subMain() error {
 	grpcLogger := zapLogger.Named("grpc")
 	ctrl.SetLogger(zapr.NewLogger(zapLogger))
 
-	nodeName := os.Getenv(nodeEnvName)
+	nodeName := os.Getenv(constants.EnvNode)
 	if nodeName == "" {
-		return errors.New(nodeEnvName + " environment variable should be set")
+		return errors.New(constants.EnvNode + " environment variable should be set")
 	}
 
 	scheme := runtime.NewScheme()

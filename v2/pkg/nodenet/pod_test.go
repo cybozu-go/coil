@@ -264,4 +264,10 @@ func TestPodNetwork(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	// some cleanup
+	err = exec.Command("ip", "link", "del", "foo").Run()
+	if err != nil {
+		t.Fatal(err)
+	}
 }

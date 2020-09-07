@@ -28,6 +28,14 @@ const (
 	PodContainerKey = "K8S_POD_INFRA_CONTAINER_ID"
 )
 
+// Environment variables
+const (
+	EnvNode = "COIL_NODE_NAME"
+)
+
+// MetricsNS is the namespace for Prometheus metrics
+const MetricsNS = "coil"
+
 // Misc
 const (
 	DefaultPool = "default"
