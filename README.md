@@ -88,17 +88,12 @@ This repository contains these programs:
 - `coil-controller`: watches kubernetes resources for coil.
 - `coil-egress`: controls SNAT router pods.
 
-Install
--------
-
-The official Docker image is on [Quay.io](https://quay.io/repository/cybozu/coil)
-
-TBD
-
 Documentation
 -------------
 
-The user manual is [./docs/usage.md](./docs/usage.md).
+Installation procedures are described in [docs/setup.md](./docs/setup.md).
+
+The user manual is [docs/usage.md](./docs/usage.md).
 
 [docs](docs/) directory contains other documents about designs and specifications.
 

@@ -2,7 +2,9 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: egress-viewer-role
+  name: coilv2-egress-viewer-role
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
 rules:
 - apiGroups:
   - coil.cybozu.com

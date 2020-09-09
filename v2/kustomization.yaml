@@ -1,0 +1,34 @@
+images:
+- name: coil
+  newTag: 2.0.0
+  newName: ghcr.io/cybozu-go/coil
+
+resources:
+- config/default
+
+# If you want to enable coil-router, uncomment the following line.
+# Note that coil-router can work only for clusters where all the
+# nodes are in a flat L2 network.
+#- config/pod/coil-router.yaml
+
+# If your cluster has enabled PodSecurityPolicy, uncomment the
+# following line.
+#- config/default/pod_security_policy.yaml
+
+patchesStrategicMerge:
+# Uncomment the following if you want to run Coil with Calico network policy.
+#- config/pod/compat_calico.yaml
+
+# Edit netconf.json to customize CNI configurations
+configMapGenerator:
+- name: coil-config
+  namespace: system
+  files:
+  - cni_netconf=./netconf.json
+
+# Adds namespace to all resources.
+namespace: kube-system
+
+# Labels to add to all resources and selectors.
+commonLabels:
+  app.kubernetes.io/name: coil

@@ -1,0 +1,22 @@
+{
+  "cniVersion": "0.4.0",
+  "name": "k8s-pod-network",
+  "plugins": [
+    {
+      "type": "coil",
+      "socket": "/run/coild.sock"
+    },
+    {
+      "type": "bandwidth",
+      "capabilities": {
+        "bandwidth": true
+      }
+    },
+    {
+      "type": "portmap",
+      "capabilities": {
+        "portMappings": true
+      }
+    }
+  ]
+}

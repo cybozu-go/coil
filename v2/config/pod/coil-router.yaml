@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: coil-router
+  namespace: system
+  labels:
+    app.kubernetes.io/component: coil-router
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: coil-router
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: coil-router
+    spec:
+      hostNetwork: true
+      priorityClassName: system-node-critical
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists
+      serviceAccountName: coil-router
+      terminationGracePeriodSeconds: 1
+      containers:
+      - name: coil-router
+        image: coil:dev
+        command: ["/coil-router"]
+        env:
+        - name: COIL_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN"]
+        ports:
+        - name: metrics
+          containerPort: 9388
+          protocol: TCP
+        - name: health
+          containerPort: 9389
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+            host: localhost
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: health
+            host: localhost
