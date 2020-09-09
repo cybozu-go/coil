@@ -65,7 +65,7 @@ spec:
             port: health
             host: localhost
         volumeMounts:
-        - mountPath: /tmp/k8s-webhook-server/serving-certs
+        - mountPath: /certs
           name: cert
           readOnly: true
       volumes:

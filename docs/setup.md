@@ -62,6 +62,10 @@ Note that `coil` must be the first in the plugin list.
 vi netconf.json
 ```
 
+These documents help you to edit the configuration.
+- [Network Plugins](https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/#cni)
+- [tuning plugin](https://github.com/containernetworking/plugins/tree/master/plugins/meta/tuning)
+
 To tune the MTU of the container network device, add `tuning` plugin as follows:
 
 ```json

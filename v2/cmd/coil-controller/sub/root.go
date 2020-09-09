@@ -12,6 +12,8 @@ import (
 var config struct {
 	metricsAddr string
 	healthAddr  string
+	webhookAddr string
+	certDir     string
 	gcInterval  time.Duration
 }
 
@@ -39,5 +41,7 @@ func init() {
 	pf := rootCmd.PersistentFlags()
 	pf.StringVar(&config.metricsAddr, "metrics-addr", ":9386", "bind address of metrics endpoint")
 	pf.StringVar(&config.healthAddr, "health-addr", ":9387", "bind address of health/readiness probes")
+	pf.StringVar(&config.webhookAddr, "webhook-addr", ":9443", "bind address of admission webhook")
+	pf.StringVar(&config.certDir, "cert-dir", "/certs", "directory to locate TLS certs for webhook")
 	pf.DurationVar(&config.gcInterval, "gc-interval", 1*time.Hour, "garbage collection interval")
 }

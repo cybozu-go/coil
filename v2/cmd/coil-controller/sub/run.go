@@ -1,6 +1,9 @@
 package sub
 
 import (
+	"fmt"
+	"net"
+	"strconv"
 	"time"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
@@ -29,6 +32,15 @@ func subMain() error {
 		return err
 	}
 
+	host, portStr, err := net.SplitHostPort(config.webhookAddr)
+	if err != nil {
+		return fmt.Errorf("invalid webhook address: %w", err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return fmt.Errorf("invalid webhook address: %w", err)
+	}
+
 	timeout := gracefulTimeout
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                  scheme,
@@ -38,6 +50,9 @@ func subMain() error {
 		MetricsBindAddress:      config.metricsAddr,
 		GracefulShutdownTimeout: &timeout,
 		HealthProbeBindAddress:  config.healthAddr,
+		Host:                    host,
+		Port:                    port,
+		CertDir:                 config.certDir,
 	})
 	if err != nil {
 		return err
@@ -71,6 +86,13 @@ func subMain() error {
 		Scheme: scheme,
 	}
 	if err := egressctrl.SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&coilv2.AddressPool{}).SetupWebhookWithManager(mgr); err != nil {
+		return err
+	}
+	if err := (&coilv2.Egress{}).SetupWebhookWithManager(mgr); err != nil {
 		return err
 	}
 
