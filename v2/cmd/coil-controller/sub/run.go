@@ -100,13 +100,7 @@ func subMain() error {
 		return err
 	}
 
-	gc := &runners.GarbageCollector{
-		Client:    mgr.GetClient(),
-		APIReader: mgr.GetAPIReader(),
-		Log:       ctrl.Log.WithName("gc"),
-		Scheme:    scheme,
-		Interval:  config.gcInterval,
-	}
+	gc := runners.NewGarbageCollector(mgr, ctrl.Log.WithName("gc"), config.gcInterval)
 	if err := mgr.Add(gc); err != nil {
 		return err
 	}

@@ -25,13 +25,7 @@ var _ = Describe("Garbage collector", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		gc := &GarbageCollector{
-			Client:    mgr.GetClient(),
-			APIReader: mgr.GetAPIReader(),
-			Log:       ctrl.Log.WithName("garbage collector"),
-			Scheme:    mgr.GetScheme(),
-			Interval:  3 * time.Second,
-		}
+		gc := NewGarbageCollector(mgr, ctrl.Log.WithName("garbage collector"), 3*time.Second)
 		err = mgr.Add(gc)
 		Expect(err).ToNot(HaveOccurred())
 

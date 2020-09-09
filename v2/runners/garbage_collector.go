@@ -10,35 +10,41 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-// GarbageCollector is a manager.Runnable to collect
+// NewGarbageCollector creates a manager.Runnable to collect
 // orphaned AddressBlocks of deleted nodes.
-type GarbageCollector struct {
+func NewGarbageCollector(mgr manager.Manager, log logr.Logger, interval time.Duration) manager.Runnable {
+	return &garbageCollector{
+		Client:    mgr.GetClient(),
+		apiReader: mgr.GetAPIReader(),
+		log:       log,
+		interval:  interval,
+	}
+}
+
+type garbageCollector struct {
 	client.Client
-	APIReader client.Reader
-	Log       logr.Logger
-	Scheme    *runtime.Scheme
-	Interval  time.Duration
+	apiReader client.Reader
+	log       logr.Logger
+	interval  time.Duration
 }
 
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=addressblocks,verbs=get;list;watch;delete
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list
 
-var _ manager.LeaderElectionRunnable = &GarbageCollector{}
-var _ manager.Runnable = &GarbageCollector{}
+var _ manager.LeaderElectionRunnable = &garbageCollector{}
 
 // NeedLeaderElection implements manager.LeaderElectionRunnable
-func (*GarbageCollector) NeedLeaderElection() bool {
+func (*garbageCollector) NeedLeaderElection() bool {
 	return true
 }
 
 // Start starts this runner.  This implements manager.Runnable
-func (gc *GarbageCollector) Start(done <-chan struct{}) error {
-	tick := time.NewTicker(gc.Interval)
+func (gc *garbageCollector) Start(done <-chan struct{}) error {
+	tick := time.NewTicker(gc.interval)
 	defer tick.Stop()
 
 	for {
@@ -53,8 +59,8 @@ func (gc *GarbageCollector) Start(done <-chan struct{}) error {
 	}
 }
 
-func (gc *GarbageCollector) do(ctx context.Context) error {
-	gc.Log.Info("start garbage collection")
+func (gc *garbageCollector) do(ctx context.Context) error {
+	gc.log.Info("start garbage collection")
 
 	blocks := &coilv2.AddressBlockList{}
 	if err := gc.Client.List(ctx, blocks); err != nil {
@@ -62,7 +68,7 @@ func (gc *GarbageCollector) do(ctx context.Context) error {
 	}
 
 	nodes := &corev1.NodeList{}
-	if err := gc.APIReader.List(ctx, nodes); err != nil {
+	if err := gc.apiReader.List(ctx, nodes); err != nil {
 		return fmt.Errorf("failed to list nodes: %w", err)
 	}
 
@@ -79,7 +85,7 @@ func (gc *GarbageCollector) do(ctx context.Context) error {
 
 		err := gc.Client.Delete(ctx, &b)
 		if err == nil {
-			gc.Log.Info("deleted an orphan block", "block", b.Name, "node", n)
+			gc.log.Info("deleted an orphan block", "block", b.Name, "node", n)
 			continue
 		}
 		if apierrors.IsNotFound(err) {
