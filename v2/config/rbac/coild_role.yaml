@@ -34,6 +34,8 @@ rules:
   - delete
   - get
   - list
+  - patch
+  - update
 - apiGroups:
   - coil.cybozu.com
   resources:

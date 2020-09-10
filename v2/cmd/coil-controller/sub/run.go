@@ -1,6 +1,10 @@
 package sub
 
 import (
+	"context"
+	"fmt"
+	"net"
+	"strconv"
 	"time"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
@@ -11,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -29,6 +34,15 @@ func subMain() error {
 		return err
 	}
 
+	host, portStr, err := net.SplitHostPort(config.webhookAddr)
+	if err != nil {
+		return fmt.Errorf("invalid webhook address: %w", err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return fmt.Errorf("invalid webhook address: %w", err)
+	}
+
 	timeout := gracefulTimeout
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                  scheme,
@@ -38,8 +52,18 @@ func subMain() error {
 		MetricsBindAddress:      config.metricsAddr,
 		GracefulShutdownTimeout: &timeout,
 		HealthProbeBindAddress:  config.healthAddr,
+		Host:                    host,
+		Port:                    port,
+		CertDir:                 config.certDir,
 	})
 	if err != nil {
+		return err
+	}
+
+	if err := mgr.AddHealthzCheck("ping", healthz.Ping); err != nil {
+		return err
+	}
+	if err := mgr.AddReadyzCheck("ping", healthz.Ping); err != nil {
 		return err
 	}
 
@@ -51,6 +75,9 @@ func subMain() error {
 		Manager: pm,
 	}
 	if err := apctrl.SetupWithManager(mgr); err != nil {
+		return err
+	}
+	if err := ipam.SetupIndexer(context.Background(), mgr); err != nil {
 		return err
 	}
 
@@ -74,13 +101,14 @@ func subMain() error {
 		return err
 	}
 
-	gc := &runners.GarbageCollector{
-		Client:    mgr.GetClient(),
-		APIReader: mgr.GetAPIReader(),
-		Log:       ctrl.Log.WithName("gc"),
-		Scheme:    scheme,
-		Interval:  config.gcInterval,
+	if err := (&coilv2.AddressPool{}).SetupWebhookWithManager(mgr); err != nil {
+		return err
 	}
+	if err := (&coilv2.Egress{}).SetupWebhookWithManager(mgr); err != nil {
+		return err
+	}
+
+	gc := runners.NewGarbageCollector(mgr, ctrl.Log.WithName("gc"), config.gcInterval)
 	if err := mgr.Add(gc); err != nil {
 		return err
 	}

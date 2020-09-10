@@ -26,9 +26,11 @@ address blocks from the requested pool.
 
 ```
 Flags:
+      --cert-dir string        directory to locate TLS certs for webhook (default "/certs")
       --gc-interval duration   garbage collection interval (default 1h0m0s)
       --health-addr string     bind address of health/readiness probes (default ":9387")
   -h, --help                   help for coil-controller
       --metrics-addr string    bind address of metrics endpoint (default ":9386")
   -v, --version                version for coil-controller
+      --webhook-addr string    bind address of admission webhook (default ":9443")
 ```

@@ -43,6 +43,13 @@ func NewCoildServer(l net.Listener, mgr manager.Manager, nodeIPAM ipam.NodeIPAM,
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 
+var grpcMetrics = grpc_prometheus.NewServerMetrics()
+
+func init() {
+	// register grpc_prometheus with controller-runtime's Registry
+	metrics.Registry.MustRegister(grpcMetrics)
+}
+
 type coildServer struct {
 	cnirpc.UnimplementedCNIServer
 	listener  net.Listener
@@ -79,21 +86,17 @@ func fieldExtractor(fullMethod string, req interface{}) map[string]interface{} {
 }
 
 func (s *coildServer) Start(ch <-chan struct{}) error {
-	// register grpc_prometheus with controller-runtime's Registry
-	m := grpc_prometheus.NewServerMetrics()
-	metrics.Registry.MustRegister(m)
-
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(
 		grpc_middleware.ChainUnaryServer(
 			grpc_ctxtags.UnaryServerInterceptor(grpc_ctxtags.WithFieldExtractor(fieldExtractor)),
-			m.UnaryServerInterceptor(),
+			grpcMetrics.UnaryServerInterceptor(),
 			grpc_zap.UnaryServerInterceptor(s.logger),
 		),
 	))
 	cnirpc.RegisterCNIServer(grpcServer, s)
 
 	// after all services are registered, initialize metrics.
-	m.InitializeMetrics(grpcServer)
+	grpcMetrics.InitializeMetrics(grpcServer)
 
 	// enable server reflection service
 	// see https://github.com/grpc/grpc-go/blob/master/Documentation/server-reflection-tutorial.md

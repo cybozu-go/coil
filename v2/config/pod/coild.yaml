@@ -15,6 +15,7 @@ spec:
         app.kubernetes.io/component: coild
     spec:
       hostNetwork: true
+      hostPID: true    # to see netns file under /proc
       priorityClassName: system-node-critical
       tolerations:
       - effect: NoSchedule
@@ -58,6 +59,7 @@ spec:
         volumeMounts:
         - mountPath: /run
           name: run
+          mountPropagation: HostToContainer  # to see bind mount netns file under /run/netns
       initContainers:
       - name: coil-installer
         image: coil:dev

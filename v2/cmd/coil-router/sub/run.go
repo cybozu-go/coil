@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -46,6 +47,13 @@ func subMain() error {
 		HealthProbeBindAddress:  config.healthAddr,
 	})
 	if err != nil {
+		return err
+	}
+
+	if err := mgr.AddHealthzCheck("ping", healthz.Ping); err != nil {
+		return err
+	}
+	if err := mgr.AddReadyzCheck("ping", healthz.Ping); err != nil {
 		return err
 	}
 

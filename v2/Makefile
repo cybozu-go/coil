@@ -1,7 +1,8 @@
 # Makefile for coil
 
 KUBEBUILDER_VERSION = 2.3.1
-K8S_VERSION=1.18.6
+K8S_VERSION=1.18.8
+KIND_VERSION=0.8.1
 PROTOC_VERSION=3.12.4
 
 ## DON'T EDIT BELOW THIS LINE
@@ -112,6 +113,15 @@ pkg/cnirpc/cni_grpc.pb.go: pkg/cnirpc/cni.proto
 ../docs/cni-grpc.md: pkg/cnirpc/cni.proto
 	$(PROTOC) --doc_out=../docs --doc_opt=markdown,$@ $<
 
+image:
+	-rm -rf work
+	mkdir -p work/var
+	ln -s /run work/var/run
+	CGO_ENABLED=0 GOBIN=$(PWD)/work go install -ldflags="-s -w" ./cmd/coil*
+	cp ../LICENSE work
+	docker build --no-cache -t coil:dev .
+	rm -rf work
+
 setup:
 	$(SUDO) apt-get update
 	$(SUDO) apt-get -y install --no-install-recommends rsync unzip
@@ -135,6 +145,11 @@ setup:
 	GOBIN=$(PWD)/bin go install google.golang.org/protobuf/cmd/protoc-gen-go
 	GOBIN=$(PWD)/bin go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 	GOBIN=$(PWD)/bin go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
+
+	curl -o bin/kind -sfL https://kind.sigs.k8s.io/dl/v$(KIND_VERSION)/kind-linux-amd64
+	curl -o bin/kubectl -sfL https://storage.googleapis.com/kubernetes-release/release/v$(K8S_VERSION)/bin/linux/amd64/kubectl
+	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.7.0/kustomize_v3.7.0_linux_amd64.tar.gz | tar -xz -C bin
+	chmod a+x bin/kubectl bin/kind
 
 test-tools: staticcheck nilerr
 

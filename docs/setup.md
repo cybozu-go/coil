@@ -16,6 +16,7 @@ You can tweak optional parameters by editing [`kustomization.yaml`](../v2/kustom
   - [IPv6 pool](#ipv6-pool)
   - [IPv4/v6 dual stack pool](#ipv4v6-dual-stack-pool)
 - [(Option) Configure BIRD](#option-configure-bird)
+- [Note on CRI runtime compatibility](#note-on-cri-runtime-compatibility)
 
 ## Install `kustomize`
 
@@ -62,7 +63,11 @@ Note that `coil` must be the first in the plugin list.
 vi netconf.json
 ```
 
-To tune the MTU of the container network device, add `tuning` plugin as follows:
+These documents help you to edit the configuration.
+- [Network Plugins](https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/#cni)
+- [tuning plugin](https://github.com/containernetworking/plugins/tree/master/plugins/meta/tuning)
+
+The following example adds `tuning` and `bandwidth` plugins.
 
 ```json
 {
@@ -206,6 +211,23 @@ protocol bgp {
     };
 }
 ```
+
+## Note on CRI runtime compatibility
+
+`coild` needs to see the network namespace (netns) files on the host.
+
+Such files are usually created under `/proc`.
+`coild` shares the PID namespace to see netns files under `/proc`, so
+if your CRI runtime passes file path under `/proc` to CNI plugins,
+there is no problem.
+
+Some CRI runtimes are known to bind mount netns files under `/var/run/netns`.
+The default manifest of `coild` mounts that host directory, so if your CRI
+runtime passes file path under `/var/run/netns`, there is also no problem.
+
+Otherwise, `coild` might not work with your CRI runtime.
+In such cases, you need to edit `config/pod/coild.yaml` to mount the right
+host directory.
 
 [netconf]: https://github.com/containernetworking/cni/blob/spec-v0.4.0/SPEC.md#network-configuration
 [BIRD]: https://bird.network.cz/
