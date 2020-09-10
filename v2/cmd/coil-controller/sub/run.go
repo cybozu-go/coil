@@ -1,6 +1,7 @@
 package sub
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -66,6 +67,9 @@ func subMain() error {
 		Manager: pm,
 	}
 	if err := apctrl.SetupWithManager(mgr); err != nil {
+		return err
+	}
+	if err := ipam.SetupIndexer(context.Background(), mgr); err != nil {
 		return err
 	}
 
