@@ -9,8 +9,9 @@ import (
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
@@ -32,7 +33,7 @@ type garbageCollector struct {
 	interval  time.Duration
 }
 
-// +kubebuilder:rbac:groups=coil.cybozu.com,resources=addressblocks,verbs=get;list;watch;delete
+// +kubebuilder:rbac:groups=coil.cybozu.com,resources=addressblocks,verbs=get;list;watch;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list
 
 var _ manager.LeaderElectionRunnable = &garbageCollector{}
@@ -83,16 +84,37 @@ func (gc *garbageCollector) do(ctx context.Context) error {
 			continue
 		}
 
-		err := gc.Client.Delete(ctx, &b)
-		if err == nil {
-			gc.log.Info("deleted an orphan block", "block", b.Name, "node", n)
-			continue
+		err := gc.deleteBlock(ctx, b.Name)
+		if err != nil {
+			return fmt.Errorf("failed to delete a block: %w", err)
 		}
-		if apierrors.IsNotFound(err) {
-			continue
-		}
-		return fmt.Errorf("failed to delete a block: %w", err)
+
+		gc.log.Info("deleted an orphan block", "block", b.Name, "node", n)
 	}
 
 	return nil
+}
+
+func (gc *garbageCollector) deleteBlock(ctx context.Context, name string) error {
+	// remove finalizer
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		b := &coilv2.AddressBlock{}
+		err := gc.apiReader.Get(ctx, client.ObjectKey{Name: name}, b)
+		if err != nil {
+			return client.IgnoreNotFound(err)
+		}
+		if !controllerutil.ContainsFinalizer(b, constants.FinCoil) {
+			return nil
+		}
+		controllerutil.RemoveFinalizer(b, constants.FinCoil)
+		return gc.Client.Update(ctx, b)
+	})
+	if err != nil {
+		return fmt.Errorf("failed to remove finalizer from %s: %w", name, err)
+	}
+
+	// delete ignoring notfound error.
+	b := &coilv2.AddressBlock{}
+	b.Name = name
+	return client.IgnoreNotFound(gc.Client.Delete(ctx, b))
 }

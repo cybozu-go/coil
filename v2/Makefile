@@ -115,6 +115,8 @@ pkg/cnirpc/cni_grpc.pb.go: pkg/cnirpc/cni.proto
 
 image:
 	-rm -rf work
+	mkdir -p work/var
+	ln -s /run work/var/run
 	CGO_ENABLED=0 GOBIN=$(PWD)/work go install -ldflags="-s -w" ./cmd/coil*
 	cp ../LICENSE work
 	docker build --no-cache -t coil:dev .
