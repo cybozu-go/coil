@@ -16,7 +16,20 @@ spec:
     singular: addressblock
   scope: Cluster
   versions:
-  - name: v2
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.labels['coil\.cybozu\.com/node']
+      name: Node
+      type: string
+    - jsonPath: .metadata.labels['coil\.cybozu\.com/pool']
+      name: Pool
+      type: string
+    - jsonPath: .ipv4
+      name: IPv4
+      type: string
+    - jsonPath: .ipv6
+      name: IPv6
+      type: string
+    name: v2
     schema:
       openAPIV3Schema:
         description: "AddressBlock is the Schema for the addressblocks API \n The ownerReferences field contains the AddressPool where the block is curved from."
@@ -45,6 +58,7 @@ spec:
         type: object
     served: true
     storage: true
+    subresources: {}
 status:
   acceptedNames:
     kind: ""
