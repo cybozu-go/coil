@@ -77,8 +77,8 @@ type BlockRequestConditionType string
 
 // Valid values for BlockRequestConditionType
 const (
-	BlockRequestComplete = "Complete"
-	BlockRequestFailed   = "Failed"
+	BlockRequestComplete BlockRequestConditionType = "Complete"
+	BlockRequestFailed   BlockRequestConditionType = "Failed"
 )
 
 // +kubebuilder:object:root=true

@@ -65,7 +65,7 @@ type NodeIPAM interface {
 	Free(ctx context.Context, containerID, iface string) error
 
 	// Notify notifies a goroutine waiting for BlockRequest completion
-	Notify(poolName string)
+	Notify(req *coilv2.BlockRequest)
 }
 
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=addressblocks,verbs=get;list;update;patch;delete
@@ -201,13 +201,13 @@ func (n *nodeIPAM) Free(ctx context.Context, containerID, iface string) error {
 	return nil
 }
 
-func (n *nodeIPAM) Notify(poolName string) {
+func (n *nodeIPAM) Notify(req *coilv2.BlockRequest) {
 	n.mu.Lock()
-	p, ok := n.pools[poolName]
+	p, ok := n.pools[req.Spec.PoolName]
 	n.mu.Unlock()
 
 	if ok {
-		p.Notify()
+		p.notify(req)
 	}
 }
 
@@ -233,7 +233,7 @@ func (n *nodeIPAM) getPool(ctx context.Context, name string) (*nodePool, error) 
 			client:              n.client,
 			apiReader:           n.apiReader,
 			scheme:              n.scheme,
-			requestCompletionCh: make(chan struct{}),
+			requestCompletionCh: make(chan *coilv2.BlockRequest),
 			blockAlloc:          make(map[string]allocator),
 		}
 		if err := p.syncBlock(ctx); err != nil {
@@ -254,7 +254,7 @@ type nodePool struct {
 	apiReader client.Reader
 	scheme    *runtime.Scheme
 
-	requestCompletionCh chan struct{}
+	requestCompletionCh chan *coilv2.BlockRequest
 
 	mu         sync.Mutex
 	blockAlloc map[string]allocator
@@ -333,10 +333,9 @@ func (p *nodePool) gc(ctx context.Context) error {
 	return nil
 }
 
-// Notify notifies a goroutine waiting for BlockRequest completion
-func (p *nodePool) Notify() {
+func (p *nodePool) notify(req *coilv2.BlockRequest) {
 	select {
-	case p.requestCompletionCh <- struct{}{}:
+	case p.requestCompletionCh <- req:
 	default:
 	}
 }
@@ -407,15 +406,18 @@ func (p *nodePool) allocate(ctx context.Context) (*allocInfo, bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, DefaultAllocTimeout)
 	defer cancel()
 
-	req := &coilv2.BlockRequest{}
-	req.Name = fmt.Sprintf("req-%s-%s", p.poolName, p.nodeName)
+	reqName := fmt.Sprintf("req-%s-%s", p.poolName, p.nodeName)
 
 	// delete existing request, if any
+	req := &coilv2.BlockRequest{}
+	req.Name = reqName
 	err := p.client.Delete(ctx, req)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return nil, false, fmt.Errorf("failed to delete existing BlockRequest: %w", err)
 	}
 
+	req = &coilv2.BlockRequest{}
+	req.Name = reqName
 	if err := controllerutil.SetOwnerReference(p.node, req, p.scheme); err != nil {
 		return nil, false, fmt.Errorf("failed to set owner reference: %w", err)
 	}
@@ -429,13 +431,12 @@ func (p *nodePool) allocate(ctx context.Context) (*allocInfo, bool, error) {
 	select {
 	case <-ctx.Done():
 		return nil, false, fmt.Errorf("aborting new block request: %w", ctx.Err())
-	case <-p.requestCompletionCh:
+	case req = <-p.requestCompletionCh:
 	}
-	if err := p.client.Get(ctx, client.ObjectKey{Name: req.Name}, req); err != nil {
-		return nil, false, fmt.Errorf("failed to get the request: %w", err)
-	}
+
 	block, err := req.GetResult()
 	if err != nil {
+		p.log.Error(err, "request failed", "conditions", fmt.Sprintf("%+v", req.Status.Conditions))
 		return nil, false, err
 	}
 
@@ -444,7 +445,7 @@ func (p *nodePool) allocate(ctx context.Context) (*allocInfo, bool, error) {
 	}
 	alloc, ok := p.blockAlloc[block]
 	if !ok {
-		panic("bug")
+		panic("bug: " + block)
 	}
 	return p.allocateFrom(alloc, block, true)
 }
@@ -455,7 +456,7 @@ func (p *nodePool) free(ctx context.Context, blockName string, idx uint) (bool, 
 
 	alloc, ok := p.blockAlloc[blockName]
 	if !ok {
-		panic("bug")
+		panic("bug: " + blockName)
 	}
 	alloc.free(idx)
 	if !alloc.isEmpty() {

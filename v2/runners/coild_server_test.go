@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/containernetworking/cni/pkg/types/current"
+	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
 	"github.com/cybozu-go/coil/v2/pkg/nodenet"
 	. "github.com/onsi/ginkgo"
@@ -37,7 +38,7 @@ func (n *mockNodeIPAM) Register(ctx context.Context, poolName, containerID, ifac
 func (n *mockNodeIPAM) GC(ctx context.Context) error {
 	panic("not implemented")
 }
-func (n *mockNodeIPAM) Notify(poolName string) {
+func (n *mockNodeIPAM) Notify(*coilv2.BlockRequest) {
 	panic("not implemented")
 }
 

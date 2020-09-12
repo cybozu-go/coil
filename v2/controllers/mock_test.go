@@ -103,7 +103,7 @@ func (n *mockNodeIPAM) Free(ctx context.Context, containerID, iface string) erro
 	panic("not implemented")
 }
 
-func (n *mockNodeIPAM) Notify(poolName string) {
+func (n *mockNodeIPAM) Notify(req *coilv2.BlockRequest) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 

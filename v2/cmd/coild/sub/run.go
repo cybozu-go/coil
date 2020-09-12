@@ -72,7 +72,7 @@ func subMain() error {
 		Client:   mgr.GetClient(),
 		Log:      ctrl.Log.WithName("controllers").WithName("blockrequest-watcher"),
 		NodeIPAM: nodeIPAM,
-		Scheme:   mgr.GetScheme(),
+		NodeName: nodeName,
 	}
 	if err := watcher.SetupWithManager(mgr); err != nil {
 		return err
