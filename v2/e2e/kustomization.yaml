@@ -2,6 +2,9 @@ resources:
 - ../config/default
 - ../config/pod/coil-router.yaml
 
+patchesStrategicMerge:
+- coil-controller_patch.yaml
+
 configMapGenerator:
 - name: coil-config
   namespace: system

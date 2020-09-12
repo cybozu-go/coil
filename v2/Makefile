@@ -1,8 +1,8 @@
-# Makefile for coil
+# Makefile for Coil
+
+include common.mk
 
 KUBEBUILDER_VERSION = 2.3.1
-K8S_VERSION=1.18.8
-KIND_VERSION=0.8.1
 PROTOC_VERSION=3.12.4
 
 ## DON'T EDIT BELOW THIS LINE
@@ -131,7 +131,7 @@ setup:
 	mv /tmp/kubebuilder_$(KUBEBUILDER_VERSION)_$(GOOS)_$(GOARCH)/bin/* bin/
 	rm -rf /tmp/kubebuilder_*
 	GOBIN=$(PWD)/bin go install sigs.k8s.io/controller-tools/cmd/controller-gen
-	# we need kube-apiserver from k8s 1.18
+	# Replace bundled kube-apiserver with that of the minimal supported version
 	rm -rf tmp && mkdir -p tmp
 	curl -sfL https://github.com/kubernetes/kubernetes/archive/v$(K8S_VERSION).tar.gz | tar zxf - -C tmp
 	mv tmp/kubernetes-$(K8S_VERSION) tmp/kubernetes
@@ -145,11 +145,6 @@ setup:
 	GOBIN=$(PWD)/bin go install google.golang.org/protobuf/cmd/protoc-gen-go
 	GOBIN=$(PWD)/bin go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 	GOBIN=$(PWD)/bin go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
-
-	curl -o bin/kind -sfL https://kind.sigs.k8s.io/dl/v$(KIND_VERSION)/kind-linux-amd64
-	curl -o bin/kubectl -sfL https://storage.googleapis.com/kubernetes-release/release/v$(K8S_VERSION)/bin/linux/amd64/kubectl
-	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.7.0/kustomize_v3.7.0_linux_amd64.tar.gz | tar -xz -C bin
-	chmod a+x bin/kubectl bin/kind
 
 test-tools: staticcheck nilerr
 

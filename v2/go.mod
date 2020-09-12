@@ -11,13 +11,17 @@ require (
 	github.com/google/go-cmp v0.5.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.1
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
-	github.com/onsi/ginkgo v1.14.0
-	github.com/onsi/gomega v1.10.1
+	github.com/mitchellh/mapstructure v1.2.2 // indirect
+	github.com/onsi/ginkgo v1.14.1
+	github.com/onsi/gomega v1.10.2
+	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/prometheus/client_golang v1.7.1
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.13.0
 	github.com/pseudomuto/protoc-gen-doc v1.3.2
+	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.0.0
+	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.7.1
 	github.com/vishvananda/netlink v1.1.0
 	github.com/willf/bitset v1.1.11
@@ -26,6 +30,7 @@ require (
 	google.golang.org/grpc v1.32.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v0.0.0-20200812184716-7d8921505e1b
 	google.golang.org/protobuf v1.25.0
+	gopkg.in/ini.v1 v1.55.0 // indirect
 	k8s.io/api v0.18.8
 	k8s.io/apimachinery v0.18.8
 	k8s.io/client-go v0.18.8
