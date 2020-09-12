@@ -33,6 +33,7 @@ var _ = Describe("PoolManager", func() {
 			Expect(block.IPv6).To(Equal(strPtr("fd02::200/127")))
 			Expect(block.Labels[constants.LabelNode]).To(Equal("node1"))
 			Expect(block.Labels[constants.LabelPool]).To(Equal("default"))
+			Expect(controllerutil.ContainsFinalizer(block, constants.FinCoil)).To(BeTrue())
 
 			verify := &coilv2.AddressBlock{}
 			err = k8sClient.Get(ctx, client.ObjectKey{Name: block.Name}, verify)
