@@ -7,14 +7,50 @@ on:
 defaults:
   run:
     working-directory: v2
+env:
+  go-version: 1.13
+  cache-version: 1
 jobs:
   test:
-    name: Test pkg/nodenet
+    name: Small test
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: 1.13
+          go-version: ${{ env.go-version }}
+      - name: Cache tools
+        id: cache-tools
+        uses: actions/cache@v2
+        with:
+          path: |
+            v2/bin
+            v2/include
+          key: cache-${{ env.cache-version }}-go-${{ env.go-version }}-${{ hashFiles('v2/Makefile', 'v2/common.mk') }}
+      - run: make setup
+        if: steps.cache-tools.outputs.cache-hit != 'true'
+      - run: make test
       - run: make test-nodenet
         timeout-minutes: 10
+      - run: make check-generate
+  e2e:
+    name: End-to-end Test
+    strategy:
+      matrix:
+        kindest-node: ["kindest/node:v1.18.8", "kindest/node:v1.19.0"]
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.go-version }}
+      - run: make image
+      - run: make certs
+      - run: make setup
+        working-directory: v2/e2e
+      - run: make start IMAGE=${{ matrix.kindest-node }}
+        working-directory: v2/e2e
+      - run: make install-coil
+        working-directory: v2/e2e
+      - run: make test
+        working-directory: v2/e2e

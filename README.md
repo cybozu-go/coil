@@ -1,5 +1,5 @@
 [![GitHub release](https://img.shields.io/github/release/cybozu-go/coil.svg?maxAge=60)][releases]
-[![CircleCI](https://circleci.com/gh/cybozu-go/coil.svg?style=svg)](https://circleci.com/gh/cybozu-go/coil)
+![CI](https://github.com/cybozu-go/coil/workflows/CI/badge.svg)
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/cybozu-go/coil?tab=overview)](https://pkg.go.dev/github.com/cybozu-go/coil?tab=overview)
 [![Go Report Card](https://goreportcard.com/badge/github.com/cybozu-go/coil)](https://goreportcard.com/report/github.com/cybozu-go/coil)
 
@@ -66,11 +66,12 @@ Refer to [the design document](./docs/design.md) for more information on these f
 
 Coil can run on [kind][] clusters using Docker.
 
-Prepare a recent Ubuntu and install Docker, then run:
+Prepare a recent Ubuntu and install Docker and Go, then run:
 
 ```console
 $ cd v2
 $ make certs
+$ make image
 
 $ cd e2e
 $ make setup
