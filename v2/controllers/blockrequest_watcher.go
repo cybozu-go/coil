@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,8 +18,8 @@ import (
 type BlockRequestWatcher struct {
 	client.Client
 	Log      logr.Logger
-	Scheme   *runtime.Scheme
 	NodeIPAM ipam.NodeIPAM
+	NodeName string
 }
 
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=blockrequests,verbs=get;list;watch
@@ -40,12 +39,16 @@ func (r *BlockRequestWatcher) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	// The following conditions have been checked in the event filter.
+	// These are just safeguards.
+	if br.Spec.NodeName != r.NodeName {
+		return ctrl.Result{}, nil
+	}
 	if len(br.Status.Conditions) == 0 {
-		// as this case is excluded by the event filter, this should not happen.
 		return ctrl.Result{}, nil
 	}
 
-	r.NodeIPAM.Notify(br.Spec.PoolName)
+	r.NodeIPAM.Notify(br)
 	return ctrl.Result{}, nil
 }
 
@@ -58,10 +61,16 @@ func (r *BlockRequestWatcher) SetupWithManager(mgr ctrl.Manager) error {
 				// This needs to be the same as UpdateFunc because
 				// sometimes updates can be merged into a create event.
 				req := ev.Object.(*coilv2.BlockRequest)
+				if req.Spec.NodeName != r.NodeName {
+					return false
+				}
 				return len(req.Status.Conditions) > 0
 			},
 			UpdateFunc: func(ev event.UpdateEvent) bool {
 				req := ev.ObjectNew.(*coilv2.BlockRequest)
+				if req.Spec.NodeName != r.NodeName {
+					return false
+				}
 				return len(req.Status.Conditions) > 0
 			},
 			DeleteFunc: func(event.DeleteEvent) bool {

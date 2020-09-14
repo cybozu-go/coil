@@ -1,15 +1,13 @@
 Release procedure
 =================
 
-This document describes how to release a new version of coil.
+This document describes how to release a new version of Coil.
 
-Versioning
-----------
+## Versioning
 
 Follow [semantic versioning 2.0.0][semver] to choose the new version number.
 
-Prepare change log entries
---------------------------
+## Prepare change log entries
 
 Add notable changes since the last release to [CHANGELOG.md](CHANGELOG.md).
 It should look like:
@@ -30,8 +28,11 @@ It should look like:
 (snip)
 ```
 
-Bump version
-------------
+## Adding and removing supported Kubernetes versions
+
+(TBD)
+
+## Bump version
 
 1. Determine a new version number.  Let it write `$VERSION` as `VERSION=x.y.z`.
 2. Checkout `master` branch.
@@ -55,12 +56,10 @@ Bump version
 
 Now the version is bumped up and the latest container image is uploaded to [quay.io](https://quay.io/cybozu/coil).
 
-Publish GitHub release page
----------------------------
+## (Option) Edit GitHub release page
 
-Go to https://github.com/cybozu-go/coil/releases and edit the tag.
-Finally, press `Publish release` button.
-
+If you would like to give further descriptions of the new release,
+edit [the GitHub release page](https://github.com/cybozu-go/coil/releases/latest).
 
 [semver]: https://semver.org/spec/v2.0.0.html
 [example]: https://github.com/cybozu-go/etcdpasswd/commit/77d95384ac6c97e7f48281eaf23cb94f68867f79

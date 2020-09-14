@@ -4,10 +4,6 @@ networking:
   disableDefaultCNI: true
 nodes:
 - role: control-plane
-  image: @IMAGE@
 - role: worker
-  image: @IMAGE@
 - role: worker
-  image: @IMAGE@
 - role: worker
-  image: @IMAGE@

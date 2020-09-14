@@ -9,6 +9,10 @@ import (
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Cluster
+// +kubebuilder:printcolumn:JSONPath=`.metadata.labels['coil\.cybozu\.com/node']`,name=Node,type=string
+// +kubebuilder:printcolumn:JSONPath=`.metadata.labels['coil\.cybozu\.com/pool']`,name=Pool,type=string
+// +kubebuilder:printcolumn:JSONPath=.ipv4,name=IPv4,type=string
+// +kubebuilder:printcolumn:JSONPath=.ipv6,name=IPv6,type=string
 
 // AddressBlock is the Schema for the addressblocks API
 //

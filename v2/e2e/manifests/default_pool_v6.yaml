@@ -1,0 +1,8 @@
+apiVersion: coil.cybozu.com/v2
+kind: AddressPool
+metadata:
+  name: default
+spec:
+  blockSizeBits: 0
+  subnets:
+  - ipv6: fd02:1234::/120

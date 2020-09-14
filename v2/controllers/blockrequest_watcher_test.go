@@ -31,7 +31,7 @@ var _ = Describe("BlockRequest watcher", func() {
 			Client:   mgr.GetClient(),
 			Log:      ctrl.Log.WithName("BlockRequest watcher"),
 			NodeIPAM: nodeIPAM,
-			Scheme:   mgr.GetScheme(),
+			NodeName: "node2",
 		}
 		err = brw.SetupWithManager(mgr)
 		Expect(err).ToNot(HaveOccurred())
@@ -51,7 +51,7 @@ var _ = Describe("BlockRequest watcher", func() {
 		time.Sleep(10 * time.Millisecond)
 	})
 
-	It("works as expected", func() {
+	It("should notify requests", func() {
 		By("ignoring a new request")
 		br := &coilv2.BlockRequest{}
 		br.Name = "br-2"
@@ -78,5 +78,29 @@ var _ = Describe("BlockRequest watcher", func() {
 		Eventually(func() int {
 			return nodeIPAM.GetNotified()
 		}).Should(Equal(1))
+	})
+
+	It("should ignore requests of other nodes", func() {
+		br := &coilv2.BlockRequest{}
+		br.Name = "br-2"
+		br.Spec.NodeName = "node1"
+		br.Spec.PoolName = "default"
+		err := k8sClient.Create(ctx, br)
+		Expect(err).To(Succeed())
+		br.Status.Conditions = []coilv2.BlockRequestCondition{
+			{
+				Type:               coilv2.BlockRequestComplete,
+				Status:             corev1.ConditionTrue,
+				LastProbeTime:      metav1.Now(),
+				LastTransitionTime: metav1.Now(),
+			},
+		}
+		br.Status.AddressBlockName = "default-1"
+		err = k8sClient.Status().Update(ctx, br)
+		Expect(err).To(Succeed())
+
+		Consistently(func() int {
+			return nodeIPAM.GetNotified()
+		}).Should(Equal(0))
 	})
 })

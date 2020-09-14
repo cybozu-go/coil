@@ -1,0 +1,8 @@
+apiVersion: coil.cybozu.com/v2
+kind: AddressPool
+metadata:
+  name: invalid
+spec:
+  blockSizeBits: 5
+  subnets:
+  - ipv4: 10.224.0.0/30

@@ -1,19 +1,37 @@
-IMAGE = kindest/node:v1.18.8
+include ../common.mk
 
-KIND := $(PWD)/../bin/kind
-KUBECTL := $(PWD)/../bin/kubectl
-KUSTOMIZE := $(PWD)/../bin/kustomize
-export KIND KUBECTL
+IMAGE = kindest/node:v1.18.8
+KIND_VERSION=0.8.1
+BINDIR := $(abspath $(PWD)/../bin)
+
+KIND := $(BINDIR)/kind
+KUBECTL := $(BINDIR)/kubectl
+KUSTOMIZE := $(BINDIR)/kustomize
+export KUBECTL
 
 start:
-	sed 's,@IMAGE@,$(IMAGE),g' kind-config-template.yaml > kind-config.yaml
-	$(KIND) create cluster --name coil --config kind-config.yaml
+	$(KIND) create cluster --image $(IMAGE) --name coil --config kind-config.yaml
 
 stop:
 	$(KIND) delete cluster --name coil
 
 install-coil:
+	$(KUBECTL) taint nodes coil-worker test:NoSchedule
+	$(KUBECTL) taint nodes coil-worker2 test:NoSchedule
+	$(KUBECTL) label nodes coil-worker test=coil
+	$(KUBECTL) label nodes coil-worker2 test=coil
 	$(KIND) load docker-image --name coil coil:dev
 	$(KUSTOMIZE) --load_restrictor=none build . | $(KUBECTL) apply -f -
+	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-controller
 
-.PHONY: start stop
+test:
+	go test -count 1 -v . -args -ginkgo.progress -ginkgo.v
+
+setup:
+	mkdir -p $(BINDIR)
+	curl -o $(BINDIR)/kind -sfL https://kind.sigs.k8s.io/dl/v$(KIND_VERSION)/kind-linux-amd64
+	curl -o $(BINDIR)/kubectl -sfL https://storage.googleapis.com/kubernetes-release/release/v$(K8S_VERSION)/bin/linux/amd64/kubectl
+	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.7.0/kustomize_v3.7.0_linux_amd64.tar.gz | tar -xz -C $(BINDIR)
+	chmod a+x $(BINDIR)/kubectl $(BINDIR)/kind
+
+.PHONY: start stop install-coil test setup

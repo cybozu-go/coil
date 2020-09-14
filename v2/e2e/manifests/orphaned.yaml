@@ -1,0 +1,10 @@
+apiVersion: coil.cybozu.com/v2
+kind: AddressBlock
+metadata:
+  name: default-100
+  finalizers: ["coil.cybozu.com"]
+  labels:
+    coil.cybozu.com/node: coil-worker100
+    coil.cybozu.com/pool: default
+index: 100
+ipv4: 10.224.0.100/32

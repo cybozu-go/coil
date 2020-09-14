@@ -77,7 +77,7 @@ func testController(ctx context.Context, npMap map[string]NodeIPAM) {
 				return
 			}
 			time.Sleep(10 * time.Millisecond)
-			np.Notify(req.Spec.PoolName)
+			np.Notify(req)
 		}()
 
 		for _, block := range blocksMap[req.Spec.PoolName] {
@@ -135,6 +135,7 @@ func testController(ctx context.Context, npMap map[string]NodeIPAM) {
 				continue
 			}
 			for _, req := range reqs.Items {
+				req := req
 				if err := process(&req); err != nil {
 					log.Log.Error(err, "failed to process request", "name", req.Name)
 				}

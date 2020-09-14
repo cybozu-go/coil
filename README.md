@@ -1,5 +1,5 @@
 [![GitHub release](https://img.shields.io/github/release/cybozu-go/coil.svg?maxAge=60)][releases]
-[![CircleCI](https://circleci.com/gh/cybozu-go/coil.svg?style=svg)](https://circleci.com/gh/cybozu-go/coil)
+![CI](https://github.com/cybozu-go/coil/workflows/CI/badge.svg)
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/cybozu-go/coil?tab=overview)](https://pkg.go.dev/github.com/cybozu-go/coil?tab=overview)
 [![Go Report Card](https://goreportcard.com/badge/github.com/cybozu-go/coil)](https://goreportcard.com/report/github.com/cybozu-go/coil)
 
@@ -15,25 +15,22 @@ Coil allows to define multiple IP address pools.  You can define a pool of
 global IPv4 addresses for a small number of pods and another pool of
 private IPv4 addresses for the remaining pods.
 
-Status
-------
+## Status
 
 Version 2 is under **active development**.  It conforms to [CNI spec 0.4.0](https://github.com/containernetworking/cni/blob/spec-v0.4.0/SPEC.md).
 
 Version 1 is maintained in [release-1.1](https://github.com/cybozu-go/coil/tree/release-1.1) branch.
 
-Dependencies
-------------
+## Dependencies
 
-- Kubernetes Version: 1.18
+- Kubernetes Version: 1.18, 1.19
     - Other versions are likely to work, but not tested.
 
 - (Optional) Routing software
     - Coil has a simple routing software for flat L2 networks.
     - If your network is not flat, use BIRD or similar software to advertise the routes.
 
-Features
---------
+## Features
 
 - Address pools
 
@@ -65,8 +62,27 @@ Features
 
 Refer to [the design document](./docs/design.md) for more information on these features.
 
-Usage examples
---------------
+## Quick start
+
+Coil can run on [kind][] clusters using Docker.
+
+Prepare a recent Ubuntu and install Docker and Go, then run:
+
+```console
+$ cd v2
+$ make certs
+$ make image
+
+$ cd e2e
+$ make setup
+$ make start
+$ make install-coil
+$ ../bin/kubectl apply -f manifests/default_pool.yaml
+```
+
+Now you can play with Coil.
+
+## Usage examples
 
 [Project Neco](https://blog.kintone.io/entry/neco) uses Coil with these software:
 
@@ -74,22 +90,9 @@ Usage examples
 - [MetalLB][] to implement [LoadBalancer] Service, and
 - [Calico][] to implement [NetworkPolicy][].
 
-Coil should also be able to work with [Cilium][] through its [generic veth chaining](https://docs.cilium.io/en/v1.8/gettingstarted/cni-chaining-generic-veth/) feature.
+Coil can work with [Cilium][] through its [generic veth chaining](https://docs.cilium.io/en/v1.8/gettingstarted/cni-chaining-generic-veth/) feature.
 
-Programs
---------
-
-This repository contains these programs:
-
-- `coil`: [CNI][] plugin.  It simply delegates requests to `coild`.
-- `coild`: A gRPC server to accept requests from `coil`.
-- `coil-router`: An optional simple router for a flat L2 network.
-- `coil-installer`: installs `coil` and CNI configuration file.
-- `coil-controller`: watches kubernetes resources for coil.
-- `coil-egress`: controls SNAT router pods.
-
-Documentation
--------------
+## Documentation
 
 Installation procedures are described in [docs/setup.md](./docs/setup.md).
 
@@ -99,11 +102,6 @@ The user manual is [docs/usage.md](./docs/usage.md).
 
 [mtest/bird.conf](mtest/bird.conf) is an example configuration for [BIRD][] to make it work with coil.
 
-License
--------
-
-MIT
-
 [releases]: https://github.com/cybozu-go/coil/releases
 [CNI]: https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/
 [BIRD]: https://bird.network.cz/
@@ -112,3 +110,4 @@ MIT
 [MetalLB]: https://metallb.universe.tf
 [Calico]: https://www.projectcalico.org
 [Cilium]: https://cilium.io/
+[kind]: https://kind.sigs.k8s.io/
