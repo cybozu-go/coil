@@ -41,6 +41,7 @@ var _ = Describe("AddressPool reconciler", func() {
 				panic(err)
 			}
 		}()
+		time.Sleep(100 * time.Millisecond)
 	})
 
 	AfterEach(func() {

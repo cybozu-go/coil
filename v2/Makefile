@@ -18,6 +18,7 @@ PROTOC := PATH=$(PWD)/bin:$(PATH) $(PWD)/bin/protoc -I=$(PWD)/include:.
 PODNSLIST = pod1 pod2 pod3
 export GO111MODULE KUBEBUILDER_ASSETS PODNSLIST
 
+.PHONY: test
 test: test-tools
 	go test -race -v -count 1 ./...
 	go install ./...
@@ -26,6 +27,7 @@ test: test-tools
 	staticcheck ./...
 	nilerr ./...
 
+.PHONY: test-nodenet
 test-nodenet:
 	go test -c ./pkg/nodenet
 	for i in $@ $(PODNSLIST); do $(SUDO) ip netns delete $$i 2>/dev/null || true; done
@@ -35,12 +37,14 @@ test-nodenet:
 	#for i in $@ $(PODNSLIST); do $(SUDO) ip netns delete $$i; done
 	rm -f nodenet.test
 
+.PHONY: check-generate
 check-generate:
 	$(MAKE) manifests
 	$(MAKE) generate
 	git diff --exit-code --name-only 
 
 # Generate manifests e.g. CRD, RBAC etc.
+.PHONY: manifests
 manifests: $(CONTROLLER_GEN) $(ROLES)
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
@@ -91,12 +95,14 @@ config/rbac/coil-router_role.yaml: $(COIL_ROUTER_DEPENDS)
 	rm -rf work
 
 # TLS certificates for webhook
+.PHONY: certs
 certs: config/default/cert.pem config/default/key.pem
 
 config/default/cert.pem config/default/key.pem:
 	go run ./cmd/gencert -outdir=$(PWD)/config/default
 
 # Generate code
+.PHONY: generate
 generate: $(CONTROLLER_GEN)
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 	$(MAKE) pkg/cnirpc/cni.pb.go pkg/cnirpc/cni_grpc.pb.go ../docs/cni-grpc.md
@@ -113,6 +119,7 @@ pkg/cnirpc/cni_grpc.pb.go: pkg/cnirpc/cni.proto
 ../docs/cni-grpc.md: pkg/cnirpc/cni.proto
 	$(PROTOC) --doc_out=../docs --doc_opt=markdown,$@ $<
 
+.PHONY: image
 image:
 	-rm -rf work
 	mkdir -p work/var
@@ -122,6 +129,7 @@ image:
 	docker build --no-cache -t coil:dev .
 	rm -rf work
 
+.PHONY: setup
 setup:
 	$(SUDO) apt-get update
 	$(SUDO) apt-get -y install --no-install-recommends rsync unzip
@@ -146,17 +154,17 @@ setup:
 	GOBIN=$(PWD)/bin go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 	GOBIN=$(PWD)/bin go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
+.PHONY: test-tools
 test-tools: staticcheck nilerr
 
+.PHONY: staticcheck
 staticcheck:
 	if ! which staticcheck >/dev/null; then \
 		cd /tmp; env GOFLAGS= GO111MODULE=on go get honnef.co/go/tools/cmd/staticcheck; \
 	fi
 
+.PHONY: nilerr
 nilerr:
 	if ! which nilerr >/dev/null; then \
 		cd /tmp; env GOFLAGS= GO111MODULE=on go get github.com/gostaticanalysis/nilerr/cmd/nilerr; \
 	fi
-
-.PHONY: test test-tools test-nodenet staticcheck nilerr \
-	check-generate manifests certs generate setup

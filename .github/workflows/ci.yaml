@@ -37,7 +37,8 @@ jobs:
     name: End-to-end Test
     strategy:
       matrix:
-        kindest-node: ["kindest/node:v1.18.8", "kindest/node:v1.19.0"]
+        kindest-node: ["kindest/node:v1.18.8", "kindest/node:v1.19.1"]
+        ip-version: ["ipv4", "ipv6"]
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -48,6 +49,15 @@ jobs:
       - run: make certs
       - run: make setup
         working-directory: v2/e2e
+      - name: Enable docker IPv6 mode
+        if: matrix.ip-version == 'ipv6'
+        working-directory: v2/e2e
+        run: |
+          sudo mkdir -p /etc/docker
+          sudo cp daemon.json /etc/docker/daemon.json
+          sudo systemctl restart docker.service
+          sleep 10
+          echo "::set-env name=TEST_IPV6::true"
       - run: make start IMAGE=${{ matrix.kindest-node }}
         working-directory: v2/e2e
       - run: make install-coil
