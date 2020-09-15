@@ -68,6 +68,7 @@ var _ = Describe("BlockRequest reconciler", func() {
 				panic(err)
 			}
 		}()
+		time.Sleep(100 * time.Millisecond)
 	})
 
 	AfterEach(func() {

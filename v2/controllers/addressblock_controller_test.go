@@ -35,6 +35,7 @@ var _ = Describe("AddressBlock reconciler", func() {
 				panic(err)
 			}
 		}()
+		time.Sleep(100 * time.Millisecond)
 	})
 
 	AfterEach(func() {
