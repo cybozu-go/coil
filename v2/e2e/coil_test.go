@@ -118,8 +118,14 @@ var _ = Describe("Coil", func() {
 		}).Should(Succeed())
 
 		By("checking communication between pods on different nodes")
+		var testURL string
+		if testIPv6 {
+			testURL = fmt.Sprintf("http://[%s]:8000", httpdIP)
+		} else {
+			testURL = fmt.Sprintf("http://%s:8000", httpdIP)
+		}
 		Expect(ubuntuNode).NotTo(Equal(httpdNode))
-		out := kubectlSafe(nil, "exec", "ubuntu", "--", "curl", "-s", fmt.Sprintf("http://%s:8000", httpdIP))
+		out := kubectlSafe(nil, "exec", "ubuntu", "--", "curl", "-s", testURL)
 		Expect(string(out)).To(Equal("Hello"))
 	})
 
@@ -194,7 +200,13 @@ var _ = Describe("Coil", func() {
 	})
 
 	It("should export routes to routing table 119", func() {
-		out, err := runOnNode("coil-worker", "ip", "-j", "route", "show", "table", "119")
+		var ipOpt string
+		if testIPv6 {
+			ipOpt = "-6"
+		} else {
+			ipOpt = "-4"
+		}
+		out, err := runOnNode("coil-worker", "ip", ipOpt, "-j", "route", "show", "table", "119")
 		Expect(err).ShouldNot(HaveOccurred())
 
 		type route struct {

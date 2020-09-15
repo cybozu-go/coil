@@ -1,7 +1,7 @@
 include ../common.mk
 
 IMAGE = kindest/node:v1.18.8
-KIND_VERSION=0.8.1
+KIND_VERSION=0.9.0
 BINDIR := $(abspath $(PWD)/../bin)
 
 KIND := $(BINDIR)/kind
@@ -9,8 +9,13 @@ KUBECTL := $(BINDIR)/kubectl
 KUSTOMIZE := $(BINDIR)/kustomize
 export KUBECTL
 
+KIND_CONFIG = kind-config.yaml
+ifeq ($(TEST_IPV6),true)
+KIND_CONFIG = kind-config_v6.yaml
+endif
+
 start:
-	$(KIND) create cluster --image $(IMAGE) --name coil --config kind-config.yaml
+	$(KIND) create cluster --image $(IMAGE) --name coil --config $(KIND_CONFIG)
 
 stop:
 	$(KIND) delete cluster --name coil
