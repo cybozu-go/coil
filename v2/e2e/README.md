@@ -82,7 +82,7 @@ Other functions can be tested straightforwardly.
 
 ## Implementation
 
-The end-to-end tests are run on [kind, or Kubernetes IN Docker][].
+The end-to-end tests are run on [kind, or Kubernetes IN Docker][kind].
 kind can create mutli-node clusters without installing CNI plugin.
 
 To run e2e tests, prepare Docker and run the following commands.
@@ -96,7 +96,7 @@ $ make test
 You may change the default Kubernetes image for kind with `IMAGE` option.
 
 ```console
-$ make start IMAGE=kindest/node:v1.19.0
+$ make start IMAGE=kindest/node:v1.19.1
 ```
 
 To stop the cluster, run `make stop`.

@@ -19,9 +19,6 @@ func TestPodNetwork(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("run as root")
 	}
-	if os.Getenv("CIRCLECI") == "true" {
-		t.Skip("could not run on CircleCI")
-	}
 
 	pn := NewPodNetwork(30, false, ctrl.Log.WithName("pod-network"))
 	if err := pn.Init(); err != nil {
@@ -81,6 +78,10 @@ func TestPodNetwork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		exec.Command("ip", "link", "del", "foo").Run()
+	}()
+
 	err = exec.Command("ip", "link", "set", "foo", "up").Run()
 	if err != nil {
 		t.Fatal(err)
@@ -263,11 +264,5 @@ func TestPodNetwork(t *testing.T) {
 	err = pn.Destroy(podConf2.ContainerId, podConf2.IFace)
 	if err != nil {
 		t.Error(err)
-	}
-
-	// some cleanup
-	err = exec.Command("ip", "link", "del", "foo").Run()
-	if err != nil {
-		t.Fatal(err)
 	}
 }
