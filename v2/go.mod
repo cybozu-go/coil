@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/containernetworking/cni v0.8.0
 	github.com/containernetworking/plugins v0.8.7
+	github.com/coreos/go-iptables v0.4.5
 	github.com/go-logr/logr v0.1.0
 	github.com/go-logr/zapr v0.1.1
 	github.com/golang/protobuf v1.4.2
@@ -23,7 +24,7 @@ require (
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.7.1
-	github.com/vishvananda/netlink v1.1.0
+	github.com/vishvananda/netlink v1.1.1-0.20200915183220-339a215d6544
 	github.com/willf/bitset v1.1.11
 	go.uber.org/zap v1.15.0
 	golang.org/x/sys v0.0.0-20200828194041-157a740278f4

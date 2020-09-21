@@ -16,7 +16,11 @@ GO111MODULE=on
 KUBEBUILDER_ASSETS := $(PWD)/bin
 PROTOC := PATH=$(PWD)/bin:$(PATH) $(PWD)/bin/protoc -I=$(PWD)/include:.
 PODNSLIST = pod1 pod2 pod3
-export GO111MODULE KUBEBUILDER_ASSETS PODNSLIST
+NATNSLIST = nat-client nat-router nat-egress nat-target
+OTHERNSLIST = test-egress-dual test-egress-v4 test-egress-v6 \
+	test-client-dual test-client-v4 test-client-v6 test-client-custom \
+	test-fou-dual test-fou-v4 test-fou-v6
+export GO111MODULE KUBEBUILDER_ASSETS
 
 .PHONY: test
 test: test-tools
@@ -34,8 +38,18 @@ test-nodenet:
 	for i in $@ $(PODNSLIST); do $(SUDO) ip netns add $$i; done
 	for i in $@ $(PODNSLIST); do $(SUDO) ip netns exec $$i ip link set lo up; done
 	$(SUDO) ip netns exec $@ ./nodenet.test -test.v
-	#for i in $@ $(PODNSLIST); do $(SUDO) ip netns delete $$i; done
+	for i in $@ $(PODNSLIST); do $(SUDO) ip netns delete $$i; done
 	rm -f nodenet.test
+
+.PHONY: test-founat
+test-founat:
+	go test -c ./pkg/founat
+	for i in $(NATNSLIST) $(OTHERNSLIST); do $(SUDO) ip netns delete $$i 2>/dev/null || true; done
+	for i in $(NATNSLIST) $(OTHERNSLIST); do $(SUDO) ip netns add $$i; done
+	for i in $(NATNSLIST) $(OTHERNSLIST); do $(SUDO) ip netns exec $$i ip link set lo up; done
+	$(SUDO) ./founat.test -test.v
+	#for i in $(NATNSLIST) $(OTHERNSLIST); do $(SUDO) ip netns delete $$i; done
+	rm -f founat.test
 
 .PHONY: check-generate
 check-generate:
