@@ -43,6 +43,7 @@ var (
 )
 
 // NatClient represents the interface for NAT client
+// This can be re-initialized by calling `Init` again.
 type NatClient interface {
 	Init() error
 	AddEgress(link netlink.Link, subnets []*net.IPNet) error
@@ -104,8 +105,67 @@ func newRuleForClient(family, table, prio int) *netlink.Rule {
 	return r
 }
 
+func (c *natClient) clear(family int) error {
+	var defaultGW *net.IPNet
+	if family == netlink.FAMILY_V4 {
+		defaultGW = &net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: net.CIDRMask(0, 32)}
+	} else {
+		defaultGW = &net.IPNet{IP: net.ParseIP("::"), Mask: net.CIDRMask(0, 128)}
+	}
+
+	rules, err := netlink.RuleList(family)
+	if err != nil {
+		return fmt.Errorf("netlink: rule list failed: %w", err)
+	}
+	for _, r := range rules {
+		if r.Priority < 1800 || r.Priority > 2100 {
+			continue
+		}
+		if r.Dst == nil {
+			// workaround for a library issue
+			r.Dst = defaultGW
+		}
+		if err := netlink.RuleDel(&r); err != nil {
+			return fmt.Errorf("netlink: failed to delete a rule: %+v, %w", r, err)
+		}
+	}
+
+	routes, err := netlink.RouteListFiltered(family, &netlink.Route{Table: ncNarrowTableID}, netlink.RT_FILTER_TABLE)
+	if err != nil {
+		return fmt.Errorf("netlink: route list failed: %w", err)
+	}
+	for _, r := range routes {
+		if r.Dst == nil {
+			// workaround for a library issue
+			r.Dst = defaultGW
+		}
+		if err := netlink.RouteDel(&r); err != nil {
+			return fmt.Errorf("netlink: failed to delete a route in table %d: %+v, %w", ncNarrowTableID, r, err)
+		}
+	}
+
+	routes, err = netlink.RouteListFiltered(family, &netlink.Route{Table: ncWideTableID}, netlink.RT_FILTER_TABLE)
+	if err != nil {
+		return fmt.Errorf("netlink: route list failed: %w", err)
+	}
+	for _, r := range routes {
+		if r.Dst == nil {
+			// workaround for a library issue
+			r.Dst = defaultGW
+		}
+		if err := netlink.RouteDel(&r); err != nil {
+			return fmt.Errorf("netlink: failed to delete a route in table %d: %+v, %w", ncWideTableID, r, err)
+		}
+	}
+
+	return nil
+}
+
 func (c *natClient) Init() error {
 	if c.ipv4 {
+		if err := c.clear(netlink.FAMILY_V4); err != nil {
+			return err
+		}
 		linkLocalRule := newRuleForClient(netlink.FAMILY_V4, mainTableID, ncLinkLocalPrio)
 		linkLocalRule.Dst = v4LinkLocal
 		if err := netlink.RuleAdd(linkLocalRule); err != nil {
@@ -132,6 +192,9 @@ func (c *natClient) Init() error {
 	}
 
 	if c.ipv6 {
+		if err := c.clear(netlink.FAMILY_V6); err != nil {
+			return err
+		}
 		linkLocalRule := newRuleForClient(netlink.FAMILY_V6, mainTableID, ncLinkLocalPrio)
 		linkLocalRule.Dst = v6LinkLocal
 		if err := netlink.RuleAdd(linkLocalRule); err != nil {

@@ -171,6 +171,41 @@ func testClientDual(t *testing.T) {
 			return errors.New("failed to add ipv6 dst to table 118")
 		}
 
+		// NATClient can be re-initialized
+		if err := nc.Init(); err != nil {
+			return fmt.Errorf("failed to re-initialize NATClient: %w", err)
+		}
+
+		routes, err = netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Table: 117}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return err
+		}
+		if len(routes) != 0 {
+			return fmt.Errorf("routing table 117 should be cleared for IPv4: %v", routes)
+		}
+		routes, err = netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Table: 118}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return err
+		}
+		if len(routes) != 0 {
+			return fmt.Errorf("routing table 118 should be cleared for IPv4: %v", routes)
+		}
+
+		routes, err = netlink.RouteListFiltered(netlink.FAMILY_V6, &netlink.Route{Table: 117}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return err
+		}
+		if len(routes) != 0 {
+			return fmt.Errorf("routing table 117 should be cleared for IPv6: %v", routes)
+		}
+		routes, err = netlink.RouteListFiltered(netlink.FAMILY_V6, &netlink.Route{Table: 118}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return err
+		}
+		if len(routes) != 0 {
+			return fmt.Errorf("routing table 118 should be cleared for IPv6: %v", routes)
+		}
+
 		return nil
 	})
 	if err != nil {
