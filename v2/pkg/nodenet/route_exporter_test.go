@@ -42,9 +42,6 @@ func TestRouteExporter(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("need root privilege")
 	}
-	if os.Getenv("CIRCLECI") == "true" {
-		t.Skip("could not run on CircleCI")
-	}
 
 	_, n1, _ := net.ParseCIDR("10.2.0.0/27")
 	_, n2, _ := net.ParseCIDR("10.3.0.0/31")

@@ -14,6 +14,7 @@ type RouteExporter interface {
 	Sync([]*net.IPNet) error
 }
 
+// NewRouteExporter creates a new RouteExporter
 func NewRouteExporter(tableId, protocolId int, log logr.Logger) RouteExporter {
 	return &routeExporter{
 		tableId:    tableId,

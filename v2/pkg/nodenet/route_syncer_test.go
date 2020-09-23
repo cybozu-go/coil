@@ -95,9 +95,6 @@ func TestRouteSyncer(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("need root privilege")
 	}
-	if os.Getenv("CIRCLECI") == "true" {
-		t.Skip("could not run on CircleCI")
-	}
 
 	setupFake(t)
 

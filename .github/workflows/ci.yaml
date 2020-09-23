@@ -32,6 +32,8 @@ jobs:
       - run: make test
       - run: make test-nodenet
         timeout-minutes: 10
+      - run: make test-founat
+        timeout-minutes: 10
       - run: make check-generate
   e2e:
     name: End-to-end Test
