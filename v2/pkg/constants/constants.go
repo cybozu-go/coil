@@ -9,6 +9,10 @@ const (
 const (
 	LabelPool = "coil.cybozu.com/pool"
 	LabelNode = "coil.cybozu.com/node"
+
+	LabelAppName      = "app.kubernetes.io/name"
+	LabelAppInstance  = "app.kubernetes.io/instance"
+	LabelAppComponent = "app.kubernetes.io/component"
 )
 
 // Index keys
@@ -30,7 +34,10 @@ const (
 
 // Environment variables
 const (
-	EnvNode = "COIL_NODE_NAME"
+	EnvNode         = "COIL_NODE_NAME"
+	EnvAddresses    = "COIL_POD_ADDRESSES"
+	EnvPodNamespace = "COIL_POD_NAMESPACE"
+	EnvPodName      = "COIL_POD_NAME"
 )
 
 // MetricsNS is the namespace for Prometheus metrics

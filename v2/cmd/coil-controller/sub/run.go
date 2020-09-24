@@ -4,17 +4,20 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"time"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/controllers"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
 	"github.com/cybozu-go/coil/v2/runners"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -67,6 +70,8 @@ func subMain() error {
 		return err
 	}
 
+	// register controllers
+
 	pm := ipam.NewPoolManager(mgr.GetClient(), ctrl.Log.WithName("pool-manager"), scheme)
 	apctrl := controllers.AddressPoolReconciler{
 		Client:  mgr.GetClient(),
@@ -91,15 +96,24 @@ func subMain() error {
 		return err
 	}
 
-	// TODO: Egress controller is not fully implemented
+	podNS := os.Getenv(constants.EnvPodNamespace)
+	podName := os.Getenv(constants.EnvPodName)
+	img, err := controllers.GetImage(mgr.GetAPIReader(), client.ObjectKey{Namespace: podNS, Name: podName})
+	if err != nil {
+		return err
+	}
 	egressctrl := controllers.EgressReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("egress-reconciler"),
 		Scheme: scheme,
+		Image:  img,
+		Port:   config.egressPort,
 	}
 	if err := egressctrl.SetupWithManager(mgr); err != nil {
 		return err
 	}
+
+	// register webhooks
 
 	if err := (&coilv2.AddressPool{}).SetupWebhookWithManager(mgr); err != nil {
 		return err
@@ -107,6 +121,8 @@ func subMain() error {
 	if err := (&coilv2.Egress{}).SetupWebhookWithManager(mgr); err != nil {
 		return err
 	}
+
+	// other runners
 
 	gc := runners.NewGarbageCollector(mgr, ctrl.Log.WithName("gc"), config.gcInterval)
 	if err := mgr.Add(gc); err != nil {
