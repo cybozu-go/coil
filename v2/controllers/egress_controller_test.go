@@ -121,6 +121,21 @@ var _ = Describe("Egress reconciler", func() {
 		Expect(svc.Spec.Ports[0].Port).Should(Equal(int32(5555)))
 		Expect(svc.Spec.Ports[0].Protocol).Should(Equal(corev1.ProtocolUDP))
 		Expect(svc.Spec.SessionAffinity).Should(Equal(corev1.ServiceAffinityClientIP))
+
+		By("checking status")
+		Eventually(func() error {
+			eg := &coilv2.Egress{}
+			err := k8sClient.Get(ctx, client.ObjectKey{Namespace: "default", Name: "eg1"}, eg)
+			if err != nil {
+				return err
+			}
+
+			if eg.Status.Selector == "" {
+				return errors.New("status is not updated")
+			}
+
+			return nil
+		}).Should(Succeed())
 	})
 
 	It("should allow customization of Deployment", func() {
@@ -330,5 +345,42 @@ var _ = Describe("Egress reconciler", func() {
 		Expect(cfg.ClientIP).NotTo(BeNil())
 		Expect(cfg.ClientIP.TimeoutSeconds).NotTo(BeNil())
 		Expect(*cfg.ClientIP.TimeoutSeconds).To(Equal(int32(100)))
+	})
+
+	It("should reconcile resources soon", func() {
+		By("creating an Egress")
+		eg := makeEgress("eg4")
+		err := k8sClient.Create(ctx, eg)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		By("checking Deployment and Service")
+		var depl *appsv1.Deployment
+		var svc *corev1.Service
+		Eventually(func() error {
+			depl = &appsv1.Deployment{}
+			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, depl)
+		}).Should(Succeed())
+		Eventually(func() error {
+			svc = &corev1.Service{}
+			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, svc)
+		}).Should(Succeed())
+
+		By("deleting deployment")
+		err = k8sClient.Delete(ctx, depl)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		By("checking deployment recreation")
+		Eventually(func() error {
+			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, &appsv1.Deployment{})
+		}, 3).Should(Succeed())
+
+		By("deleting service")
+		err = k8sClient.Delete(ctx, svc)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		By("checking service recreation")
+		Eventually(func() error {
+			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, &corev1.Service{})
+		}, 3).Should(Succeed())
 	})
 })
