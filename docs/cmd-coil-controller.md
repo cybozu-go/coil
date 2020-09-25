@@ -27,6 +27,7 @@ address blocks from the requested pool.
 ```
 Flags:
       --cert-dir string        directory to locate TLS certs for webhook (default "/certs")
+      --egress-port int32      UDP port number used by coil-egress (default 5555)
       --gc-interval duration   garbage collection interval (default 1h0m0s)
       --health-addr string     bind address of health/readiness probes (default ":9387")
   -h, --help                   help for coil-controller

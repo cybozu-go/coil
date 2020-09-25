@@ -15,6 +15,7 @@ var config struct {
 	webhookAddr string
 	certDir     string
 	gcInterval  time.Duration
+	egressPort  int32
 }
 
 var rootCmd = &cobra.Command{
@@ -44,4 +45,5 @@ func init() {
 	pf.StringVar(&config.webhookAddr, "webhook-addr", ":9443", "bind address of admission webhook")
 	pf.StringVar(&config.certDir, "cert-dir", "/certs", "directory to locate TLS certs for webhook")
 	pf.DurationVar(&config.gcInterval, "gc-interval", 1*time.Hour, "garbage collection interval")
+	pf.Int32Var(&config.egressPort, "egress-port", 5555, "UDP port number used by coil-egress")
 }
