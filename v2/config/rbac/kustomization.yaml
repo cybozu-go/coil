@@ -7,6 +7,6 @@ resources:
 - leader_election_role.yaml
 - leader_election_role_binding.yaml
 - addressblock_viewer_role.yaml
-- addresspool_editor_role.yaml
 - addresspool_viewer_role.yaml
 - blockrequest_viewer_role.yaml
+- egress_viewer_role.yaml
