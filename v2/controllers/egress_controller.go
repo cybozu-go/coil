@@ -116,14 +116,32 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	if len(egressContainer.Command) == 0 {
 		egressContainer.Command = []string{"coil-egress"}
 	}
-	egressContainer.Env = append(egressContainer.Env, corev1.EnvVar{
-		Name: constants.EnvAddresses,
-		ValueFrom: &corev1.EnvVarSource{
-			FieldRef: &corev1.ObjectFieldSelector{
-				FieldPath: "status.podIPs",
+	egressContainer.Env = append(egressContainer.Env,
+		corev1.EnvVar{
+			Name: constants.EnvPodNamespace,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.namespace",
+				},
 			},
 		},
-	})
+		corev1.EnvVar{
+			Name: constants.EnvPodName,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+		corev1.EnvVar{
+			Name: constants.EnvAddresses,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "status.podIPs",
+				},
+			},
+		},
+	)
 	egressContainer.SecurityContext = &corev1.SecurityContext{
 		Capabilities: &corev1.Capabilities{Add: []corev1.Capability{"NET_ADMIN"}},
 	}

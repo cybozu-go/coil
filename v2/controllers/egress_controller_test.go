@@ -106,7 +106,7 @@ var _ = Describe("Egress reconciler", func() {
 		Expect(egressContainer).NotTo(BeNil())
 		Expect(egressContainer.Image).To(Equal("coil:dev"))
 		Expect(egressContainer.Command).To(Equal([]string{"coil-egress"}))
-		Expect(egressContainer.Env).To(HaveLen(1))
+		Expect(egressContainer.Env).To(HaveLen(3))
 		Expect(egressContainer.Resources.Requests).To(HaveKey(corev1.ResourceCPU))
 		Expect(egressContainer.Resources.Requests).To(HaveKey(corev1.ResourceMemory))
 		Expect(egressContainer.Ports).To(HaveLen(2))
@@ -277,7 +277,7 @@ var _ = Describe("Egress reconciler", func() {
 		egressContainer = &depl.Spec.Template.Spec.Containers[0]
 		Expect(egressContainer.Image).To(Equal("mycoil"))
 		Expect(egressContainer.Command).To(Equal([]string{"coil-egress"}))
-		Expect(egressContainer.Env).To(HaveLen(1))
+		Expect(egressContainer.Env).To(HaveLen(3))
 		Expect(egressContainer.Resources.Requests).To(HaveKey(corev1.ResourceCPU))
 		res := egressContainer.Resources.Requests[corev1.ResourceCPU]
 		Expect(res.Equal(resource.MustParse("2"))).To(BeTrue())
