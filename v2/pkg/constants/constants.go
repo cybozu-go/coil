@@ -2,7 +2,8 @@ package constants
 
 // annotation keys
 const (
-	AnnPool = "coil.cybozu.com/pool"
+	AnnPool         = "coil.cybozu.com/pool"
+	AnnEgressPrefix = "egress.coil.cybozu.com/"
 )
 
 // Label keys

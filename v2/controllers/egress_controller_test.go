@@ -201,7 +201,7 @@ var _ = Describe("Egress reconciler", func() {
 				return errors.New("deployment has not been updated")
 			}
 			return nil
-		}, 3).Should(Succeed())
+		}).Should(Succeed())
 
 		Expect(depl.Spec.Strategy.Type).To(Equal(appsv1.RollingUpdateDeploymentStrategyType))
 		Expect(depl.Spec.Strategy.RollingUpdate).NotTo(BeNil())
@@ -267,7 +267,7 @@ var _ = Describe("Egress reconciler", func() {
 				return errors.New("deployment has not been updated")
 			}
 			return nil
-		}, 3).Should(Succeed())
+		}).Should(Succeed())
 
 		Expect(depl.Spec.Template.Annotations).NotTo(HaveKey("ann1"))
 		Expect(depl.Spec.Template.Labels).NotTo(HaveKey("foo"))
@@ -338,7 +338,7 @@ var _ = Describe("Egress reconciler", func() {
 				return errors.New("service has not been updated")
 			}
 			return nil
-		}, 3).Should(Succeed())
+		}).Should(Succeed())
 
 		Expect(svc.Spec.SessionAffinityConfig).NotTo(BeNil())
 		cfg := svc.Spec.SessionAffinityConfig
@@ -372,7 +372,7 @@ var _ = Describe("Egress reconciler", func() {
 		By("checking deployment recreation")
 		Eventually(func() error {
 			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, &appsv1.Deployment{})
-		}, 3).Should(Succeed())
+		}).Should(Succeed())
 
 		By("deleting service")
 		err = k8sClient.Delete(ctx, svc)
@@ -381,6 +381,6 @@ var _ = Describe("Egress reconciler", func() {
 		By("checking service recreation")
 		Eventually(func() error {
 			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, &corev1.Service{})
-		}, 3).Should(Succeed())
+		}).Should(Succeed())
 	})
 })
