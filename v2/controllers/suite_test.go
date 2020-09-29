@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -93,6 +94,24 @@ var _ = BeforeSuite(func(done Done) {
 	node1 := &corev1.Node{}
 	node1.Name = "node1"
 	err = k8sClient.Create(ctx, node1)
+	Expect(err).ToNot(HaveOccurred())
+
+	cr := &rbacv1.ClusterRole{}
+	cr.Name = "coil-egress"
+	err = k8sClient.Create(ctx, cr)
+	Expect(err).ToNot(HaveOccurred())
+
+	crb := &rbacv1.ClusterRoleBinding{}
+	crb.Name = "coil-egress"
+	crb.RoleRef.APIGroup = rbacv1.SchemeGroupVersion.Group
+	crb.RoleRef.Kind = "ClusterRole"
+	crb.RoleRef.Name = "coil-egress"
+	err = k8sClient.Create(ctx, crb)
+	Expect(err).ToNot(HaveOccurred())
+
+	ns := &corev1.Namespace{}
+	ns.Name = "egtest"
+	err = k8sClient.Create(ctx, ns)
 	Expect(err).ToNot(HaveOccurred())
 
 	close(done)

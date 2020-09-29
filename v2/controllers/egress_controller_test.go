@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -38,6 +39,7 @@ var _ = Describe("Egress reconciler", func() {
 			MetricsBindAddress: "0",
 		})
 		Expect(err).ToNot(HaveOccurred())
+
 		egr := &EgressReconciler{
 			Client: mgr.GetClient(),
 			Log:    ctrl.Log.WithName("Egress reconciler"),
@@ -46,6 +48,9 @@ var _ = Describe("Egress reconciler", func() {
 			Port:   5555,
 		}
 		err = egr.SetupWithManager(mgr)
+		Expect(err).ToNot(HaveOccurred())
+
+		err = SetupCRBReconciler(mgr)
 		Expect(err).ToNot(HaveOccurred())
 
 		stopCh = make(chan struct{})
@@ -63,13 +68,13 @@ var _ = Describe("Egress reconciler", func() {
 		time.Sleep(10 * time.Millisecond)
 	})
 
-	It("should create Deployment and Service", func() {
+	It("should create Deployment, Service, and ServiceAccount", func() {
 		By("creating an Egress")
 		eg := makeEgress("eg1")
 		err := k8sClient.Create(ctx, eg)
 		Expect(err).ShouldNot(HaveOccurred())
 
-		By("checking Deployment and Service")
+		By("checking Deployment, Service, and ServiceAccount")
 		var depl *appsv1.Deployment
 		var svc *corev1.Service
 		Eventually(func() error {
@@ -79,6 +84,10 @@ var _ = Describe("Egress reconciler", func() {
 		Eventually(func() error {
 			svc = &corev1.Service{}
 			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, svc)
+		}).Should(Succeed())
+		Eventually(func() error {
+			sa := &corev1.ServiceAccount{}
+			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: "coil-egress"}, sa)
 		}).Should(Succeed())
 
 		// serializer := k8sjson.NewSerializerWithOptions(k8sjson.DefaultMetaFactory, scheme, scheme,
@@ -382,5 +391,72 @@ var _ = Describe("Egress reconciler", func() {
 		Eventually(func() error {
 			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, &corev1.Service{})
 		}).Should(Succeed())
+	})
+
+	It("should reconcile ClusterRoleBindings", func() {
+		By("checking coil-egress ClusterRoleBinding")
+		var crb *rbacv1.ClusterRoleBinding
+		Eventually(func() int {
+			crb = &rbacv1.ClusterRoleBinding{}
+			err := k8sClient.Get(ctx, client.ObjectKey{Name: "coil-egress"}, crb)
+			if err != nil {
+				return 0
+			}
+			return len(crb.Subjects)
+		}).Should(Equal(1))
+
+		Expect(crb.RoleRef.Name).To(Equal("coil-egress"))
+		Expect(crb.RoleRef.Kind).To(Equal("ClusterRole"))
+
+		By("creating another egress on namespace egtest")
+		eg := makeEgress("eg5")
+		eg.Namespace = "egtest"
+		err := k8sClient.Create(ctx, eg)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		By("checking coil-egress ClusterRoleBinding again")
+		Eventually(func() int {
+			crb = &rbacv1.ClusterRoleBinding{}
+			err := k8sClient.Get(ctx, client.ObjectKey{Name: "coil-egress"}, crb)
+			if err != nil {
+				return 0
+			}
+			return len(crb.Subjects)
+		}).Should(Equal(2))
+
+		saNS := make(map[string]bool)
+		for _, s := range crb.Subjects {
+			Expect(s.Kind).To(Equal("ServiceAccount"))
+			Expect(s.Name).To(Equal("coil-egress"))
+			saNS[s.Namespace] = true
+		}
+
+		Expect(saNS).To(HaveKey("default"))
+		Expect(saNS).To(HaveKey("egtest"))
+
+		By("creating psp-coil-egress ClusterRoleBinding")
+		pspCRB := &rbacv1.ClusterRoleBinding{}
+		pspCRB.Name = "psp-coil-egress"
+		pspCRB.RoleRef = crb.RoleRef
+		err = k8sClient.Create(ctx, pspCRB)
+
+		By("checking psp-coil-egress reconciliation result")
+		// this is done by crbReconciler
+		Eventually(func() int {
+			pspCRB = &rbacv1.ClusterRoleBinding{}
+			err = k8sClient.Get(ctx, client.ObjectKey{Name: "psp-coil-egress"}, pspCRB)
+			if err != nil {
+				return 0
+			}
+			return len(pspCRB.Subjects)
+		}).Should(Equal(2))
+
+		saNS = make(map[string]bool)
+		for _, s := range pspCRB.Subjects {
+			saNS[s.Namespace] = true
+		}
+
+		Expect(saNS).To(HaveKey("default"))
+		Expect(saNS).To(HaveKey("egtest"))
 	})
 })

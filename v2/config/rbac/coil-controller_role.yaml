@@ -22,6 +22,7 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - serviceaccounts
   - services
   verbs:
   - create
@@ -82,12 +83,8 @@ rules:
   resources:
   - egresses
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - coil.cybozu.com
@@ -97,3 +94,13 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
