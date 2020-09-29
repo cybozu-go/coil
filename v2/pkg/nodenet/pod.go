@@ -25,6 +25,9 @@ var (
 	defaultGWv6 = &net.IPNet{IP: net.ParseIP("::"), Mask: net.CIDRMask(0, 128)}
 )
 
+// SetupHook is a signature of hook function for PodNetwork.Setup
+type SetupHook func(ipv4, ipv6 net.IP) error
+
 // PodNetConf holds configuration parameters for a Pod network
 type PodNetConf struct {
 	PoolName    string
@@ -40,8 +43,9 @@ type PodNetwork interface {
 	Init() error
 
 	// Setup connects the host network and the container network with a veth pair.
-	// nsPath is the container network namespace's (possibly bind-mounted) file.
-	Setup(nsPath, podName, podNS string, conf *PodNetConf) (*current.Result, error)
+	// `nsPath` is the container network namespace's (possibly bind-mounted) file.
+	// If `hook` is non-nil, it is called in the Pod network.
+	Setup(nsPath, podName, podNS string, conf *PodNetConf, hook SetupHook) (*current.Result, error)
 
 	// Check checks the pod network's status.
 	Check(containerId, iface string) error
@@ -126,7 +130,7 @@ func (pn *podNetwork) Init() error {
 	return nil
 }
 
-func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf) (*current.Result, error) {
+func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hook SetupHook) (*current.Result, error) {
 	pn.mu.Lock()
 	defer pn.mu.Unlock()
 
@@ -319,6 +323,10 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf) (*c
 			if err != nil {
 				return fmt.Errorf("netlink: failed to add default gw %s: %w", hostIPv6.String(), err)
 			}
+		}
+
+		if hook != nil {
+			return hook(conf.IPv4, conf.IPv6)
 		}
 		return nil
 	})

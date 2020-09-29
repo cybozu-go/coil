@@ -16,6 +16,7 @@ var config struct {
 	protocolId   int
 	socketPath   string
 	compatCalico bool
+	egressPort   int
 }
 
 var rootCmd = &cobra.Command{
@@ -49,4 +50,5 @@ func init() {
 	pf.IntVar(&config.protocolId, "protocol-id", 30, "route author ID")
 	pf.StringVar(&config.socketPath, "socket", constants.DefaultSocketPath, "UNIX domain socket path")
 	pf.BoolVar(&config.compatCalico, "compat-calico", false, "make veth name compatible with Calico")
+	pf.IntVar(&config.egressPort, "egress-port", 5555, "UDP port number for egress NAT")
 }

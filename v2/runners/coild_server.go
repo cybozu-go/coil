@@ -3,11 +3,15 @@ package runners
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
+	"strings"
 
+	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
+	"github.com/cybozu-go/coil/v2/pkg/founat"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
 	"github.com/cybozu-go/coil/v2/pkg/nodenet"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -28,20 +32,74 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
+// GWNets represents networks for a destination.
+type GWNets struct {
+	Gateway  net.IP
+	Networks []*net.IPNet
+}
+
+// NATSetup represents a NAT setup function for Pods.
+type NATSetup interface {
+	Hook([]GWNets, *zap.Logger) func(ipv4, ipv6 net.IP) error
+}
+
+// NewNATSetup creates a NATSetup using founat package.
+// `port` is the UDP port number to accept Foo-over-UDP packets.
+func NewNATSetup(port int) NATSetup {
+	return natSetup{port: port}
+}
+
+type natSetup struct {
+	port int
+}
+
+func (n natSetup) Hook(l []GWNets, log *zap.Logger) func(ipv4, ipv6 net.IP) error {
+	return func(ipv4, ipv6 net.IP) error {
+		ft := founat.NewFoUTunnel(n.port, ipv4, ipv6)
+		if err := ft.Init(); err != nil {
+			return err
+		}
+
+		cl := founat.NewNatClient(ipv4, ipv6, nil)
+		if err := cl.Init(); err != nil {
+			return err
+		}
+
+		for _, gwn := range l {
+			link, err := ft.AddPeer(gwn.Gateway)
+			if errors.Is(err, founat.ErrIPFamilyMismatch) {
+				// ignore unsupported IP family link
+				log.Sugar().Infow("ignored unsupported gateway", "gw", gwn.Gateway)
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			if err := cl.AddEgress(link, gwn.Networks); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
 // NewCoildServer returns an implementation of cnirpc.CNIServer for coild.
-func NewCoildServer(l net.Listener, mgr manager.Manager, nodeIPAM ipam.NodeIPAM, podNet nodenet.PodNetwork, logger *zap.Logger) manager.Runnable {
+func NewCoildServer(l net.Listener, mgr manager.Manager, nodeIPAM ipam.NodeIPAM, podNet nodenet.PodNetwork, setup NATSetup, logger *zap.Logger) manager.Runnable {
 	return &coildServer{
 		listener:  l,
 		apiReader: mgr.GetAPIReader(),
 		client:    mgr.GetClient(),
 		nodeIPAM:  nodeIPAM,
 		podNet:    podNet,
+		natSetup:  setup,
 		logger:    logger,
 	}
 }
 
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get
-// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=namespaces;services,verbs=get;list;watch
+// +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses,verbs=get;list;watch
 
 var grpcMetrics = grpc_prometheus.NewServerMetrics()
 
@@ -57,6 +115,7 @@ type coildServer struct {
 	client    client.Client
 	nodeIPAM  ipam.NodeIPAM
 	podNet    nodenet.PodNetwork
+	natSetup  NATSetup
 	logger    *zap.Logger
 }
 
@@ -163,13 +222,22 @@ func (s *coildServer) Add(ctx context.Context, args *cnirpc.CNIArgs) (*cnirpc.Ad
 		return nil, newInternalError(err, "failed to allocate address")
 	}
 
+	hook, err := s.getHook(ctx, pod)
+	if err != nil {
+		logger.Sugar().Errorw("failed to setup NAT hook", "error", err)
+		return nil, newInternalError(err, "failed to setup NAT hook")
+	}
+	if hook != nil {
+		logger.Sugar().Info("enabling NAT")
+	}
+
 	result, err := s.podNet.Setup(args.Netns, podName, podNS, &nodenet.PodNetConf{
 		ContainerId: args.ContainerId,
 		IFace:       args.Ifname,
 		IPv4:        ipv4,
 		IPv6:        ipv6,
 		PoolName:    poolName,
-	})
+	}, hook)
 	if err != nil {
 		if err := s.nodeIPAM.Free(ctx, args.ContainerId, args.Ifname); err != nil {
 			logger.Sugar().Warnw("failed to deallocate address", "error", err)
@@ -215,4 +283,85 @@ func (s *coildServer) Check(ctx context.Context, args *cnirpc.CNIArgs) (*empty.E
 		return nil, newInternalError(err, "check failed")
 	}
 	return &empty.Empty{}, nil
+}
+
+func (s *coildServer) getHook(ctx context.Context, pod *corev1.Pod) (nodenet.SetupHook, error) {
+	logger := ctxzap.Extract(ctx)
+
+	if pod.Spec.HostNetwork {
+		// pods running in the host network cannot use egress NAT.
+		// In fact, such a pod won't call CNI, so this is just a safeguard.
+		return nil, nil
+	}
+
+	var egNames []client.ObjectKey
+
+	for k, v := range pod.Annotations {
+		if !strings.HasPrefix(k, constants.AnnEgressPrefix) {
+			continue
+		}
+
+		ns := k[len(constants.AnnEgressPrefix):]
+		for _, name := range strings.Split(v, ",") {
+			egNames = append(egNames, client.ObjectKey{Namespace: ns, Name: name})
+		}
+	}
+	if len(egNames) == 0 {
+		return nil, nil
+	}
+
+	var gwlist []GWNets
+	for _, n := range egNames {
+		eg := &coilv2.Egress{}
+		svc := &corev1.Service{}
+
+		if err := s.client.Get(ctx, n, eg); err != nil {
+			return nil, newError(codes.FailedPrecondition, cnirpc.ErrorCode_INTERNAL,
+				"failed to get Egress "+n.String(), err.Error())
+		}
+		if err := s.client.Get(ctx, n, svc); err != nil {
+			return nil, newError(codes.FailedPrecondition, cnirpc.ErrorCode_INTERNAL,
+				"failed to get Service "+n.String(), err.Error())
+		}
+
+		// as of k8s 1.19, dual stack Service is alpha and will be re-written
+		// in 1.20.  So, we cannot use dual stack services.
+		svcIP := net.ParseIP(svc.Spec.ClusterIP)
+		if svcIP == nil {
+			return nil, newError(codes.Internal, cnirpc.ErrorCode_INTERNAL,
+				"invalid ClusterIP in Service "+n.String(), svc.Spec.ClusterIP)
+		}
+		var subnets []*net.IPNet
+		if ip4 := svcIP.To4(); ip4 != nil {
+			svcIP = ip4
+			for _, sn := range eg.Spec.Destinations {
+				_, subnet, err := net.ParseCIDR(sn)
+				if err != nil {
+					return nil, newInternalError(err, "invalid network in Egress "+n.String())
+				}
+				if subnet.IP.To4() != nil {
+					subnets = append(subnets, subnet)
+				}
+			}
+		} else {
+			for _, sn := range eg.Spec.Destinations {
+				_, subnet, err := net.ParseCIDR(sn)
+				if err != nil {
+					return nil, newInternalError(err, "invalid network in Egress "+n.String())
+				}
+				if subnet.IP.To4() == nil {
+					subnets = append(subnets, subnet)
+				}
+			}
+		}
+
+		if len(subnets) > 0 {
+			gwlist = append(gwlist, GWNets{Gateway: svcIP, Networks: subnets})
+		}
+	}
+
+	if len(gwlist) > 0 {
+		return s.natSetup.Hook(gwlist, logger), nil
+	}
+	return nil, nil
 }

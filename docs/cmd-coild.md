@@ -43,6 +43,7 @@ Calico needs to be configured to set [`FELIX_INTERFACEPREFIX`](https://github.co
 ```
 Flags:
       --compat-calico         make veth name compatible with Calico
+      --egress-port int       UDP port number for egress NAT (default 5555)
       --health-addr string    bind address of health/readiness probes (default ":9385")
   -h, --help                  help for coild
       --metrics-addr string   bind address of metrics endpoint (default ":9384")
