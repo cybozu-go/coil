@@ -113,6 +113,10 @@ func subMain() error {
 		return err
 	}
 
+	if err := controllers.SetupCRBReconciler(mgr); err != nil {
+		return err
+	}
+
 	// register webhooks
 
 	if err := (&coilv2.AddressPool{}).SetupWebhookWithManager(mgr); err != nil {

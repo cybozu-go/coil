@@ -16,7 +16,10 @@ address blocks from the requested pool.
 
 ## Egress
 
-`coil-controller` creates Deployment and Service for each Egress.
+`coil-controller` creates **Deployment** and **Service** for each Egress.
+
+It also creates `coil-egress` **ServiceAccount** in the namespace of Egress,
+and binds it to the **ClusterRoles** for `coil-egress`.
 
 ## Garbage collection
 

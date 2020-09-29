@@ -201,6 +201,8 @@ To send an FoU encapsulated packet to an external network `11.22.33.0/24` via th
 
 To receive an FoU packet, the packet needs to be delivered to the port 5555.  The kernel then strips FoU header from the packet and try to find a matching IPIP link because of `ipproto 4`.  If no matching IPIP link is found, the packet will be dropped.  If found, the encapsulated body of the packet will be processed.
 
+For tunneling IPv6 packets over IPv6, the protocol number needs to be changed from `4` to `41` and the link type from `ipip` to `ip6tnl` with `mode ip6ip6`.
+
 ### Bidirectional tunneling
 
 The transmission between client pods and the SNAT router needs to be bidirectional because otherwise packets returning from the external network via SNAT router to the client may not reach the final destination for the following reasons.
@@ -246,14 +248,17 @@ On-demand NAT for egress traffics is implemented with a CRD called `Egress`.
 
 In each router pod, `coil-egress` runs to maintain FoU tunnels connected to its client pods.
 
-For client pods, a special annotation `coil.cybozu.com/egress` tells Coil to setup FoU tunnels for the given `Egress` networks.  The annotation value is a comma-separated list of _namespace/name_ pair of `Egress` resources.
+For client pods, a special annotation `coil.cybozu.com/egress` tells Coil to setup FoU tunnels for the given `Egress` networks.
+The annotation key is `egress.coil.cybozu.com/NAMESPACE`, where `NAMESPACE` is the namespace of `Egress`.
+The annotation value is a comma-separated list `Egress` names.
 
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    coil.cybozu.com/egress: internet-egress/internet,foo/bar
+    egress.coil.cybozu.com/internet: egress
+    egress.coil.cybozu.com/other-net: egress
 ```
 
 An `Egress` has a list of external network addresses.  Client pods that want to send packets to these networks should include the `Egress` name in the annotation.

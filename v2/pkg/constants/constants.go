@@ -2,7 +2,8 @@ package constants
 
 // annotation keys
 const (
-	AnnPool = "coil.cybozu.com/pool"
+	AnnPool         = "coil.cybozu.com/pool"
+	AnnEgressPrefix = "egress.coil.cybozu.com/"
 )
 
 // Label keys
@@ -30,6 +31,18 @@ const (
 	PodNameKey      = "K8S_POD_NAME"
 	PodNamespaceKey = "K8S_POD_NAMESPACE"
 	PodContainerKey = "K8S_POD_INFRA_CONTAINER_ID"
+)
+
+// RBAC resource names
+const (
+	// SAEgress is the name of the ServiceAccount for coil-egress
+	SAEgress = "coil-egress"
+
+	// CRBEgress is the name of the ClusterRoleBinding for coil-egress
+	CRBEgress = "coil-egress"
+
+	// CRBEgressPSP is the name of the ClusterRoleBinding for coil-egress PSP.
+	CRBEgressPSP = "psp-coil-egress"
 )
 
 // Environment variables

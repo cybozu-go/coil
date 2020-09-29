@@ -27,9 +27,9 @@ type EgressReconciler struct {
 	Port   int32
 }
 
-// +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses,verbs=get;list;watch
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups="",resources=services;serviceaccounts,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch
 
 // Reconcile implements Reconciler interface.
@@ -50,6 +50,24 @@ func (r *EgressReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
+	if err := r.reconcileServiceAccount(ctx, log, req.Namespace); err != nil {
+		log.Error(err, "failed to reconcile service account")
+		return ctrl.Result{}, err
+	}
+
+	log1 := log.WithValues("clusterrolebinding", constants.CRBEgress)
+	if err := reconcileCRB(ctx, r.Client, log1, constants.CRBEgress); err != nil {
+		log1.Error(err, "failed to reconcile cluster role binding")
+		return ctrl.Result{}, err
+	}
+
+	log2 := log.WithValues("clusterrolebinding", constants.CRBEgressPSP)
+	if err := reconcileCRB(ctx, r.Client, log2, constants.CRBEgressPSP); err != nil {
+		log2.Error(err, "failed to reconcile cluster role binding",
+			"ClusterRoleBinding", constants.CRBEgressPSP)
+		return ctrl.Result{}, err
+	}
+
 	if err := r.reconcileDeployment(ctx, log, eg); err != nil {
 		log.Error(err, "failed to reconcile deployment")
 		return ctrl.Result{}, err
@@ -66,6 +84,21 @@ func (r *EgressReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *EgressReconciler) reconcileServiceAccount(ctx context.Context, log logr.Logger, ns string) error {
+	sa := &corev1.ServiceAccount{}
+	err := r.Get(ctx, client.ObjectKey{Namespace: ns, Name: constants.SAEgress}, sa)
+	if err == nil {
+		return nil
+	}
+	if apierrors.IsNotFound(err) {
+		sa.Namespace = ns
+		sa.Name = constants.SAEgress
+		log.Info("creating service account for egress")
+		return r.Create(ctx, sa)
+	}
+	return err
 }
 
 func selectorLabels(name string) map[string]string {
@@ -96,7 +129,7 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 		target.Labels[k] = v
 	}
 
-	podSpec.ServiceAccountName = "coil-egress"
+	podSpec.ServiceAccountName = constants.SAEgress
 
 	var egressContainer *corev1.Container
 	for i := range podSpec.Containers {
@@ -116,14 +149,32 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	if len(egressContainer.Command) == 0 {
 		egressContainer.Command = []string{"coil-egress"}
 	}
-	egressContainer.Env = append(egressContainer.Env, corev1.EnvVar{
-		Name: constants.EnvAddresses,
-		ValueFrom: &corev1.EnvVarSource{
-			FieldRef: &corev1.ObjectFieldSelector{
-				FieldPath: "status.podIPs",
+	egressContainer.Env = append(egressContainer.Env,
+		corev1.EnvVar{
+			Name: constants.EnvPodNamespace,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.namespace",
+				},
 			},
 		},
-	})
+		corev1.EnvVar{
+			Name: constants.EnvPodName,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+		corev1.EnvVar{
+			Name: constants.EnvAddresses,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "status.podIPs",
+				},
+			},
+		},
+	)
 	egressContainer.SecurityContext = &corev1.SecurityContext{
 		Capabilities: &corev1.Capabilities{Add: []corev1.Capability{"NET_ADMIN"}},
 	}

@@ -3,10 +3,11 @@ resources:
 - coil-controller_role.yaml
 - coil-router_role.yaml
 - coild_role.yaml
+- coil-egress_role.yaml
 - role_binding.yaml
 - leader_election_role.yaml
 - leader_election_role_binding.yaml
 - addressblock_viewer_role.yaml
-- addresspool_editor_role.yaml
 - addresspool_viewer_role.yaml
 - blockrequest_viewer_role.yaml
+- egress_viewer_role.yaml

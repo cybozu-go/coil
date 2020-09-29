@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -38,6 +39,7 @@ var _ = Describe("Egress reconciler", func() {
 			MetricsBindAddress: "0",
 		})
 		Expect(err).ToNot(HaveOccurred())
+
 		egr := &EgressReconciler{
 			Client: mgr.GetClient(),
 			Log:    ctrl.Log.WithName("Egress reconciler"),
@@ -46,6 +48,9 @@ var _ = Describe("Egress reconciler", func() {
 			Port:   5555,
 		}
 		err = egr.SetupWithManager(mgr)
+		Expect(err).ToNot(HaveOccurred())
+
+		err = SetupCRBReconciler(mgr)
 		Expect(err).ToNot(HaveOccurred())
 
 		stopCh = make(chan struct{})
@@ -63,13 +68,13 @@ var _ = Describe("Egress reconciler", func() {
 		time.Sleep(10 * time.Millisecond)
 	})
 
-	It("should create Deployment and Service", func() {
+	It("should create Deployment, Service, and ServiceAccount", func() {
 		By("creating an Egress")
 		eg := makeEgress("eg1")
 		err := k8sClient.Create(ctx, eg)
 		Expect(err).ShouldNot(HaveOccurred())
 
-		By("checking Deployment and Service")
+		By("checking Deployment, Service, and ServiceAccount")
 		var depl *appsv1.Deployment
 		var svc *corev1.Service
 		Eventually(func() error {
@@ -79,6 +84,10 @@ var _ = Describe("Egress reconciler", func() {
 		Eventually(func() error {
 			svc = &corev1.Service{}
 			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, svc)
+		}).Should(Succeed())
+		Eventually(func() error {
+			sa := &corev1.ServiceAccount{}
+			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: "coil-egress"}, sa)
 		}).Should(Succeed())
 
 		// serializer := k8sjson.NewSerializerWithOptions(k8sjson.DefaultMetaFactory, scheme, scheme,
@@ -106,7 +115,7 @@ var _ = Describe("Egress reconciler", func() {
 		Expect(egressContainer).NotTo(BeNil())
 		Expect(egressContainer.Image).To(Equal("coil:dev"))
 		Expect(egressContainer.Command).To(Equal([]string{"coil-egress"}))
-		Expect(egressContainer.Env).To(HaveLen(1))
+		Expect(egressContainer.Env).To(HaveLen(3))
 		Expect(egressContainer.Resources.Requests).To(HaveKey(corev1.ResourceCPU))
 		Expect(egressContainer.Resources.Requests).To(HaveKey(corev1.ResourceMemory))
 		Expect(egressContainer.Ports).To(HaveLen(2))
@@ -121,6 +130,21 @@ var _ = Describe("Egress reconciler", func() {
 		Expect(svc.Spec.Ports[0].Port).Should(Equal(int32(5555)))
 		Expect(svc.Spec.Ports[0].Protocol).Should(Equal(corev1.ProtocolUDP))
 		Expect(svc.Spec.SessionAffinity).Should(Equal(corev1.ServiceAffinityClientIP))
+
+		By("checking status")
+		Eventually(func() error {
+			eg := &coilv2.Egress{}
+			err := k8sClient.Get(ctx, client.ObjectKey{Namespace: "default", Name: "eg1"}, eg)
+			if err != nil {
+				return err
+			}
+
+			if eg.Status.Selector == "" {
+				return errors.New("status is not updated")
+			}
+
+			return nil
+		}).Should(Succeed())
 	})
 
 	It("should allow customization of Deployment", func() {
@@ -186,7 +210,7 @@ var _ = Describe("Egress reconciler", func() {
 				return errors.New("deployment has not been updated")
 			}
 			return nil
-		}, 3).Should(Succeed())
+		}).Should(Succeed())
 
 		Expect(depl.Spec.Strategy.Type).To(Equal(appsv1.RollingUpdateDeploymentStrategyType))
 		Expect(depl.Spec.Strategy.RollingUpdate).NotTo(BeNil())
@@ -252,7 +276,7 @@ var _ = Describe("Egress reconciler", func() {
 				return errors.New("deployment has not been updated")
 			}
 			return nil
-		}, 3).Should(Succeed())
+		}).Should(Succeed())
 
 		Expect(depl.Spec.Template.Annotations).NotTo(HaveKey("ann1"))
 		Expect(depl.Spec.Template.Labels).NotTo(HaveKey("foo"))
@@ -262,7 +286,7 @@ var _ = Describe("Egress reconciler", func() {
 		egressContainer = &depl.Spec.Template.Spec.Containers[0]
 		Expect(egressContainer.Image).To(Equal("mycoil"))
 		Expect(egressContainer.Command).To(Equal([]string{"coil-egress"}))
-		Expect(egressContainer.Env).To(HaveLen(1))
+		Expect(egressContainer.Env).To(HaveLen(3))
 		Expect(egressContainer.Resources.Requests).To(HaveKey(corev1.ResourceCPU))
 		res := egressContainer.Resources.Requests[corev1.ResourceCPU]
 		Expect(res.Equal(resource.MustParse("2"))).To(BeTrue())
@@ -323,12 +347,116 @@ var _ = Describe("Egress reconciler", func() {
 				return errors.New("service has not been updated")
 			}
 			return nil
-		}, 3).Should(Succeed())
+		}).Should(Succeed())
 
 		Expect(svc.Spec.SessionAffinityConfig).NotTo(BeNil())
 		cfg := svc.Spec.SessionAffinityConfig
 		Expect(cfg.ClientIP).NotTo(BeNil())
 		Expect(cfg.ClientIP.TimeoutSeconds).NotTo(BeNil())
 		Expect(*cfg.ClientIP.TimeoutSeconds).To(Equal(int32(100)))
+	})
+
+	It("should reconcile resources soon", func() {
+		By("creating an Egress")
+		eg := makeEgress("eg4")
+		err := k8sClient.Create(ctx, eg)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		By("checking Deployment and Service")
+		var depl *appsv1.Deployment
+		var svc *corev1.Service
+		Eventually(func() error {
+			depl = &appsv1.Deployment{}
+			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, depl)
+		}).Should(Succeed())
+		Eventually(func() error {
+			svc = &corev1.Service{}
+			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, svc)
+		}).Should(Succeed())
+
+		By("deleting deployment")
+		err = k8sClient.Delete(ctx, depl)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		By("checking deployment recreation")
+		Eventually(func() error {
+			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, &appsv1.Deployment{})
+		}).Should(Succeed())
+
+		By("deleting service")
+		err = k8sClient.Delete(ctx, svc)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		By("checking service recreation")
+		Eventually(func() error {
+			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, &corev1.Service{})
+		}).Should(Succeed())
+	})
+
+	It("should reconcile ClusterRoleBindings", func() {
+		By("checking coil-egress ClusterRoleBinding")
+		var crb *rbacv1.ClusterRoleBinding
+		Eventually(func() int {
+			crb = &rbacv1.ClusterRoleBinding{}
+			err := k8sClient.Get(ctx, client.ObjectKey{Name: "coil-egress"}, crb)
+			if err != nil {
+				return 0
+			}
+			return len(crb.Subjects)
+		}).Should(Equal(1))
+
+		Expect(crb.RoleRef.Name).To(Equal("coil-egress"))
+		Expect(crb.RoleRef.Kind).To(Equal("ClusterRole"))
+
+		By("creating another egress on namespace egtest")
+		eg := makeEgress("eg5")
+		eg.Namespace = "egtest"
+		err := k8sClient.Create(ctx, eg)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		By("checking coil-egress ClusterRoleBinding again")
+		Eventually(func() int {
+			crb = &rbacv1.ClusterRoleBinding{}
+			err := k8sClient.Get(ctx, client.ObjectKey{Name: "coil-egress"}, crb)
+			if err != nil {
+				return 0
+			}
+			return len(crb.Subjects)
+		}).Should(Equal(2))
+
+		saNS := make(map[string]bool)
+		for _, s := range crb.Subjects {
+			Expect(s.Kind).To(Equal("ServiceAccount"))
+			Expect(s.Name).To(Equal("coil-egress"))
+			saNS[s.Namespace] = true
+		}
+
+		Expect(saNS).To(HaveKey("default"))
+		Expect(saNS).To(HaveKey("egtest"))
+
+		By("creating psp-coil-egress ClusterRoleBinding")
+		pspCRB := &rbacv1.ClusterRoleBinding{}
+		pspCRB.Name = "psp-coil-egress"
+		pspCRB.RoleRef = crb.RoleRef
+		err = k8sClient.Create(ctx, pspCRB)
+
+		By("checking psp-coil-egress reconciliation result")
+		// this is done by crbReconciler
+		Eventually(func() int {
+			pspCRB = &rbacv1.ClusterRoleBinding{}
+			err = k8sClient.Get(ctx, client.ObjectKey{Name: "psp-coil-egress"}, pspCRB)
+			if err != nil {
+				return 0
+			}
+			return len(pspCRB.Subjects)
+		}).Should(Equal(2))
+
+		saNS = make(map[string]bool)
+		for _, s := range pspCRB.Subjects {
+			saNS[s.Namespace] = true
+		}
+
+		Expect(saNS).To(HaveKey("default"))
+		Expect(saNS).To(HaveKey("egtest"))
 	})
 })

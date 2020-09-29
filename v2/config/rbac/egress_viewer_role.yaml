@@ -4,6 +4,8 @@ kind: ClusterRole
 metadata:
   name: coilv2-egress-viewer-role
   labels:
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
     rbac.authorization.k8s.io/aggregate-to-view: "true"
 rules:
 - apiGroups:

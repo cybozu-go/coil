@@ -9,7 +9,10 @@ PROTOC_VERSION=3.12.4
 SUDO=sudo
 CONTROLLER_GEN := $(PWD)/bin/controller-gen
 CRD_OPTIONS = "crd:crdVersions=v1"
-ROLES = config/rbac/coil-controller_role.yaml config/rbac/coild_role.yaml config/rbac/coil-router_role.yaml
+ROLES = config/rbac/coil-controller_role.yaml \
+	config/rbac/coild_role.yaml \
+	config/rbac/coil-router_role.yaml \
+	config/rbac/coil-egress_role.yaml
 GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
 GO111MODULE=on
@@ -70,6 +73,7 @@ manifests: $(CONTROLLER_GEN) $(ROLES)
 COIL_CONTROLLER_ROLE_DEPENDS = controllers/addresspool_controller.go \
 	controllers/blockrequest_controller.go \
 	controllers/egress_controller.go \
+	controllers/clusterrolebinding_controller.go \
 	pkg/ipam/pool.go \
 	runners/garbage_collector.go
 
@@ -79,6 +83,7 @@ config/rbac/coil-controller_role.yaml: $(COIL_CONTROLLER_ROLE_DEPENDS)
 	sed '0,/^package/s/.*/package work/' controllers/addresspool_controller.go > work/addresspool_controller.go
 	sed '0,/^package/s/.*/package work/' controllers/blockrequest_controller.go > work/blockrequest_controller.go
 	sed '0,/^package/s/.*/package work/' controllers/egress_controller.go > work/egress_controller.go
+	sed '0,/^package/s/.*/package work/' controllers/clusterrolebinding_controller.go > work/clusterrolebinding_controller.go
 	sed '0,/^package/s/.*/package work/' pkg/ipam/pool.go > work/pool.go
 	sed '0,/^package/s/.*/package work/' runners/garbage_collector.go > work/garbage_collector.go
 	$(CONTROLLER_GEN) rbac:roleName=coil-controller paths=./work output:stdout > $@
@@ -106,6 +111,13 @@ config/rbac/coil-router_role.yaml: $(COIL_ROUTER_DEPENDS)
 	sed '0,/^package/s/.*/package work/' controllers/addressblock_controller.go > work/addressblock_controller.go
 	sed '0,/^package/s/.*/package work/' runners/router.go > work/router.go
 	$(CONTROLLER_GEN) rbac:roleName=coil-router paths=./work output:stdout > $@
+	rm -rf work
+
+config/rbac/coil-egress_role.yaml: controllers/pod_watcher.go
+	-rm -rf work
+	mkdir work
+	sed '0,/^package/s/.*/package work/' $< > work/pod_watcher.go
+	$(CONTROLLER_GEN) rbac:roleName=coil-egress paths=./work output:stdout > $@
 	rm -rf work
 
 # TLS certificates for webhook
