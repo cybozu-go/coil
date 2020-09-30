@@ -10,6 +10,7 @@ rules:
   - ""
   resources:
   - namespaces
+  - services
   verbs:
   - get
   - list
@@ -52,3 +53,11 @@ rules:
   - blockrequests/status
   verbs:
   - get
+- apiGroups:
+  - coil.cybozu.com
+  resources:
+  - egresses
+  verbs:
+  - get
+  - list
+  - watch

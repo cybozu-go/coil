@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"net"
 	"strings"
 	"sync"
@@ -131,6 +132,10 @@ OUTER:
 		}
 
 		link, err := r.ft.AddPeer(ip)
+		if errors.Is(err, founat.ErrIPFamilyMismatch) {
+			r.log.Info("skipping unsupported pod IP", "pod", pod.Namespace+"/"+pod.Name, "ip", ip.String())
+			continue
+		}
 		if err != nil {
 			return err
 		}

@@ -32,9 +32,21 @@ func TestPodNetwork(t *testing.T) {
 		IPv4:        net.ParseIP("10.1.2.3"),
 		IPv6:        net.ParseIP("fd02::1"),
 	}
-	result, err := pn.Setup(nsPath("pod1"), "pod1", "ns1", podConf1)
+	var givenIPv4, givenIPv6 net.IP
+	result, err := pn.Setup(nsPath("pod1"), "pod1", "ns1", podConf1, func(ipv4, ipv6 net.IP) error {
+		givenIPv4 = ipv4
+		givenIPv6 = ipv6
+		return nil
+	})
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if !givenIPv4.Equal(net.ParseIP("10.1.2.3")) {
+		t.Error("hook could not catch IPv4", givenIPv4)
+	}
+	if !givenIPv6.Equal(net.ParseIP("fd02::1")) {
+		t.Error("hook could not catch IPv6", givenIPv6)
 	}
 
 	if len(result.Interfaces) != 2 {
@@ -141,7 +153,7 @@ func TestPodNetwork(t *testing.T) {
 		IFace:       "eth0",
 		IPv4:        net.ParseIP("10.1.2.4"),
 	}
-	result, err = pn.Setup(nsPath("pod2"), "pod2", "ns1", podConf2)
+	result, err = pn.Setup(nsPath("pod2"), "pod2", "ns1", podConf2, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +207,7 @@ func TestPodNetwork(t *testing.T) {
 		IFace:       "eth0",
 		IPv6:        net.ParseIP("fd02::3"),
 	}
-	result, err = pn.Setup(nsPath("pod3"), "pod3", "ns1", podConf3)
+	result, err = pn.Setup(nsPath("pod3"), "pod3", "ns1", podConf3, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

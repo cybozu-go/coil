@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/common/expfmt"
 	"github.com/vishvananda/netlink"
+	uberzap "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
@@ -44,8 +46,15 @@ func (n *mockNodeIPAM) Notify(*coilv2.BlockRequest) {
 
 func (n *mockNodeIPAM) Allocate(ctx context.Context, poolName, containerID, iface string) (ipv4, ipv6 net.IP, err error) {
 	n.nAllocate++
-	if poolName == "default" && containerID == "pod1" {
-		return net.ParseIP("10.1.2.3"), net.ParseIP("fd02::1"), nil
+	if poolName == "default" {
+		switch containerID {
+		case "pod1":
+			return net.ParseIP("10.1.2.3"), net.ParseIP("fd02::1"), nil
+		case "nat-client1":
+			return net.ParseIP("10.1.2.4"), net.ParseIP("fd02::2"), nil
+		case "nat-client2":
+			return net.ParseIP("10.1.2.5"), net.ParseIP("fd02::3"), nil
+		}
 	}
 	if poolName == "global" && containerID == "dns1" {
 		return net.ParseIP("8.8.8.8"), nil, nil
@@ -77,7 +86,7 @@ func (p *mockPodNetwork) List() ([]*nodenet.PodNetConf, error) {
 	panic("not implemented")
 }
 
-func (p *mockPodNetwork) Setup(nsPath, podName, podNS string, conf *nodenet.PodNetConf) (*current.Result, error) {
+func (p *mockPodNetwork) Setup(nsPath, podName, podNS string, conf *nodenet.PodNetConf, hook nodenet.SetupHook) (*current.Result, error) {
 	p.nSetup++
 	if p.errSetup {
 		return nil, errors.New("setup failure")
@@ -94,6 +103,11 @@ func (p *mockPodNetwork) Setup(nsPath, podName, podNS string, conf *nodenet.PodN
 			Version: "6",
 			Address: *netlink.NewIPNet(conf.IPv6),
 		})
+	}
+	if hook != nil {
+		if err := hook(conf.IPv4, conf.IPv6); err != nil {
+			return nil, err
+		}
 	}
 	return &current.Result{IPs: ips}, nil
 }
@@ -114,6 +128,15 @@ func (p *mockPodNetwork) Destroy(containerId, iface string) error {
 	return nil
 }
 
+type mockNATSetup struct {
+	gwnets []GWNets
+}
+
+func (ns *mockNATSetup) Hook(gwnets []GWNets, _ *uberzap.Logger) func(ipv4, ipv6 net.IP) error {
+	ns.gwnets = gwnets
+	return nil
+}
+
 var _ = Describe("Coild server", func() {
 	ctx := context.Background()
 	tmpFile, err := ioutil.TempFile("", "")
@@ -127,17 +150,20 @@ var _ = Describe("Coild server", func() {
 	var stopCh chan struct{}
 	var nodeIPAM *mockNodeIPAM
 	var podNet *mockPodNetwork
+	var natsetup *mockNATSetup
 	var logbuf *bytes.Buffer
 	var conn *grpc.ClientConn
 	var cniClient cnirpc.CNIClient
+	metricPort := 13449
 
 	BeforeEach(func() {
 		stopCh = make(chan struct{})
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 			Scheme:             scheme,
 			LeaderElection:     false,
-			MetricsBindAddress: "localhost:13449",
+			MetricsBindAddress: fmt.Sprintf("localhost:%d", metricPort),
 		})
+		metricPort--
 		Expect(err).ToNot(HaveOccurred())
 
 		l, err := net.Listen("unix", coildSocket)
@@ -146,9 +172,10 @@ var _ = Describe("Coild server", func() {
 		}
 		nodeIPAM = &mockNodeIPAM{}
 		podNet = &mockPodNetwork{}
+		natsetup = &mockNATSetup{}
 		logbuf = &bytes.Buffer{}
 		logger := zap.NewRaw(zap.WriteTo(logbuf), zap.StacktraceLevel(zapcore.DPanicLevel))
-		serv := NewCoildServer(l, mgr, nodeIPAM, podNet, logger)
+		serv := NewCoildServer(l, mgr, nodeIPAM, podNet, natsetup, logger)
 		err = mgr.Add(serv)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -158,7 +185,7 @@ var _ = Describe("Coild server", func() {
 				panic(err)
 			}
 		}()
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 
 		dialer := &net.Dialer{}
 		dialFunc := func(ctx context.Context, a string) (net.Conn, error) {
@@ -381,5 +408,72 @@ var _ = Describe("Coild server", func() {
 			Netns:       "/run/netns/bar",
 		})
 		Expect(err).To(HaveOccurred())
+	})
+
+	It("should setup Foo-over-UDP NAT", func() {
+		By("creating pod declaring itself as a NAT client")
+		pod := &corev1.Pod{}
+		pod.Namespace = "ns1"
+		pod.Name = "nat-client1"
+		pod.Spec.Containers = []corev1.Container{
+			{Name: "foo", Image: "nginx"},
+		}
+		pod.Annotations = map[string]string{
+			"egress.coil.cybozu.com/ns2": "egress",
+		}
+		err = k8sClient.Create(ctx, pod)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("calling Add without Egress/Service")
+		_, err := cniClient.Add(ctx, &cnirpc.CNIArgs{
+			Args:        map[string]string{"K8S_POD_NAME": "nat-client1", "K8S_POD_NAMESPACE": "ns1"},
+			ContainerId: "nat-client1",
+			Ifname:      "eth0",
+			Netns:       "/run/netns/nat-client1",
+		})
+		Expect(err).To(HaveOccurred())
+
+		eg := &coilv2.Egress{}
+		eg.Namespace = "ns2"
+		eg.Name = "egress"
+		eg.Spec.Destinations = []string{"192.168.0.0/16", "fd20::/112"}
+		err = k8sClient.Create(ctx, eg)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("calling Add without Service")
+		_, err = cniClient.Add(ctx, &cnirpc.CNIArgs{
+			Args:        map[string]string{"K8S_POD_NAME": "nat-client1", "K8S_POD_NAMESPACE": "ns1"},
+			ContainerId: "nat-client1",
+			Ifname:      "eth0",
+			Netns:       "/run/netns/nat-client1",
+		})
+		Expect(err).To(HaveOccurred())
+
+		svc := &corev1.Service{}
+		svc.Namespace = "ns2"
+		svc.Name = "egress"
+		// currently, ClusterIP must be picked from 10.0.0.0/24
+		// see https://github.com/kubernetes/kubernetes/pull/51249
+		svc.Spec.ClusterIP = "10.0.0.5"
+		svc.Spec.Ports = []corev1.ServicePort{{Port: 8080}}
+		err = k8sClient.Create(ctx, svc)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("calling Add with IPv4 Service")
+		_, err = cniClient.Add(ctx, &cnirpc.CNIArgs{
+			Args:        map[string]string{"K8S_POD_NAME": "nat-client1", "K8S_POD_NAMESPACE": "ns1"},
+			ContainerId: "nat-client1",
+			Ifname:      "eth0",
+			Netns:       "/run/netns/nat-client1",
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		By("checking NAT configurations")
+		Expect(natsetup.gwnets).To(HaveLen(1))
+		gwnets := natsetup.gwnets[0]
+		Expect(gwnets.Gateway.Equal(net.ParseIP("10.0.0.5"))).To(BeTrue())
+		Expect(gwnets.Networks).To(HaveLen(1))
+		subnet := gwnets.Networks[0]
+		Expect(subnet.IP.Equal(net.ParseIP("192.168.0.0"))).To(BeTrue())
 	})
 })

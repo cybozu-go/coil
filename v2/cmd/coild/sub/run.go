@@ -102,7 +102,7 @@ func subMain() error {
 	if err != nil {
 		return err
 	}
-	server := runners.NewCoildServer(l, mgr, nodeIPAM, podNet, grpcLogger)
+	server := runners.NewCoildServer(l, mgr, nodeIPAM, podNet, runners.NewNATSetup(config.egressPort), grpcLogger)
 	if err := mgr.Add(server); err != nil {
 		return err
 	}
