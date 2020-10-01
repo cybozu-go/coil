@@ -59,7 +59,7 @@ jobs:
           sudo cp daemon.json /etc/docker/daemon.json
           sudo systemctl restart docker.service
           sleep 10
-          echo "::set-env name=TEST_IPV6::true"
+          echo TEST_IPV6=true >> $GITHUB_ENV
       - run: make start IMAGE=${{ matrix.kindest-node }}
         working-directory: v2/e2e
       - run: make install-coil
