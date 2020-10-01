@@ -14,7 +14,7 @@ const (
 	defaultCniConfName = "10-coil.conflist"
 	defaultCniEtcDir   = "/host/etc/cni/net.d"
 	defaultCniBinDir   = "/host/opt/cni/bin"
-	defaultCoilPath    = "/coil"
+	defaultCoilPath    = "/usr/local/coil/coil"
 )
 
 var rootCmd = &cobra.Command{

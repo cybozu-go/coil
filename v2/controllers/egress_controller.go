@@ -130,6 +130,14 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	}
 
 	podSpec.ServiceAccountName = constants.SAEgress
+	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+		Name: "modules",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/lib/modules",
+			},
+		},
+	})
 
 	var egressContainer *corev1.Container
 	for i := range podSpec.Containers {
@@ -175,6 +183,11 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 			},
 		},
 	)
+	egressContainer.VolumeMounts = append(egressContainer.VolumeMounts, corev1.VolumeMount{
+		MountPath: "/lib/modules",
+		Name:      "modules",
+		ReadOnly:  true,
+	})
 	egressContainer.SecurityContext = &corev1.SecurityContext{
 		Capabilities: &corev1.Capabilities{Add: []corev1.Capability{"NET_ADMIN"}},
 	}

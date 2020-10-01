@@ -41,7 +41,7 @@ spec:
       containers:
       - name: coil-controller
         image: coil:dev
-        command: ["/coil-controller"]
+        command: ["coil-controller"]
         env:
         - name: "COIL_POD_NAMESPACE"
           valueFrom:
