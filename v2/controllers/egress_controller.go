@@ -32,6 +32,9 @@ type EgressReconciler struct {
 // +kubebuilder:rbac:groups="",resources=services;serviceaccounts,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch
 
+// coil-controller needs to have access to Pods to grant egress service accounts the same privilege.
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
+
 // Reconcile implements Reconciler interface.
 // https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.6.1/pkg/reconcile?tab=doc#Reconciler
 func (r *EgressReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
