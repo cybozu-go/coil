@@ -191,7 +191,9 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 		Name:      "modules",
 		ReadOnly:  true,
 	})
+	privileged := true
 	egressContainer.SecurityContext = &corev1.SecurityContext{
+		Privileged:   &privileged,
 		Capabilities: &corev1.Capabilities{Add: []corev1.Capability{"NET_ADMIN"}},
 	}
 	if egressContainer.Resources.Requests == nil {

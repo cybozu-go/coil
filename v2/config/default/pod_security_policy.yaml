@@ -99,7 +99,7 @@ kind: PodSecurityPolicy
 metadata:
   name: coil-egress
 spec:
-  privileged: false
+  privileged: true
   allowPrivilegeEscalation: false
   allowedCapabilities: ["NET_ADMIN"]
   volumes:
