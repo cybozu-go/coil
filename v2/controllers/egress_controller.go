@@ -162,20 +162,12 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	}
 	egressContainer.Env = append(egressContainer.Env,
 		corev1.EnvVar{
-			Name: constants.EnvPodNamespace,
-			ValueFrom: &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: "metadata.namespace",
-				},
-			},
+			Name:  constants.EnvPodNamespace,
+			Value: eg.Namespace,
 		},
 		corev1.EnvVar{
-			Name: constants.EnvPodName,
-			ValueFrom: &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: "metadata.name",
-				},
-			},
+			Name:  constants.EnvEgressName,
+			Value: eg.Name,
 		},
 		corev1.EnvVar{
 			Name: constants.EnvAddresses,
@@ -211,14 +203,16 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	}
 	egressContainer.LivenessProbe = &corev1.Probe{
 		Handler: corev1.Handler{HTTPGet: &corev1.HTTPGetAction{
-			Path: "/healthz",
-			Port: intstr.FromString("health"),
+			Path:   "/healthz",
+			Port:   intstr.FromString("health"),
+			Scheme: corev1.URISchemeHTTP,
 		}},
 	}
 	egressContainer.ReadinessProbe = &corev1.Probe{
 		Handler: corev1.Handler{HTTPGet: &corev1.HTTPGetAction{
-			Path: "/readyz",
-			Port: intstr.FromString("health"),
+			Path:   "/readyz",
+			Port:   intstr.FromString("health"),
+			Scheme: corev1.URISchemeHTTP,
 		}},
 	}
 
@@ -298,7 +292,11 @@ func (r *EgressReconciler) reconcileService(ctx context.Context, log logr.Logger
 
 		svc.Spec.Type = corev1.ServiceTypeClusterIP
 		svc.Spec.Selector = labels
-		svc.Spec.Ports = []corev1.ServicePort{{Port: r.Port, Protocol: corev1.ProtocolUDP}}
+		svc.Spec.Ports = []corev1.ServicePort{{
+			Port:       r.Port,
+			TargetPort: intstr.FromInt(int(r.Port)),
+			Protocol:   corev1.ProtocolUDP,
+		}}
 		svc.Spec.SessionAffinity = eg.Spec.SessionAffinity
 		if eg.Spec.SessionAffinityConfig != nil {
 			sac := &corev1.SessionAffinityConfig{}

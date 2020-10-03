@@ -9,11 +9,11 @@ It watches client Pods and creates or deletes Foo-over-UDP tunnels.
 
 `coil-egress` references the following environment variables:
 
-| Name                 | Required | Description                                  |
-| -------------------- | -------- | -------------------------------------------- |
-| `COIL_POD_ADDRESSES` | YES      | `status.podIPs` field value of the Pod.      |
-| `COIL_POD_NAMESPACE` | YES      | `metadata.namespace` field value of the Pod. |
-| `COIL_POD_NAME`      | YES      | `metadata.name` field value of the Pod.      |
+| Name                 | Required | Description                                            |
+| -------------------- | -------- | ------------------------------------------------------ |
+| `COIL_POD_ADDRESSES` | YES      | `status.podIPs` field value of the Pod.                |
+| `COIL_POD_NAMESPACE` | YES      | `metadata.namespace` field value of the parent Egress. |
+| `COIL_EGRESS_NAME`   | YES      | `metadata.name` field value of the parent Egress.      |
 
 ## Command-line flags
 

@@ -30,9 +30,9 @@ func subMain() error {
 		return errors.New(constants.EnvPodNamespace + " environment variable must be set")
 	}
 
-	myName := os.Getenv(constants.EnvPodName)
+	myName := os.Getenv(constants.EnvEgressName)
 	if myName == "" {
-		return errors.New(constants.EnvPodName + " environment variable must be set")
+		return errors.New(constants.EnvEgressName + " environment variable must be set")
 	}
 
 	myAddresses := strings.Split(os.Getenv(constants.EnvAddresses), ",")
