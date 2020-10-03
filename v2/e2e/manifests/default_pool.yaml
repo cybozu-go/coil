@@ -5,4 +5,4 @@ metadata:
 spec:
   blockSizeBits: 0
   subnets:
-  - ipv4: 10.224.0.0/24
+  - ipv4: 10.244.0.0/24
