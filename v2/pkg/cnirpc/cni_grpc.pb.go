@@ -12,7 +12,7 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
+const _ = grpc.SupportPackageIsVersion7
 
 // CNIClient is the client API for CNI service.
 //
@@ -72,16 +72,23 @@ type CNIServer interface {
 type UnimplementedCNIServer struct {
 }
 
-func (*UnimplementedCNIServer) Add(context.Context, *CNIArgs) (*AddResponse, error) {
+func (UnimplementedCNIServer) Add(context.Context, *CNIArgs) (*AddResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Add not implemented")
 }
-func (*UnimplementedCNIServer) Del(context.Context, *CNIArgs) (*empty.Empty, error) {
+func (UnimplementedCNIServer) Del(context.Context, *CNIArgs) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Del not implemented")
 }
-func (*UnimplementedCNIServer) Check(context.Context, *CNIArgs) (*empty.Empty, error) {
+func (UnimplementedCNIServer) Check(context.Context, *CNIArgs) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Check not implemented")
 }
-func (*UnimplementedCNIServer) mustEmbedUnimplementedCNIServer() {}
+func (UnimplementedCNIServer) mustEmbedUnimplementedCNIServer() {}
+
+// UnsafeCNIServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to CNIServer will
+// result in compilation errors.
+type UnsafeCNIServer interface {
+	mustEmbedUnimplementedCNIServer()
+}
 
 func RegisterCNIServer(s *grpc.Server, srv CNIServer) {
 	s.RegisterService(&_CNI_serviceDesc, srv)

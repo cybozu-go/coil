@@ -29,7 +29,7 @@ require (
 	go.uber.org/zap v1.15.0
 	golang.org/x/sys v0.0.0-20200828194041-157a740278f4
 	google.golang.org/grpc v1.32.0
-	google.golang.org/grpc/cmd/protoc-gen-go-grpc v0.0.0-20200812184716-7d8921505e1b
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.0.0
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/ini.v1 v1.55.0 // indirect
 	k8s.io/api v0.18.8
