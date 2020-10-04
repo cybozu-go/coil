@@ -38,3 +38,21 @@ Flags:
   -v, --version                version for coil-controller
       --webhook-addr string    bind address of admission webhook (default ":9443")
 ```
+
+## Prometheus metrics
+
+### `coil_controller_max_blocks`
+
+This is a gauge of the maximum number of allocatable address blocks of a pool.
+
+| Label  | Description   |
+| ------ | ------------- |
+| `pool` | The pool name |
+
+### `coil_controller_allocated_blocks`
+
+This is a gauge of the number of currently allocated address blocks.
+
+| Label  | Description   |
+| ------ | ------------- |
+| `pool` | The pool name |
