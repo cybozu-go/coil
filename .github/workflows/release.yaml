@@ -55,4 +55,4 @@ jobs:
           body: |
             See [CHANGELOG.md](./CHANGELOG.md) for details.
           draft: false
-          prerelease: ${{ steps.vars.outputs.prerelease == "true" }}
+          prerelease: ${{ steps.vars.outputs.prerelease == 'true' }}
