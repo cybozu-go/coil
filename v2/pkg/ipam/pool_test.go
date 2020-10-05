@@ -2,11 +2,13 @@ package ipam
 
 import (
 	"context"
+	"fmt"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -39,11 +41,16 @@ var _ = Describe("PoolManager", func() {
 			err = k8sClient.Get(ctx, client.ObjectKey{Name: block.Name}, verify)
 			Expect(err).ToNot(HaveOccurred())
 
+			Expect(promtest.ToFloat64(poolMaxBlocks.WithLabelValues("default"))).To(Equal(float64(6)))
+			Expect(promtest.ToFloat64(poolAllocated.WithLabelValues("default"))).To(Equal(float64(1)))
+
 			for i := 0; i < 5; i++ {
 				block, err := pm.AllocateBlock(ctx, "default", "node1")
 				Expect(err).ToNot(HaveOccurred())
 				blocks = append(blocks, block)
 			}
+
+			Expect(promtest.ToFloat64(poolAllocated.WithLabelValues("default"))).To(Equal(float64(6)))
 
 			_, err = pm.AllocateBlock(ctx, "default", "node1")
 			Expect(err).To(MatchError(ErrNoBlock))
@@ -57,6 +64,9 @@ var _ = Describe("PoolManager", func() {
 			Eventually(func() error {
 				if err := pm.SyncPool(ctx, "default"); err != nil {
 					return err
+				}
+				if val := int(promtest.ToFloat64(poolAllocated.WithLabelValues("default"))); val != 5 {
+					return fmt.Errorf("unexpected allocated_blocks value: %d", val)
 				}
 				block, err = pm.AllocateBlock(ctx, "default", "node2")
 				return err

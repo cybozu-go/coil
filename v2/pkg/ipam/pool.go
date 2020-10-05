@@ -10,12 +10,14 @@ import (
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/willf/bitset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 // ErrNoBlock is an error indicating there are no available address blocks in a pool.
@@ -30,11 +32,39 @@ type PoolManager interface {
 	DropPool(name string)
 
 	// SyncPool sync address blocks of a pool.
+	// This also updates the metrics of the pool.
 	SyncPool(ctx context.Context, name string) error
 
 	// AllocateBlock curves an AddressBlock out of the pool for a node.
 	// If the pool runs out of the free blocks, this returns ErrNoBlock.
 	AllocateBlock(ctx context.Context, poolName, nodeName string) (*coilv2.AddressBlock, error)
+}
+
+var (
+	poolMaxBlocks = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: constants.MetricsNS,
+			Subsystem: "controller",
+			Name:      "max_blocks",
+			Help:      "the maximum number of address blocks from this pool",
+		},
+		[]string{"pool"},
+	)
+
+	poolAllocated = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: constants.MetricsNS,
+			Subsystem: "controller",
+			Name:      "allocated_blocks",
+			Help:      "the number of allocated address blocks from this pool",
+		},
+		[]string{"pool"},
+	)
+)
+
+func init() {
+	metrics.Registry.MustRegister(poolMaxBlocks)
+	metrics.Registry.MustRegister(poolAllocated)
 }
 
 type poolManager struct {
@@ -48,6 +78,9 @@ type poolManager struct {
 
 // NewPoolManager creates a new PoolManager.
 func NewPoolManager(cl client.Client, l logr.Logger, scheme *runtime.Scheme) PoolManager {
+	poolMaxBlocks.Reset()
+	poolAllocated.Reset()
+
 	return &poolManager{
 		client: cl,
 		log:    l,
@@ -63,7 +96,14 @@ func (pm *poolManager) getPool(ctx context.Context, name string) (*pool, error) 
 	p, ok := pm.pools[name]
 	if !ok {
 		l := pm.log.WithValues("pool", name)
-		p = &pool{name: name, log: l, client: pm.client, scheme: pm.scheme}
+		p = &pool{
+			name:            name,
+			log:             l,
+			client:          pm.client,
+			scheme:          pm.scheme,
+			maxBlocks:       poolMaxBlocks.WithLabelValues(name),
+			allocatedBlocks: poolAllocated.WithLabelValues(name),
+		}
 		err := p.SyncBlocks(ctx)
 		if err != nil {
 			return nil, err
@@ -79,6 +119,8 @@ func (pm *poolManager) DropPool(name string) {
 	defer pm.mu.Unlock()
 
 	delete(pm.pools, name)
+	poolMaxBlocks.DeleteLabelValues(name)
+	poolAllocated.DeleteLabelValues(name)
 }
 
 func (pm *poolManager) SyncPool(ctx context.Context, name string) error {
@@ -103,31 +145,58 @@ func (pm *poolManager) AllocateBlock(ctx context.Context, poolName, nodeName str
 
 // pool manages the allocation of AddressBlock CR of an AddressPool CR.
 type pool struct {
-	name      string
-	client    client.Client
-	log       logr.Logger
-	scheme    *runtime.Scheme
+	name            string
+	client          client.Client
+	log             logr.Logger
+	scheme          *runtime.Scheme
+	maxBlocks       prometheus.Gauge
+	allocatedBlocks prometheus.Gauge
+
 	mu        sync.Mutex
 	allocated bitset.BitSet
 }
 
 // SyncBlocks synchronizes allocated field with the current AddressBlocks.
+// This also updates the metrics of the pool.
 func (p *pool) SyncBlocks(ctx context.Context) error {
+	ap := &coilv2.AddressPool{}
+	err := p.client.Get(ctx, client.ObjectKey{Name: p.name}, ap)
+	if err != nil {
+		p.log.Error(err, "failed to get AddressPool")
+		return err
+	}
+
+	var maxBlocks int
+	for _, sub := range ap.Spec.Subnets {
+		var n *net.IPNet
+		if sub.IPv4 != nil {
+			_, n, _ = net.ParseCIDR(*sub.IPv4)
+		} else {
+			_, n, _ = net.ParseCIDR(*sub.IPv6)
+		}
+		ones, bits := n.Mask.Size()
+		maxBlocks += 1 << (bits - ones - int(ap.Spec.BlockSizeBits))
+	}
+	p.maxBlocks.Set(float64(maxBlocks))
+
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	p.allocated.ClearAll()
 	blocks := &coilv2.AddressBlockList{}
-	err := p.client.List(ctx, blocks, client.MatchingFields{
+	err = p.client.List(ctx, blocks, client.MatchingFields{
 		constants.IndexController: p.name,
 	})
 	if err != nil {
 		return err
 	}
 
+	var allocatedBlocks int
 	for _, b := range blocks.Items {
 		p.allocated.Set(uint(b.Index))
+		allocatedBlocks += 1
 	}
+	p.allocatedBlocks.Set(float64(allocatedBlocks))
 
 	p.log.Info("resynced block usage", "blocks", len(blocks.Items))
 	return nil
@@ -199,6 +268,7 @@ func (p *pool) AllocateBlock(ctx context.Context, nodeName string) (*coilv2.Addr
 
 		p.log.Info("created AddressBlock", "index", nextIndex, "node", nodeName)
 		p.allocated.Set(nextIndex)
+		p.allocatedBlocks.Inc()
 		return r, nil
 	}
 
