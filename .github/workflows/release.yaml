@@ -38,14 +38,6 @@ jobs:
     needs: image
     runs-on: ubuntu-18.04
     steps:
-      - name: Setup variables
-        id: vars
-        run: |
-          if test -n "$(echo ${{ github.ref }} | grep -e -)"; then
-            echo "::set-output name=prerelease::true"
-          else
-            echo "::set-output name=prerelease::false"
-          fi
       - uses: actions/checkout@v2
       - name: Create release
         id: create_release
@@ -58,4 +50,4 @@ jobs:
           body: |
             See [CHANGELOG.md](./CHANGELOG.md) for details.
           draft: false
-          prerelease: ${{ steps.vars.outputs.prerelease == 'true' }}
+          prerelease: ${{ contains(github.ref, '-') }}
