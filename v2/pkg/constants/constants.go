@@ -51,6 +51,7 @@ const (
 	EnvAddresses    = "COIL_POD_ADDRESSES"
 	EnvPodNamespace = "COIL_POD_NAMESPACE"
 	EnvPodName      = "COIL_POD_NAME"
+	EnvEgressName   = "COIL_EGRESS_NAME"
 )
 
 // MetricsNS is the namespace for Prometheus metrics

@@ -10,6 +10,7 @@ end-to-end (e2e) tests for Coil.
   - [`coil-controller`](#coil-controller)
   - [`coild`](#coild)
   - [`coil-router`](#coil-router)
+  - [`coil-egress`](#coil-egress)
 - [How to test](#how-to-test)
 - [Implementation](#implementation)
 
@@ -21,6 +22,7 @@ integration tests.  The exceptions are:
 - YAML manifests
 - `main` function of each program
 - inter-node communication
+- Egress NAT over Kubernetes `Service`
 
 Therefore, it is enough to cover these functions in e2e tests.
 
@@ -51,6 +53,7 @@ What the `main` function implements are:
 - gRPC server for `coil`
 - Route exporter
 - Persisting IPAM status between restarts
+- Setup egress NAT clients
 
 ### `coil-router`
 
@@ -59,6 +62,10 @@ What the `main` function implements are:
 - Health probe server
 - Metrics server
 - Routing table setup for inter-node communication
+
+### `coil-egress`
+
+- Watcher for client pods
 
 ## How to test
 
@@ -77,6 +84,14 @@ orphaned AddressBlock manually.
 
 Persisting IPAM status in `coild` can be tested by restarting `coild` Pods
 and examine the allocation status.
+
+Egress NAT feature can be tested by running Egress pods on a specific
+node and assigning a fake global IP address such as `9.9.9.9/32` to a dummy
+interface of the node.  That fake address is reachable only from the pods
+running on the node because such pods route all the packets to the node.
+
+Then, run a NAT client pod on another node.  If the NAT client can reach
+the fake IP address, we can prove that the Egress NAT feature is working.
 
 Other functions can be tested straightforwardly.
 

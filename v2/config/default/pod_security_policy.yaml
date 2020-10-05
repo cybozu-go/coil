@@ -49,6 +49,8 @@ spec:
   allowedHostPaths:
   - pathPrefix: "/run"
     readOnly: false
+  - pathPrefix: "/lib/modules"
+    readOnly: true
   - pathPrefix: "/opt/cni/bin"
     readOnly: false
   - pathPrefix: "/etc/cni/net.d"
@@ -97,7 +99,7 @@ kind: PodSecurityPolicy
 metadata:
   name: coil-egress
 spec:
-  privileged: false
+  privileged: true
   allowPrivilegeEscalation: false
   allowedCapabilities: ["NET_ADMIN"]
   volumes:
@@ -105,6 +107,10 @@ spec:
     - 'emptyDir'
     - 'secret'
     - 'downwardAPI'
+    - 'hostPath'
+  allowedHostPaths:
+  - pathPrefix: "/lib/modules"
+    readOnly: true
   hostNetwork: false
   seLinux:
     rule: 'RunAsAny'

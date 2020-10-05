@@ -32,6 +32,9 @@ type EgressReconciler struct {
 // +kubebuilder:rbac:groups="",resources=services;serviceaccounts,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch
 
+// coil-controller needs to have access to Pods to grant egress service accounts the same privilege.
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
+
 // Reconcile implements Reconciler interface.
 // https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.6.1/pkg/reconcile?tab=doc#Reconciler
 func (r *EgressReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
@@ -130,6 +133,14 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	}
 
 	podSpec.ServiceAccountName = constants.SAEgress
+	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+		Name: "modules",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/lib/modules",
+			},
+		},
+	})
 
 	var egressContainer *corev1.Container
 	for i := range podSpec.Containers {
@@ -151,20 +162,12 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	}
 	egressContainer.Env = append(egressContainer.Env,
 		corev1.EnvVar{
-			Name: constants.EnvPodNamespace,
-			ValueFrom: &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: "metadata.namespace",
-				},
-			},
+			Name:  constants.EnvPodNamespace,
+			Value: eg.Namespace,
 		},
 		corev1.EnvVar{
-			Name: constants.EnvPodName,
-			ValueFrom: &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: "metadata.name",
-				},
-			},
+			Name:  constants.EnvEgressName,
+			Value: eg.Name,
 		},
 		corev1.EnvVar{
 			Name: constants.EnvAddresses,
@@ -175,7 +178,14 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 			},
 		},
 	)
+	egressContainer.VolumeMounts = append(egressContainer.VolumeMounts, corev1.VolumeMount{
+		MountPath: "/lib/modules",
+		Name:      "modules",
+		ReadOnly:  true,
+	})
+	privileged := true
 	egressContainer.SecurityContext = &corev1.SecurityContext{
+		Privileged:   &privileged,
 		Capabilities: &corev1.Capabilities{Add: []corev1.Capability{"NET_ADMIN"}},
 	}
 	if egressContainer.Resources.Requests == nil {
@@ -193,14 +203,16 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	}
 	egressContainer.LivenessProbe = &corev1.Probe{
 		Handler: corev1.Handler{HTTPGet: &corev1.HTTPGetAction{
-			Path: "/healthz",
-			Port: intstr.FromString("health"),
+			Path:   "/healthz",
+			Port:   intstr.FromString("health"),
+			Scheme: corev1.URISchemeHTTP,
 		}},
 	}
 	egressContainer.ReadinessProbe = &corev1.Probe{
 		Handler: corev1.Handler{HTTPGet: &corev1.HTTPGetAction{
-			Path: "/readyz",
-			Port: intstr.FromString("health"),
+			Path:   "/readyz",
+			Port:   intstr.FromString("health"),
+			Scheme: corev1.URISchemeHTTP,
 		}},
 	}
 
@@ -280,7 +292,11 @@ func (r *EgressReconciler) reconcileService(ctx context.Context, log logr.Logger
 
 		svc.Spec.Type = corev1.ServiceTypeClusterIP
 		svc.Spec.Selector = labels
-		svc.Spec.Ports = []corev1.ServicePort{{Port: r.Port, Protocol: corev1.ProtocolUDP}}
+		svc.Spec.Ports = []corev1.ServicePort{{
+			Port:       r.Port,
+			TargetPort: intstr.FromInt(int(r.Port)),
+			Protocol:   corev1.ProtocolUDP,
+		}}
 		svc.Spec.SessionAffinity = eg.Spec.SessionAffinity
 		if eg.Spec.SessionAffinityConfig != nil {
 			sac := &corev1.SessionAffinityConfig{}

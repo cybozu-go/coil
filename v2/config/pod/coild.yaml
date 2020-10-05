@@ -27,7 +27,7 @@ spec:
       containers:
       - name: coild
         image: coil:dev
-        command: ["/coild"]
+        command: ["coild"]
         env:
         - name: COIL_NODE_NAME
           valueFrom:
@@ -60,10 +60,13 @@ spec:
         - mountPath: /run
           name: run
           mountPropagation: HostToContainer  # to see bind mount netns file under /run/netns
+        - mountPath: /lib/modules
+          name: modules
+          readOnly: true
       initContainers:
       - name: coil-installer
         image: coil:dev
-        command: ["/coil-installer"]
+        command: ["coil-installer"]
         env:
         - name: CNI_NETCONF
           valueFrom:
@@ -81,6 +84,9 @@ spec:
       - name: run
         hostPath:
           path: /run
+      - name: modules
+        hostPath:
+          path: /lib/modules
       - name: cni-bin-dir
         hostPath:
           path: /opt/cni/bin
