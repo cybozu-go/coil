@@ -30,7 +30,12 @@ It should look like:
 
 ## Adding and removing supported Kubernetes versions
 
-(TBD)
+- Edit [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml) and edit `kindtest-node` field values.
+- Edit Kubernetes versions in [`README.md`](README.md).
+- If the minimal supported version is to be changed, edit `v2/common.mk` too.
+- Make sure that the changes pass CI.
+
+You should also update `sigs.k8s.io/controller-runtime` Go package periodically.
 
 ## Bump version
 
@@ -39,22 +44,23 @@ It should look like:
 3. Make a branch to release, for example by `git neco dev "bump-$VERSION"`
 4. Edit `CHANGELOG.md` for the new version ([example][]).
 5. Edit `v2/version.go` for the new version.
-6. Commit the changes and push it.
+6. Edit `v2/kustomization.yaml` and update `newTag` value for the new version.
+7. Commit the changes and push it.
 
     ```console
     $ git commit -a -m "Bump version to $VERSION"
     $ git neco review
     ```
-7. Merge this branch.
-8. Checkout `master` branch.
-9. Add a git tag, then push it.
+8. Merge this branch.
+9. Checkout `master` branch.
+10. Add a git tag, then push it.
 
     ```console
     $ git tag "v$VERSION"
     $ git push origin "v$VERSION"
     ```
 
-Now the version is bumped up and the latest container image is uploaded to [quay.io](https://quay.io/cybozu/coil).
+Now the version is bumped up and the latest container image is uploaded to GitHub container registry.
 
 ## (Option) Edit GitHub release page
 
