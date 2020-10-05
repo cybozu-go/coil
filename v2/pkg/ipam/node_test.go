@@ -287,4 +287,42 @@ var _ = Describe("NodeIPAM", func() {
 		Expect(ipv4).To(EqualIP(net.ParseIP("10.2.0.3")))
 		Expect(ipv6).To(EqualIP(net.ParseIP("fd02::0203")))
 	}, 5)
+
+	It("should ignore reserved blocks", func() {
+		By("creating a reserved block")
+		block := &coilv2.AddressBlock{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "default-2",
+				Labels: map[string]string{
+					constants.LabelPool:     "default",
+					constants.LabelNode:     "node1",
+					constants.LabelReserved: "true",
+				},
+				Finalizers: []string{constants.FinCoil},
+			},
+			Index: 2,
+			IPv4:  strPtr("10.2.0.4/31"),
+			IPv6:  strPtr("fd02::0204/127"),
+		}
+		err := k8sClient.Create(ctx, block)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		nodeIPAM := NewNodeIPAM("node1", ctrl.Log.WithName("NodeIPAM3"), mgr, nil)
+
+		// run the dummy controller
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		go testController(ctx, map[string]NodeIPAM{
+			"node1": nodeIPAM,
+		})
+
+		_, _, err = nodeIPAM.Allocate(ctx, "default", "c0", "eth0")
+		Expect(err).ToNot(HaveOccurred())
+
+		// confirm that another block was assigned
+		blocks := &coilv2.AddressBlockList{}
+		err = k8sClient.List(ctx, blocks)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(blocks.Items).To(HaveLen(2))
+	}, 5)
 })
