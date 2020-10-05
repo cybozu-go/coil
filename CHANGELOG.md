@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-TBD
+## [2.0.0-rc.1] - 2020-10-05
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v1.1.9...HEAD
+Coil version 2 is a complete rewrite of Coil version 1.
+This is the first release candidate with all the planned features implemented.
+
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.0-rc.1...HEAD
+[2.0.0-rc.1]: https://github.com/cybozu-go/coil/compare/v1.1.9...v2.0.0-rc.1

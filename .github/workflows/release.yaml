@@ -1,0 +1,58 @@
+name: Release
+on:
+  push:
+    tags:
+    - 'v*'
+defaults:
+  run:
+    working-directory: v2
+env:
+  go-version: 1.13
+  cache-version: 1
+jobs:
+  image:
+    name: Push container image
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.go-version }}
+      - name: Cache tools
+        id: cache-tools
+        uses: actions/cache@v2
+        with:
+          path: |
+            v2/bin
+            v2/include
+          key: cache-${{ env.cache-version }}-go-${{ env.go-version }}-${{ hashFiles('v2/Makefile', 'v2/common.mk') }}
+      - run: make setup
+        if: steps.cache-tools.outputs.cache-hit != 'true'
+      - run: make image
+      - name: Login to ghcr.io
+        run: echo ${{ secrets.CR_PAT }} | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
+      - run: docker tag coil:dev ghcr.io/cybozu-go/coil:${GITHUB_REF#refs/tags/v}
+      - run: docker push ghcr.io/cybozu-go/coil:${GITHUB_REF#refs/tags/v}
+  release:
+    name: Release on GitHub
+    needs: image
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Setup variables
+        id: vars
+        run: |
+          if echo ${{ github.ref }} | grep -q "-"; then PRERELEASE=true; else PRERELEASE=false; fi
+          echo "::set-output name=prerelease::${PRERELEASE}"
+      - uses: actions/checkout@v2
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            See [CHANGELOG.md](./CHANGELOG.md) for details.
+          draft: false
+          prerelease: ${{ steps.vars.outputs.prerelease == "true" }}
