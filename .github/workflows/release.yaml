@@ -41,8 +41,11 @@ jobs:
       - name: Setup variables
         id: vars
         run: |
-          if echo ${{ github.ref }} | grep -q "-"; then PRERELEASE=true; else PRERELEASE=false; fi
-          echo "::set-output name=prerelease::${PRERELEASE}"
+          if test -n "$(echo ${{ github.ref }} | grep -e -)"; then
+            echo "::set-output name=prerelease::true"
+          else
+            echo "::set-output name=prerelease::false"
+          fi
       - uses: actions/checkout@v2
       - name: Create release
         id: create_release
