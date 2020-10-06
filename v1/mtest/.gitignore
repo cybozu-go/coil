@@ -1,7 +1,0 @@
-/etcd-*-linux-amd64.tar.gz
-/output
-*.img
-/vault_*.zip
-/tmpbin
-crictl.tar.gz
-protoc.zip

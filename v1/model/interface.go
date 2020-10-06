@@ -4,7 +4,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/cybozu-go/coil/v1"
+	"github.com/cybozu-go/coil"
 )
 
 // Model defines interfaces to access coil database.

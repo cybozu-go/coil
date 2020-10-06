@@ -5,7 +5,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/cybozu-go/coil/v1/model"
+	"github.com/cybozu-go/coil/model"
 )
 
 type missingEnvvar string

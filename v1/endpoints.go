@@ -1,6 +1,7 @@
 package coil
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -56,7 +57,7 @@ func ResolveEtcdEndpoints(cfg *etcdutil.Config) error {
 		return err
 	}
 
-	ep, err := clientset.CoreV1().Endpoints("kube-system").Get(e0[1:], metav1.GetOptions{})
+	ep, err := clientset.CoreV1().Endpoints("kube-system").Get(context.Background(), e0[1:], metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

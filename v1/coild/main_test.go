@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/cybozu-go/coil/v1/test"
+	"github.com/cybozu-go/coil/test"
 )
 
 const (

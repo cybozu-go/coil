@@ -3,7 +3,7 @@ package controller
 import (
 	"context"
 
-	"github.com/cybozu-go/coil/v1/model"
+	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/log"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"

@@ -25,7 +25,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cybozu-go/coil/v1"
+	"github.com/cybozu-go/coil"
 	"github.com/cybozu-go/etcdutil"
 	"github.com/cybozu-go/log"
 	"github.com/cybozu-go/well"

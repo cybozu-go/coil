@@ -20,7 +20,7 @@
 
 package main
 
-import "github.com/cybozu-go/coil/v1/pkg/coild/cmd"
+import "github.com/cybozu-go/coil/pkg/coild/cmd"
 
 func main() {
 	cmd.Execute()

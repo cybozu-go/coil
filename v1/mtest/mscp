@@ -1,4 +1,0 @@
-#!/bin/bash
-
-CURRENT_DIR=$(cd $(dirname $0);pwd)
-scp -F ${CURRENT_DIR}/ssh_config $@

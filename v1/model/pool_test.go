@@ -6,7 +6,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/cybozu-go/coil/v1"
+	"github.com/cybozu-go/coil"
 )
 
 func testAddPool(t *testing.T) {
