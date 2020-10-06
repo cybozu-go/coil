@@ -28,7 +28,7 @@ type EgressSpec struct {
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Minimum=1
 	// +optional
-	Replicas int32 `json:"replicas,omitempty"`
+	Replicas int32 `json:"replicas"`
 
 	// Strategy describes how to replace existing pods with new ones.
 	// Ref. https://pkg.go.dev/k8s.io/api/apps/v1?tab=doc#DeploymentStrategy

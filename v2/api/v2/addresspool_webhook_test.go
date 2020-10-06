@@ -6,6 +6,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("AddressPool Webhook", func() {
@@ -22,6 +24,27 @@ var _ = Describe("AddressPool Webhook", func() {
 	})
 
 	It("should create an address pool with sane defaults", func() {
+		r := &unstructured.Unstructured{}
+		r.SetGroupVersionKind(GroupVersion.WithKind("AddressPool"))
+		r.SetName("test")
+		r.UnstructuredContent()["spec"] = map[string]interface{}{
+			"subnets": []interface{}{
+				map[string]interface{}{
+					"ipv4": "10.2.0.0/24",
+				},
+			},
+		}
+
+		err := k8sClient.Create(ctx, r)
+		Expect(err).NotTo(HaveOccurred())
+
+		ap := &AddressPool{}
+		err = k8sClient.Get(ctx, client.ObjectKey{Name: "test"}, ap)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ap.Spec.BlockSizeBits).To(BeNumerically("==", 5))
+	})
+
+	It("should create an address pool of blockSizeBits=0", func() {
 		r := &AddressPool{
 			Spec: AddressPoolSpec{
 				Subnets: []SubnetSet{makeSubnetSet("10.2.0.0/24", "")},
@@ -31,7 +54,7 @@ var _ = Describe("AddressPool Webhook", func() {
 
 		err := k8sClient.Create(ctx, r)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(r.Spec.BlockSizeBits).To(BeNumerically("==", 5))
+		Expect(r.Spec.BlockSizeBits).To(BeNumerically("==", 0))
 	})
 
 	It("should allow a valid IPv4 address pool", func() {

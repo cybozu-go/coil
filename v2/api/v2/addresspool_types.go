@@ -155,7 +155,7 @@ type AddressPoolSpec struct {
 	// +kubebuilder:default=5
 	// +kubebuilder:validation:Minimum=0
 	// +optional
-	BlockSizeBits int32 `json:"blockSizeBits,omitempty"`
+	BlockSizeBits int32 `json:"blockSizeBits"`
 
 	// Subnets is a list of IPv4, or IPv6, or dual stack IPv4/IPv6 subnets in this pool.
 	// All items in the list should be consistent to have the same set of subnets.
