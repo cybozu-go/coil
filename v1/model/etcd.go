@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/coreos/etcd/clientv3"
-	"github.com/cybozu-go/coil/v1/test"
+	"github.com/cybozu-go/coil/test"
 )
 
 // etcdModel implements Model on etcd.

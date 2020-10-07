@@ -8,7 +8,7 @@ import (
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/clientv3/clientv3util"
-	"github.com/cybozu-go/coil/v1"
+	"github.com/cybozu-go/coil"
 	"github.com/cybozu-go/netutil"
 )
 

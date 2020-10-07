@@ -1,4 +1,4 @@
-module github.com/cybozu-go/coil/v1
+module github.com/cybozu-go/coil
 
 go 1.13
 

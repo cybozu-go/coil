@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cybozu-go/coil/v1"
-	"github.com/cybozu-go/coil/v1/model"
+	"github.com/cybozu-go/coil"
+	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/log"
 	"github.com/cybozu-go/well"
 )

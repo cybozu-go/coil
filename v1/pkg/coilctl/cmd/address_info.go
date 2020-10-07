@@ -7,7 +7,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/cybozu-go/coil/v1/model"
+	"github.com/cybozu-go/coil/model"
 	"github.com/cybozu-go/etcdutil"
 	"github.com/cybozu-go/log"
 	"github.com/cybozu-go/well"

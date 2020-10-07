@@ -43,6 +43,12 @@ func (a allocator) isEmpty() bool {
 	return a.usage.None()
 }
 
+func (a allocator) fill() {
+	for i := uint(0); i < a.usage.Len(); i++ {
+		a.usage.Set(i)
+	}
+}
+
 func (a allocator) register(ipv4, ipv6 net.IP) (uint, bool) {
 	if a.ipv4 != nil && a.ipv4.Contains(ipv4) {
 		offset := util.IPDiff(a.ipv4.IP, ipv4)

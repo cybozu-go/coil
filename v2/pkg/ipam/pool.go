@@ -282,6 +282,10 @@ func SetupIndexer(ctx context.Context, mgr manager.Manager) error {
 		job := o.(*coilv2.AddressBlock)
 		owner := metav1.GetControllerOf(job)
 		if owner == nil {
+			pname := job.Labels[constants.LabelPool]
+			if pname != "" {
+				return []string{pname}
+			}
 			return nil
 		}
 		return []string{owner.Name}

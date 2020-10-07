@@ -437,6 +437,7 @@ var _ = Describe("Coild server", func() {
 		eg.Namespace = "ns2"
 		eg.Name = "egress"
 		eg.Spec.Destinations = []string{"192.168.0.0/16", "fd20::/112"}
+		eg.Spec.Replicas = 1
 		err = k8sClient.Create(ctx, eg)
 		Expect(err).NotTo(HaveOccurred())
 

@@ -312,16 +312,28 @@ In case that `Node` where `coild` is running is deleted, Coil adds the node into
 
 ## Upgrading from v1
 
-We will prepare a converter program that reads Coil v1 data from etcd and converts them to YAML manifests for Coil v2.
+We will prepare a tool to migrate existing Coil v1 cluster to v2.
+Pods run by Coil v1 should survive during and after v2 migration for smooth transition.
 
-The upgrade is done through the following steps:
+The following steps illustrate the transition:
 
-1. Remove Coil v1 resources from Kubernetes.  This stops updating data in etcd.
+1. Remove Coil v1 resources from Kubernetes.  This stops new Pod creation and updating data in etcd.
 2. Run the converter and save the generated manifests as `data.yaml`.
+   
+    This YAML contains `AddressPools` and `AddressBlocks`.
+    The `AddressBlocks` are marked as reserved.
+
 3. (option) Add annotations to namespaces to specify `AddressPool`.
 4. Apply Coil v2 CRDs.
 5. Apply `data.yaml`.
-6. Apply other Coil v2 resources.
+6. Apply other Coil v2 resources.  This restarts Pod creation.
+7. Remove and replace Pods run by Coil v1 one by one.
+8. Remove all reserved `AddressBlocks`.
+
+A migration tool called `coil-migrator` helps step 1, 2, 3, 7, and 8.
+
+- `coil-migrator dump` does 1, 2, and 3.
+- `coil-migrator replace` does 7 and 8.
 
 ## Diagrams
 

@@ -281,7 +281,11 @@ func (p *nodePool) syncBlock(ctx context.Context) error {
 			"block-pool", block.Labels[constants.LabelPool],
 			"block-node", block.Labels[constants.LabelNode],
 		)
-		p.blockAlloc[block.Name] = newAllocator(block.IPv4, block.IPv6)
+		a := newAllocator(block.IPv4, block.IPv6)
+		if block.Labels[constants.LabelReserved] == "true" {
+			a.fill()
+		}
+		p.blockAlloc[block.Name] = a
 	}
 	return nil
 }

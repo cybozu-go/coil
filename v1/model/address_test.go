@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cybozu-go/coil/v1"
+	"github.com/cybozu-go/coil"
 	"github.com/cybozu-go/netutil"
 )
 

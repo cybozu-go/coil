@@ -25,7 +25,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/cybozu-go/coil/v1/installer"
+	"github.com/cybozu-go/coil/installer"
 	"github.com/cybozu-go/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

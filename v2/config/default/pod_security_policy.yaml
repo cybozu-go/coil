@@ -12,7 +12,10 @@ spec:
     - 'emptyDir'
     - 'secret'
     - 'downwardAPI'
-  hostNetwork: false
+  hostNetwork: true
+  hostPorts:
+  - min: 0
+    max: 65535
   hostIPC: false
   hostPID: false
   seLinux:
@@ -26,6 +29,12 @@ spec:
       - min: 1
         max: 65535
   supplementalGroups:
+    rule: 'MustRunAs'
+    ranges:
+      # Forbid adding the root group.
+      - min: 1
+        max: 65535
+  fsGroup:
     rule: 'MustRunAs'
     ranges:
       # Forbid adding the root group.
@@ -56,6 +65,10 @@ spec:
   - pathPrefix: "/etc/cni/net.d"
     readOnly: false
   hostNetwork: true
+  hostPorts:
+  - min: 0
+    max: 65535
+  hostPID: true
   seLinux:
     rule: 'RunAsAny'
   runAsUser:
@@ -82,6 +95,9 @@ spec:
     - 'secret'
     - 'downwardAPI'
   hostNetwork: true
+  hostPorts:
+  - min: 0
+    max: 65535
   seLinux:
     rule: 'RunAsAny'
   runAsUser:

@@ -8,8 +8,9 @@ const (
 
 // Label keys
 const (
-	LabelPool = "coil.cybozu.com/pool"
-	LabelNode = "coil.cybozu.com/node"
+	LabelPool     = "coil.cybozu.com/pool"
+	LabelNode     = "coil.cybozu.com/node"
+	LabelReserved = "coil.cybozu.com/reserved"
 
 	LabelAppName      = "app.kubernetes.io/name"
 	LabelAppInstance  = "app.kubernetes.io/instance"

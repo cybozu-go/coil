@@ -9,6 +9,7 @@ func TestAllocator(t *testing.T) {
 	t.Run("v4", testAllocatorV4)
 	t.Run("v6", testAllocatorV6)
 	t.Run("dual", testAllocatorDual)
+	t.Run("fill", testAllocatorFill)
 }
 
 func testAllocatorV4(t *testing.T) {
@@ -228,5 +229,29 @@ func testAllocatorDual(t *testing.T) {
 
 	if !a.isFull() {
 		t.Error("should be full")
+	}
+}
+
+func testAllocatorFill(t *testing.T) {
+	t.Parallel()
+
+	ipv4 := "10.2.3.0/30"
+	ipv6 := "fd02::/126"
+	a := newAllocator(&ipv4, &ipv6)
+	if !a.isEmpty() {
+		t.Error("new allocator should be empty")
+	}
+
+	a.fill()
+	if !a.isFull() {
+		t.Error("fill does not fill")
+	}
+
+	a.free(0)
+	a.free(1)
+	a.free(2)
+	a.free(3)
+	if !a.isEmpty() {
+		t.Error("fill changed the length")
 	}
 }

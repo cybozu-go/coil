@@ -19,6 +19,7 @@ func makeEgress() *Egress {
 		},
 		Spec: EgressSpec{
 			Destinations: []string{"10.2.0.0/16"},
+			Replicas:     1,
 		},
 	}
 }
