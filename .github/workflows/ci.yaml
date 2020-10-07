@@ -35,6 +35,9 @@ jobs:
       - run: make test-founat
         timeout-minutes: 10
       - run: make check-generate
+      - name: Build coil-migrator
+        run: go build .
+        working-directory: coil-migrator
   e2e:
     name: End-to-end Test
     strategy:
