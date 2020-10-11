@@ -1,0 +1,9 @@
+resources:
+- ../crd
+- ../rbac
+- ../pod
+- ../webhook
+- ./webhook-secret.yaml
+
+patchesStrategicMerge:
+- ./webhook_manifests_patch.yaml

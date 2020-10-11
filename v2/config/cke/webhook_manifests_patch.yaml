@@ -1,0 +1,14 @@
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: coilv2-mutating-webhook-configuration
+  annotations:
+    cke.cybozu.com/inject-cacert: "true"
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: coilv2-validating-webhook-configuration
+  annotations:
+    cke.cybozu.com/inject-cacert: "true"
+---
