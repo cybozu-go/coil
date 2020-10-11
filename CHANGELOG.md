@@ -7,8 +7,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
-- `coil-migrator`: a utility to help live migration from v1 to v2.
-- Install option for [CKE](https://github.com/cybozu-go/cke).
+- `coil-migrator`: a utility to help live migration from v1 to v2 (#119).
+- Install option for [CKE](https://github.com/cybozu-go/cke) (#120).
 
 ## [2.0.0-rc.1] - 2020-10-05
 
