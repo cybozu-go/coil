@@ -1,6 +1,6 @@
 [![GitHub release](https://img.shields.io/github/release/cybozu-go/coil.svg?maxAge=60)][releases]
 ![CI](https://github.com/cybozu-go/coil/workflows/CI/badge.svg)
-[![PkgGoDev](https://pkg.go.dev/badge/github.com/cybozu-go/coil?tab=overview)](https://pkg.go.dev/github.com/cybozu-go/coil?tab=overview)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/cybozu-go/coil?tab=overview)](https://pkg.go.dev/github.com/cybozu-go/coil/v2?tab=subdirectories)
 [![Go Report Card](https://goreportcard.com/badge/github.com/cybozu-go/coil)](https://goreportcard.com/report/github.com/cybozu-go/coil)
 
 Coil
@@ -17,9 +17,7 @@ private IPv4 addresses for the remaining pods.
 
 ## Status
 
-Version 2 is under **active development**.  It conforms to [CNI spec 0.4.0](https://github.com/containernetworking/cni/blob/spec-v0.4.0/SPEC.md).
-
-Version 1 is maintained in [release-1.1](https://github.com/cybozu-go/coil/tree/release-1.1) branch.
+Version 2 is generally available (GA).  It conforms to [CNI spec 0.4.0](https://github.com/containernetworking/cni/blob/spec-v0.4.0/SPEC.md).
 
 ## Dependencies
 

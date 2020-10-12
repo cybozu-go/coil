@@ -1,10 +1,14 @@
 images:
 - name: coil
-  newTag: 2.0.0-rc.1
+  newTag: 2.0.0
   newName: ghcr.io/cybozu-go/coil
 
 resources:
 - config/default
+# If you are using CKE (github.com/cybozu-go/cke) and wwant to use
+# its webhook installation feature, comment the above line and
+# uncomment the below line.
+#- config/cke
 
 # If you want to enable coil-router, uncomment the following line.
 # Note that coil-router can work only for clusters where all the
