@@ -8,5 +8,6 @@ spec:
   ports:
     - port: 443
       targetPort: 9443
+      protocol: TCP
   selector:
     app.kubernetes.io/component: coil-controller
