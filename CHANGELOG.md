@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.1] - 2020-10-12
+
+### Changed
+
+- config: add protocol=TCP to Service for server-side apply (#122).
+
 ## [2.0.0] - 2020-10-12
 
 ### Added
@@ -17,6 +23,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/cybozu-go/coil/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/cybozu-go/coil/compare/v2.0.0-rc.1...v2.0.0
 [2.0.0-rc.1]: https://github.com/cybozu-go/coil/compare/v1.1.9...v2.0.0-rc.1
