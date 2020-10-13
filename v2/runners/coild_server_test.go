@@ -459,6 +459,7 @@ var _ = Describe("Coild server", func() {
 		svc.Spec.Ports = []corev1.ServicePort{{Port: 8080}}
 		err = k8sClient.Create(ctx, svc)
 		Expect(err).NotTo(HaveOccurred())
+		time.Sleep(100 * time.Millisecond)
 
 		By("calling Add with IPv4 Service")
 		_, err = cniClient.Add(ctx, &cnirpc.CNIArgs{
