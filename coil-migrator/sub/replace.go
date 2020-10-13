@@ -87,6 +87,11 @@ func doReplace(ctx context.Context) error {
 				if apierrors.IsNotFound(err) {
 					continue OUTER
 				}
+				if err == nil {
+					if p2.UID != pod.UID {
+						continue OUTER
+					}
+				}
 				// ignore other errors as they may be temporary
 			}
 
