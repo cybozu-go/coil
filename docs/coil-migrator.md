@@ -5,10 +5,14 @@ coil-migrator
 
 It has two sub commands: `dump` and `replace`.
 
+## usage
+
 See [design.md](design.md#upgrading-from-v1) for the design and
 [#119](https://github.com/cybozu-go/coil/pull/119#issuecomment-704674318) for the usage.
 
-### dump sub command
+After `coil-migrator replace` succeeds, remove all `coild` Pods to restart them.
+
+## dump sub command
 
 This command does the followings:
 
@@ -38,7 +42,7 @@ Global Flags:
       --kubeconfig string   Paths to a kubeconfig. Only required if out-of-cluster.
 ```
 
-### replace sub command
+## replace sub command
 
 This command finalizes the migration from v1 to v2 by deleting
 all the currently running Pods and then deleting reserved blocks.
