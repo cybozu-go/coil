@@ -10,13 +10,16 @@ import (
 )
 
 var config struct {
-	metricsAddr  string
-	healthAddr   string
-	tableId      int
-	protocolId   int
-	socketPath   string
-	compatCalico bool
-	egressPort   int
+	metricsAddr      string
+	healthAddr       string
+	podTableId       int
+	podRulePrio      int
+	exportTableId    int
+	protocolId       int
+	socketPath       string
+	compatCalico     bool
+	egressPort       int
+	registerFromMain bool
 }
 
 var rootCmd = &cobra.Command{
@@ -46,9 +49,12 @@ func init() {
 	pf := rootCmd.PersistentFlags()
 	pf.StringVar(&config.metricsAddr, "metrics-addr", ":9384", "bind address of metrics endpoint")
 	pf.StringVar(&config.healthAddr, "health-addr", ":9385", "bind address of health/readiness probes")
-	pf.IntVar(&config.tableId, "table-id", 119, "routing table ID to which coild exports routes")
+	pf.IntVar(&config.podTableId, "pod-table-id", 116, "routing table ID to which coild registers routes for Pods")
+	pf.IntVar(&config.podRulePrio, "pod-rule-prio", 2000, "priority with which the rule for Pod table is inserted")
+	pf.IntVar(&config.exportTableId, "export-table-id", 119, "routing table ID to which coild exports routes")
 	pf.IntVar(&config.protocolId, "protocol-id", 30, "route author ID")
 	pf.StringVar(&config.socketPath, "socket", constants.DefaultSocketPath, "UNIX domain socket path")
 	pf.BoolVar(&config.compatCalico, "compat-calico", false, "make veth name compatible with Calico")
 	pf.IntVar(&config.egressPort, "egress-port", 5555, "UDP port number for egress NAT")
+	pf.BoolVar(&config.registerFromMain, "register-from-main", false, "help migration from Coil 2.0.1")
 }

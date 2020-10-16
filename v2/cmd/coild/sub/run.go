@@ -66,7 +66,7 @@ func subMain() error {
 		return err
 	}
 
-	exporter := nodenet.NewRouteExporter(config.tableId, config.protocolId, ctrl.Log.WithName("route-exporter"))
+	exporter := nodenet.NewRouteExporter(config.exportTableId, config.protocolId, ctrl.Log.WithName("route-exporter"))
 	nodeIPAM := ipam.NewNodeIPAM(nodeName, ctrl.Log.WithName("node-ipam"), mgr, exporter)
 	watcher := &controllers.BlockRequestWatcher{
 		Client:   mgr.GetClient(),
@@ -78,7 +78,13 @@ func subMain() error {
 		return err
 	}
 
-	podNet := nodenet.NewPodNetwork(config.protocolId, config.compatCalico, ctrl.Log.WithName("pod-network"))
+	podNet := nodenet.NewPodNetwork(
+		config.podTableId,
+		config.podRulePrio,
+		config.protocolId,
+		config.compatCalico,
+		config.registerFromMain,
+		ctrl.Log.WithName("pod-network"))
 	if err := podNet.Init(); err != nil {
 		return err
 	}

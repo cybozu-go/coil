@@ -14,6 +14,14 @@ The gRPC server provides following additional features:
 - [gRPC metrics](https://github.com/grpc-ecosystem/go-grpc-prometheus#metrics)
 - Access logging
 
+## Pod routes
+
+`coild` registers the routes to local Pods into a kernel routing table.
+The default routing table ID is **116**.
+
+This routing table is looked up by a routing rule inserted by `coild`.
+The default rule priority is **2000**.
+
 ## Route export
 
 `coild` exports address blocks owned by the running node to a kernel
@@ -44,11 +52,14 @@ Calico needs to be configured to set [`FELIX_INTERFACEPREFIX`](https://github.co
 Flags:
       --compat-calico         make veth name compatible with Calico
       --egress-port int       UDP port number for egress NAT (default 5555)
+      --export-table-id int   routing table ID to which coild exports routes (default 119)
       --health-addr string    bind address of health/readiness probes (default ":9385")
   -h, --help                  help for coild
       --metrics-addr string   bind address of metrics endpoint (default ":9384")
+      --pod-rule-prio int     priority with which the rule for Pod table is inserted (default 2000)
+      --pod-table-id int      routing table ID to which coild registers routes for Pods (default 116)
       --protocol-id int       route author ID (default 30)
+      --register-from-main    help migration from Coil 2.0.1
       --socket string         UNIX domain socket path (default "/run/coild.sock")
-      --table-id int          routing table ID to which coild exports routes (default 119)
   -v, --version               version for coild
 ```
