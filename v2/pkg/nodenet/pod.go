@@ -59,18 +59,24 @@ type PodNetwork interface {
 }
 
 // NewPodNetwork creates a PodNetwork
-func NewPodNetwork(protocolId int, compatCalico bool, log logr.Logger) PodNetwork {
+func NewPodNetwork(podTableID, podRulePrio, protocolId int, compatCalico, registerFromMain bool, log logr.Logger) PodNetwork {
 	return &podNetwork{
-		protocolId:   protocolId,
-		compatCalico: compatCalico,
-		log:          log,
+		podTableId:       podTableID,
+		podRulePrio:      podRulePrio,
+		protocolId:       protocolId,
+		compatCalico:     compatCalico,
+		registerFromMain: registerFromMain,
+		log:              log,
 	}
 }
 
 type podNetwork struct {
-	protocolId   int
-	compatCalico bool
-	log          logr.Logger
+	podTableId       int
+	podRulePrio      int
+	protocolId       int
+	compatCalico     bool
+	registerFromMain bool
+	log              logr.Logger
 
 	mu sync.Mutex
 }
@@ -126,6 +132,36 @@ func (pn *podNetwork) Init() error {
 	}
 	if err := ip.EnableIP6Forward(); err != nil {
 		pn.log.Error(err, "warning: failed to enable IPv6 forwarding")
+	}
+
+	if err := pn.initRule(netlink.FAMILY_V4); err != nil {
+		pn.log.Error(err, "warning: failed to init IPv4 routing rule")
+	}
+	if err := pn.initRule(netlink.FAMILY_V6); err != nil {
+		pn.log.Error(err, "warning: failed to init IPv6 routing rule")
+	}
+
+	return nil
+}
+
+func (pn *podNetwork) initRule(family int) error {
+	rules, err := netlink.RuleList(family)
+	if err != nil {
+		return fmt.Errorf("netlink: rule list failed: %w", err)
+	}
+
+	for _, r := range rules {
+		if r.Priority == pn.podRulePrio {
+			return nil
+		}
+	}
+
+	r := netlink.NewRule()
+	r.Family = family
+	r.Table = pn.podTableId
+	r.Priority = pn.podRulePrio
+	if err := netlink.RuleAdd(r); err != nil {
+		return fmt.Errorf("netlink: failed to add pod table rule: %w", err)
 	}
 	return nil
 }
@@ -264,6 +300,7 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 			LinkIndex: hLink.Attrs().Index,
 			Scope:     netlink.SCOPE_LINK,
 			Protocol:  pn.protocolId,
+			Table:     pn.podTableId,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("netlink: failed to add route to %s: %w", conf.IPv6.String(), err)
@@ -283,6 +320,7 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 			LinkIndex: hLink.Attrs().Index,
 			Scope:     netlink.SCOPE_LINK,
 			Protocol:  pn.protocolId,
+			Table:     pn.podTableId,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("netlink: failed to add route to %s: %w", conf.IPv4.String(), err)
@@ -379,28 +417,57 @@ func (pn *podNetwork) List() ([]*PodNetConf, error) {
 		return nil, fmt.Errorf("netlink: failed to list links: %w", err)
 	}
 
-	v4Routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
+	v4Routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Table: pn.podTableId}, netlink.RT_FILTER_TABLE)
 	if err != nil {
-		return nil, fmt.Errorf("netlink: failed to list IPv4 routes: %w", err)
+		return nil, fmt.Errorf("netlink: failed to list IPv4 routes in table %d: %w", pn.podTableId, err)
 	}
 	v4Map := make(map[int]net.IP)
 	for _, r := range v4Routes {
-		if r.Protocol != pn.protocolId {
-			continue
-		}
 		v4Map[r.LinkIndex] = r.Dst.IP.To4()
 	}
 
-	v6Routes, err := netlink.RouteList(nil, netlink.FAMILY_V6)
+	// TODO: remove this when releasing Coil 2.1
+	if pn.registerFromMain {
+		v4Routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
+		if err != nil {
+			return nil, fmt.Errorf("netlink: failed to list IPv4 routes: %w", err)
+		}
+		for _, r := range v4Routes {
+			if r.Protocol != pn.protocolId && r.Protocol != 3 {
+				// Calico replaces protocol ID to 3 (== boot)
+				continue
+			}
+			if _, ok := v4Map[r.LinkIndex]; ok {
+				continue
+			}
+			v4Map[r.LinkIndex] = r.Dst.IP.To4()
+		}
+	}
+
+	v6Routes, err := netlink.RouteListFiltered(netlink.FAMILY_V6, &netlink.Route{Table: pn.podTableId}, netlink.RT_FILTER_TABLE)
 	if err != nil {
-		return nil, fmt.Errorf("netlink: failed to list IPv6 routes: %w", err)
+		return nil, fmt.Errorf("netlink: failed to list IPv6 routes in table %d: %w", pn.podTableId, err)
 	}
 	v6Map := make(map[int]net.IP)
 	for _, r := range v6Routes {
-		if r.Protocol != pn.protocolId {
-			continue
-		}
 		v6Map[r.LinkIndex] = r.Dst.IP.To16()
+	}
+
+	// TODO: remove this when releasing Coil 2.1
+	if pn.registerFromMain {
+		v6Routes, err := netlink.RouteList(nil, netlink.FAMILY_V6)
+		if err != nil {
+			return nil, fmt.Errorf("netlink: failed to list IPv6 routes: %w", err)
+		}
+		for _, r := range v6Routes {
+			if r.Protocol != pn.protocolId && r.Protocol != 3 {
+				continue
+			}
+			if _, ok := v6Map[r.LinkIndex]; ok {
+				continue
+			}
+			v6Map[r.LinkIndex] = r.Dst.IP.To16()
+		}
 	}
 
 	var confs []*PodNetConf
