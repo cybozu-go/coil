@@ -5,6 +5,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.2] - 2020-10-16
+
+### Changed
+
+- `coild`: register pod routes in a separate table (#125).
+- config: fix Pod Security Policy for `coil-egress` (#125).
+- `coil-migrator`: wait for StatefulSet's Pod deletion correctly (#124).
+
 ## [2.0.1] - 2020-10-12
 
 ### Changed
@@ -23,7 +31,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.2...HEAD
+[2.0.2]: https://github.com/cybozu-go/coil/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/cybozu-go/coil/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/cybozu-go/coil/compare/v2.0.0-rc.1...v2.0.0
 [2.0.0-rc.1]: https://github.com/cybozu-go/coil/compare/v1.1.9...v2.0.0-rc.1
