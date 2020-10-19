@@ -329,11 +329,12 @@ The following steps illustrate the transition:
 6. Apply other Coil v2 resources.  This restarts Pod creation.
 7. Remove and replace Pods run by Coil v1 one by one.
 8. Remove all reserved `AddressBlocks`.
+9. Restart all `coild` Pods to resync `AddressBlocks`.
 
-A migration tool called `coil-migrator` helps step 1, 2, 3, 7, and 8.
+A migration tool called `coil-migrator` helps step 1, 2, 3, 7, 8, and 9.
 
 - `coil-migrator dump` does 1, 2, and 3.
-- `coil-migrator replace` does 7 and 8.
+- `coil-migrator replace` does 7, 8, and 9.
 
 ## Diagrams
 
