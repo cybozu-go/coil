@@ -121,7 +121,33 @@ func doReplace(ctx context.Context) error {
 	err = k8sClient.DeleteAllOf(ctx, &coilv2.AddressBlock{}, client.MatchingLabels{
 		constants.LabelReserved: "true",
 	})
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to delete reserved blocks: %w", err)
+	}
+
+	for {
+		time.Sleep(1 * time.Second)
+		blocks := &coilv2.AddressBlockList{}
+		err := k8sClient.List(ctx, blocks, client.MatchingLabels{
+			constants.LabelReserved: "true",
+		})
+		if err != nil {
+			continue
+		}
+		if len(blocks.Items) == 0 {
+			break
+		}
+		fmt.Println("waiting for all the reserved address blocks to be deleted...")
+	}
+
+	err = k8sClient.DeleteAllOf(ctx, &corev1.Pod{}, client.InNamespace("kube-system"), client.MatchingLabels{
+		"app.kubernetes.io/name":      "coil",
+		"app.kubernetes.io/component": "coild",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to restart coild pods: %w", err)
+	}
+	return nil
 }
 
 func init() {

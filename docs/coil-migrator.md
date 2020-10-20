@@ -10,8 +10,6 @@ It has two sub commands: `dump` and `replace`.
 See [design.md](design.md#upgrading-from-v1) for the design and
 [#119](https://github.com/cybozu-go/coil/pull/119#issuecomment-704674318) for the usage.
 
-After `coil-migrator replace` succeeds, remove all `coild` Pods to restart them.
-
 ## dump sub command
 
 This command does the followings:
