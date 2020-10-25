@@ -98,8 +98,6 @@ The user manual is [docs/usage.md](./docs/usage.md).
 
 [docs](docs/) directory contains other documents about designs and specifications.
 
-[mtest/bird.conf](mtest/bird.conf) is an example configuration for [BIRD][] to make it work with coil.
-
 [releases]: https://github.com/cybozu-go/coil/releases
 [CNI]: https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/
 [BIRD]: https://bird.network.cz/
