@@ -74,6 +74,7 @@ type podNetwork struct {
 	podTableId       int
 	podRulePrio      int
 	protocolId       int
+	mtu              int
 	compatCalico     bool
 	registerFromMain bool
 	log              logr.Logger
@@ -141,6 +142,12 @@ func (pn *podNetwork) Init() error {
 		pn.log.Error(err, "warning: failed to init IPv6 routing rule")
 	}
 
+	if mtu, err := DetectMTU(); err != nil {
+		pn.log.Error(err, "warning: failed to auto-detect the host MTU")
+	} else {
+		pn.mtu = mtu
+	}
+
 	return nil
 }
 
@@ -195,7 +202,7 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 		if pn.compatCalico {
 			vethName = calicoVethName(podName, podNS)
 		}
-		hVeth, cVeth, err := ip.SetupVethWithName(conf.IFace, vethName, 0, hostNS)
+		hVeth, cVeth, err := ip.SetupVethWithName(conf.IFace, vethName, pn.mtu, hostNS)
 		if err != nil {
 			return fmt.Errorf("failed to setup veth: %w", err)
 		}
