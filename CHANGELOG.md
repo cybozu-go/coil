@@ -5,6 +5,16 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.3] - 2020-11-19
+
+### Added
+
+- Auto MTU configuration (#130).
+
+### Changed
+
+- `coil-migrator`: restart `coild` Pods just before completion (#127).
+
 ## [2.0.2] - 2020-10-16
 
 ### Changed
@@ -31,7 +41,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.2...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.3...HEAD
+[2.0.3]: https://github.com/cybozu-go/coil/compare/v2.0.2...v2.0.3
 [2.0.2]: https://github.com/cybozu-go/coil/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/cybozu-go/coil/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/cybozu-go/coil/compare/v2.0.0-rc.1...v2.0.0
