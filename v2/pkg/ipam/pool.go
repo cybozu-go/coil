@@ -124,14 +124,10 @@ func (pm *poolManager) DropPool(name string) {
 }
 
 func (pm *poolManager) SyncPool(ctx context.Context, name string) error {
-	pm.mu.Lock()
-	p, ok := pm.pools[name]
-	pm.mu.Unlock()
-
-	if !ok {
-		return nil
+	p, err := pm.getPool(ctx, name)
+	if err != nil {
+		return err
 	}
-
 	return p.SyncBlocks(ctx)
 }
 
