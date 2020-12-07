@@ -227,12 +227,7 @@ To satisfy this condition, we use the port number 5555 for FoU on both client po
 To tunnel TCP packets, we need to keep sending the packets to the same SNAT router.
 This can be achieved by setting Service's [`spec.sessionAffinity`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#servicespec-v1-core) to `ClientIP`.
 
-One subtle problem of this is that the affinity can't be kept forever.
-
-- For `kube-proxy` running in iptables mode, this can be changed through `net.netfilter.nf_conntrack_udp_timeout_stream` sysctl value.
-- For `kube-proxy` running in IPVS mode, this can be changed through `net.ipv4.vs.timeout_udp` sysctl value.
-
-If `kube-proxy` runs in IPVS mode, we have an alternative method to keep sessions; use source-hash (`sh`) scheduling algorithm.  This can be done by giving `--ipvs-scheduler=sh` option to `kube-proxy`.
+Therefore, Coil creates a Service with `spec.sessionAffinity=ClientIP` for each NAT gateway.
 
 ### Auto-scaling with HPA
 

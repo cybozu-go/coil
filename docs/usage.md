@@ -288,16 +288,22 @@ spec:
 If you set `replicas` to more than 1, normally you should not set `sessionAffinity` to `None`.
 This is because session affinity is mandatory to keep stateful TCP connections.
 
-One problem with session affinity in Kubernetes is that it limits the maximum
-duration of a session.  By default, [it is 3 hours](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#clientipconfig-v1-core).
+You may need to extend the timeout setting for idle connections with `spec.sessionAffinityConfig` as follows:
 
-If `kube-proxy` is running in IPVS mode, you can specify `--ipvs-scheduler=sh` to allow setting `sessionAffinity` to `None`.
-`sh` determines the destination server based on the client IP.
+```yaml
+apiVersion: coil.cybozu.com/v2
+kind: Egress
+metadata:
+  namespace: other-network
+  name: egress
+spec:
+  # snip
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 43200
+```
 
-For more information, read:
-
-- https://www.programmersought.com/article/28252846600/
-- https://kubernetes.io/docs/reference/command-line-tools-reference/kube-proxy/#options
+The default timeout seconds is 10800 (= 3 hours).
 
 [DeploymentStrategy]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#deploymentstrategy-v1-apps
 [PodTemplateSpec]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#podtemplatespec-v1-core 
