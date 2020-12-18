@@ -20,6 +20,9 @@ For installation, read [setup.md](setup.md).
   - [Client Pods](#client-pods)
   - [Use NetworkPolicy to prohibit NAT usage](#use-networkpolicy-to-prohibit-nat-usage)
   - [Session affinity](#session-affinity)
+- [Metrics](#metrics)
+  - [How to scrape metrics](#how-to-scrape-metrics)
+  - [Dashboards](#dashboards)
 
 ## Admin role
 
@@ -304,6 +307,62 @@ spec:
 ```
 
 The default timeout seconds is 10800 (= 3 hours).
+
+## Metrics
+
+Coil exposes two types of Prometheus metrics.
+
+1. Address pool metrics  
+   Metrics about address pools managed by Coil. For description, read [cmd-coil-controller.md](cmd-coil-controller.md#prometheus-metrics).
+2. Program metrics  
+   Metrics about coil components internal. Memory usage, the number of requests to the API server, etc. They are exposed by controller-runtime.
+
+### How to scrape metrics
+
+If using Prometheus, the following scrape configuration can be used.
+
+```yaml
+scrape_configs:
+  - job_name: "coil"
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names: ["kube-system"]
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+        action: keep
+        regex: coil
+      - source_labels: [__address__, __meta_kubernetes_pod_label_app_kubernetes_io_component]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;coild
+        replacement: ${1}:9384
+        target_label: __address__
+      - source_labels: [__address__, __meta_kubernetes_pod_label_app_kubernetes_io_component]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;coil-controller
+        replacement: ${1}:9386
+        target_label: __address__
+      - source_labels: [__address__, __meta_kubernetes_pod_label_app_kubernetes_io_component]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;egress
+        replacement: ${1}:8080
+        target_label: __address__
+      - source_labels: [__address__]
+        action: replace
+        regex: ([^:]+)(?::\d+)?
+        replacement: ${1}
+        target_label: instance
+      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+        action: replace
+        regex: (.*)
+        replacement: ${1}
+        target_label: component
+```
+### Dashboards
+
+The example of Grafana dashboard is [here](../v2/dashboard/coil.json).
+
+![dashboard screenshot](img/dashboard.png)
 
 [DeploymentStrategy]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#deploymentstrategy-v1-apps
 [PodTemplateSpec]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#podtemplatespec-v1-core 
