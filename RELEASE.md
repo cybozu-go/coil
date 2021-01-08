@@ -40,7 +40,7 @@ You should also update `sigs.k8s.io/controller-runtime` Go package periodically.
 ## Bump version
 
 1. Determine a new version number.  Let it write `$VERSION` as `VERSION=x.y.z`.
-2. Checkout `master` branch.
+2. Checkout `main` branch.
 3. Make a branch to release, for example by `git neco dev "bump-$VERSION"`
 4. Edit `CHANGELOG.md` for the new version ([example][]).
 5. Edit `v2/version.go` for the new version.
@@ -52,7 +52,7 @@ You should also update `sigs.k8s.io/controller-runtime` Go package periodically.
     $ git neco review
     ```
 8. Merge this branch.
-9. Checkout `master` branch.
+9. Checkout `main` branch.
 10. Add a git tag, then push it.
 
     ```console
