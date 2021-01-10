@@ -4,10 +4,10 @@ package cnirpc
 
 import (
 	context "context"
-	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -19,8 +19,8 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CNIClient interface {
 	Add(ctx context.Context, in *CNIArgs, opts ...grpc.CallOption) (*AddResponse, error)
-	Del(ctx context.Context, in *CNIArgs, opts ...grpc.CallOption) (*empty.Empty, error)
-	Check(ctx context.Context, in *CNIArgs, opts ...grpc.CallOption) (*empty.Empty, error)
+	Del(ctx context.Context, in *CNIArgs, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	Check(ctx context.Context, in *CNIArgs, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type cNIClient struct {
@@ -40,8 +40,8 @@ func (c *cNIClient) Add(ctx context.Context, in *CNIArgs, opts ...grpc.CallOptio
 	return out, nil
 }
 
-func (c *cNIClient) Del(ctx context.Context, in *CNIArgs, opts ...grpc.CallOption) (*empty.Empty, error) {
-	out := new(empty.Empty)
+func (c *cNIClient) Del(ctx context.Context, in *CNIArgs, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, "/pkg.cnirpc.CNI/Del", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -49,8 +49,8 @@ func (c *cNIClient) Del(ctx context.Context, in *CNIArgs, opts ...grpc.CallOptio
 	return out, nil
 }
 
-func (c *cNIClient) Check(ctx context.Context, in *CNIArgs, opts ...grpc.CallOption) (*empty.Empty, error) {
-	out := new(empty.Empty)
+func (c *cNIClient) Check(ctx context.Context, in *CNIArgs, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, "/pkg.cnirpc.CNI/Check", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -63,8 +63,8 @@ func (c *cNIClient) Check(ctx context.Context, in *CNIArgs, opts ...grpc.CallOpt
 // for forward compatibility
 type CNIServer interface {
 	Add(context.Context, *CNIArgs) (*AddResponse, error)
-	Del(context.Context, *CNIArgs) (*empty.Empty, error)
-	Check(context.Context, *CNIArgs) (*empty.Empty, error)
+	Del(context.Context, *CNIArgs) (*emptypb.Empty, error)
+	Check(context.Context, *CNIArgs) (*emptypb.Empty, error)
 	mustEmbedUnimplementedCNIServer()
 }
 
@@ -75,10 +75,10 @@ type UnimplementedCNIServer struct {
 func (UnimplementedCNIServer) Add(context.Context, *CNIArgs) (*AddResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Add not implemented")
 }
-func (UnimplementedCNIServer) Del(context.Context, *CNIArgs) (*empty.Empty, error) {
+func (UnimplementedCNIServer) Del(context.Context, *CNIArgs) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Del not implemented")
 }
-func (UnimplementedCNIServer) Check(context.Context, *CNIArgs) (*empty.Empty, error) {
+func (UnimplementedCNIServer) Check(context.Context, *CNIArgs) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Check not implemented")
 }
 func (UnimplementedCNIServer) mustEmbedUnimplementedCNIServer() {}
@@ -90,7 +90,7 @@ type UnsafeCNIServer interface {
 	mustEmbedUnimplementedCNIServer()
 }
 
-func RegisterCNIServer(s *grpc.Server, srv CNIServer) {
+func RegisterCNIServer(s grpc.ServiceRegistrar, srv CNIServer) {
 	s.RegisterService(&_CNI_serviceDesc, srv)
 }
 
