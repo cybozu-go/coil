@@ -8,12 +8,12 @@ defaults:
   run:
     working-directory: v2
 env:
-  go-version: 1.13
+  go-version: 1.15
   cache-version: 1
 jobs:
   test:
     name: Small test
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
@@ -42,9 +42,9 @@ jobs:
     name: End-to-end Test
     strategy:
       matrix:
-        kindest-node: ["kindest/node:v1.18.8", "kindest/node:v1.19.1"]
+        kindest-node: ["kindest/node:v1.18.8", "kindest/node:v1.19.4"]
         ip-version: ["ipv4", "ipv6"]
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
