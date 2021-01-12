@@ -5,6 +5,17 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.4] - 2021-01-13
+
+### Added
+
+- Grafana dashboard (#135)
+
+### Changed
+
+- coil-controller: export metrics for all pools (#133)
+- build with Go 1.15 on Ubuntu 20.04 (#138)
+
 ## [2.0.3] - 2020-11-19
 
 ### Added
@@ -41,7 +52,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.3...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.4...HEAD
+[2.0.4]: https://github.com/cybozu-go/coil/compare/v2.0.3...v2.0.4
 [2.0.3]: https://github.com/cybozu-go/coil/compare/v2.0.2...v2.0.3
 [2.0.2]: https://github.com/cybozu-go/coil/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/cybozu-go/coil/compare/v2.0.0...v2.0.1
