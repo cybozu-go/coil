@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -133,14 +134,7 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	}
 
 	podSpec.ServiceAccountName = constants.SAEgress
-	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
-		Name: "modules",
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: "/lib/modules",
-			},
-		},
-	})
+	podSpec.Volumes = r.addVolumes(podSpec.Volumes)
 
 	var egressContainer *corev1.Container
 	for i := range podSpec.Containers {
@@ -178,15 +172,11 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 			},
 		},
 	)
-	egressContainer.VolumeMounts = append(egressContainer.VolumeMounts, corev1.VolumeMount{
-		MountPath: "/lib/modules",
-		Name:      "modules",
-		ReadOnly:  true,
-	})
-	privileged := true
+	egressContainer.VolumeMounts = r.addVolumeMounts(egressContainer.VolumeMounts)
 	egressContainer.SecurityContext = &corev1.SecurityContext{
-		Privileged:   &privileged,
-		Capabilities: &corev1.Capabilities{Add: []corev1.Capability{"NET_ADMIN"}},
+		Privileged:             pointer.BoolPtr(true),
+		ReadOnlyRootFilesystem: pointer.BoolPtr(true),
+		Capabilities:           &corev1.Capabilities{Add: []corev1.Capability{"NET_ADMIN"}},
 	}
 	if egressContainer.Resources.Requests == nil {
 		egressContainer.Resources.Requests = make(corev1.ResourceList)
@@ -217,6 +207,59 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	}
 
 	podSpec.DeepCopyInto(&target.Spec)
+}
+
+func (r *EgressReconciler) addVolumes(vols []corev1.Volume) []corev1.Volume {
+	noRun := true
+	for _, vol := range vols {
+		if vol.Name == "run" {
+			noRun = false
+			break
+		}
+	}
+	if noRun {
+		vols = append(vols, corev1.Volume{
+			Name: "run",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		})
+	}
+
+	vols = append(vols, corev1.Volume{
+		Name: "modules",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/lib/modules",
+			},
+		},
+	})
+	return vols
+}
+
+func (r *EgressReconciler) addVolumeMounts(mounts []corev1.VolumeMount) []corev1.VolumeMount {
+	noRun := true
+	for _, m := range mounts {
+		if m.Name == "run" {
+			noRun = false
+			break
+		}
+	}
+	if noRun {
+		mounts = append(mounts, corev1.VolumeMount{
+			MountPath: "/run",
+			Name:      "run",
+			ReadOnly:  false,
+		})
+	}
+
+	mounts = append(mounts, corev1.VolumeMount{
+		MountPath: "/lib/modules",
+		Name:      "modules",
+		ReadOnly:  true,
+	})
+
+	return mounts
 }
 
 func (r *EgressReconciler) reconcileDeployment(ctx context.Context, log logr.Logger, eg *coilv2.Egress) error {
