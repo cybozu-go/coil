@@ -103,7 +103,7 @@ var _ = Describe("Egress reconciler", func() {
 		Expect(depl.Spec.Template.Labels).To(HaveKeyWithValue(constants.LabelAppComponent, "egress"))
 		Expect(depl.Spec.Template.Labels).To(HaveKeyWithValue(constants.LabelAppInstance, eg.Name))
 		Expect(depl.Spec.Template.Spec.ServiceAccountName).To(Equal("coil-egress"))
-		Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(1))
+		Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(2))
 
 		var egressContainer *corev1.Container
 		for i := range depl.Spec.Template.Spec.Containers {
@@ -117,7 +117,10 @@ var _ = Describe("Egress reconciler", func() {
 		Expect(egressContainer.Image).To(Equal("coil:dev"))
 		Expect(egressContainer.Command).To(Equal([]string{"coil-egress"}))
 		Expect(egressContainer.Env).To(HaveLen(3))
-		Expect(egressContainer.VolumeMounts).To(HaveLen(1))
+		Expect(egressContainer.VolumeMounts).To(HaveLen(2))
+		Expect(egressContainer.SecurityContext).NotTo(BeNil())
+		Expect(egressContainer.SecurityContext.ReadOnlyRootFilesystem).NotTo(BeNil())
+		Expect(*egressContainer.SecurityContext.ReadOnlyRootFilesystem).To(BeTrue())
 		Expect(egressContainer.Resources.Requests).To(HaveKey(corev1.ResourceCPU))
 		Expect(egressContainer.Resources.Requests).To(HaveKey(corev1.ResourceMemory))
 		Expect(egressContainer.Ports).To(HaveLen(2))
@@ -227,7 +230,7 @@ var _ = Describe("Egress reconciler", func() {
 		Expect(depl.Spec.Template.Labels).To(HaveKeyWithValue("foo", "bar"))
 		Expect(depl.Spec.Template.Labels).To(HaveKeyWithValue(constants.LabelAppName, "coil"))
 		Expect(depl.Spec.Template.Spec.SchedulerName).To(Equal("hoge-scheduler"))
-		Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(2))
+		Expect(depl.Spec.Template.Spec.Volumes).To(HaveLen(3))
 		var sidecar, egressContainer *corev1.Container
 		for i := range depl.Spec.Template.Spec.Containers {
 			if depl.Spec.Template.Spec.Containers[i].Name == "egress" {
