@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.5] - 2021-01-14
+
+### Changed
+
+- egress: mount emptyDir on /run in egress pods (#141)
+
 ## [2.0.4] - 2021-01-13
 
 ### Added
@@ -52,7 +58,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.4...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.5...HEAD
+[2.0.5]: https://github.com/cybozu-go/coil/compare/v2.0.4...v2.0.5
 [2.0.4]: https://github.com/cybozu-go/coil/compare/v2.0.3...v2.0.4
 [2.0.3]: https://github.com/cybozu-go/coil/compare/v2.0.2...v2.0.3
 [2.0.2]: https://github.com/cybozu-go/coil/compare/v2.0.1...v2.0.2
