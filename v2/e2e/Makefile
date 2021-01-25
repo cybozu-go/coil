@@ -1,7 +1,7 @@
 include ../common.mk
 
-IMAGE = kindest/node:v1.18.8
-KIND_VERSION=0.9.0
+IMAGE = kindest/node:v1.18.15
+KIND_VERSION=0.10.0
 BINDIR := $(abspath $(PWD)/../bin)
 
 KIND := $(BINDIR)/kind
