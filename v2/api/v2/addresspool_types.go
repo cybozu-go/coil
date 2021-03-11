@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net"
 
-	"github.com/cybozu-go/coil/v2/pkg/util"
+	"github.com/cybozu-go/netutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
@@ -120,7 +120,7 @@ func (ss SubnetSet) GetBlock(n uint, sizeBits int) (ipv4 *net.IPNet, ipv6 *net.I
 		}
 
 		ipv4 = &net.IPNet{
-			IP:   util.IPAdd(n.IP, blockOffset),
+			IP:   netutil.IPAdd(n.IP, blockOffset),
 			Mask: net.CIDRMask(32-sizeBits, 32),
 		}
 		if ipv4.IP == nil {
@@ -134,7 +134,7 @@ func (ss SubnetSet) GetBlock(n uint, sizeBits int) (ipv4 *net.IPNet, ipv6 *net.I
 		}
 
 		ipv6 = &net.IPNet{
-			IP:   util.IPAdd(n.IP, blockOffset),
+			IP:   netutil.IPAdd(n.IP, blockOffset),
 			Mask: net.CIDRMask(128-sizeBits, 128),
 		}
 		if ipv6.IP == nil {

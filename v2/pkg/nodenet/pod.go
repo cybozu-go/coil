@@ -12,6 +12,7 @@ import (
 	"github.com/containernetworking/cni/pkg/types/current"
 	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/cybozu-go/netutil"
 	"github.com/go-logr/logr"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -142,7 +143,7 @@ func (pn *podNetwork) Init() error {
 		pn.log.Error(err, "warning: failed to init IPv6 routing rule")
 	}
 
-	if mtu, err := DetectMTU(); err != nil {
+	if mtu, err := netutil.DetectMTU(); err != nil {
 		pn.log.Error(err, "warning: failed to auto-detect the host MTU")
 	} else {
 		pn.mtu = mtu

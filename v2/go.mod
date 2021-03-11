@@ -6,15 +6,16 @@ require (
 	github.com/containernetworking/cni v0.8.0
 	github.com/containernetworking/plugins v0.9.0
 	github.com/coreos/go-iptables v0.5.0
+	github.com/cybozu-go/netutil v1.4.1
 	github.com/go-logr/logr v0.1.0
 	github.com/go-logr/zapr v0.1.1
 	github.com/golang/protobuf v1.4.3
-	github.com/google/go-cmp v0.5.4
+	github.com/google/go-cmp v0.5.5
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/mitchellh/mapstructure v1.2.2 // indirect
 	github.com/onsi/ginkgo v1.14.2
-	github.com/onsi/gomega v1.10.4
+	github.com/onsi/gomega v1.10.5
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/prometheus/client_golang v1.9.0
 	github.com/prometheus/client_model v0.2.0

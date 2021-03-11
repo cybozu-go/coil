@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/cybozu-go/coil/v2/pkg/util"
+	"github.com/cybozu-go/netutil"
 	"github.com/willf/bitset"
 )
 
@@ -51,7 +51,7 @@ func (a allocator) fill() {
 
 func (a allocator) register(ipv4, ipv6 net.IP) (uint, bool) {
 	if a.ipv4 != nil && a.ipv4.Contains(ipv4) {
-		offset := util.IPDiff(a.ipv4.IP, ipv4)
+		offset := netutil.IPDiff(a.ipv4.IP, ipv4)
 		if offset < 0 {
 			panic(fmt.Sprintf("ip: %v, base: %v, offset: %v", ipv4, a.ipv4.IP, offset))
 		}
@@ -59,7 +59,7 @@ func (a allocator) register(ipv4, ipv6 net.IP) (uint, bool) {
 		return uint(offset), true
 	}
 	if a.ipv6 != nil && a.ipv6.Contains(ipv6) {
-		offset := util.IPDiff(a.ipv6.IP, ipv6)
+		offset := netutil.IPDiff(a.ipv6.IP, ipv6)
 		if offset < 0 {
 			panic(fmt.Sprintf("ip: %v, base: %v, offset: %v", ipv6, a.ipv6.IP, offset))
 		}
@@ -76,10 +76,10 @@ func (a allocator) allocate() (ipv4, ipv6 net.IP, idx uint, ok bool) {
 	}
 
 	if a.ipv4 != nil {
-		ipv4 = util.IPAdd(a.ipv4.IP, int64(idx))
+		ipv4 = netutil.IPAdd(a.ipv4.IP, int64(idx))
 	}
 	if a.ipv6 != nil {
-		ipv6 = util.IPAdd(a.ipv6.IP, int64(idx))
+		ipv6 = netutil.IPAdd(a.ipv6.IP, int64(idx))
 	}
 	a.usage.Set(idx)
 	return
