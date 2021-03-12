@@ -12,8 +12,8 @@ import (
 	"github.com/cybozu-go/coil/model"
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
-	"github.com/cybozu-go/coil/v2/pkg/util"
 	"github.com/cybozu-go/etcdutil"
+	"github.com/cybozu-go/netutil"
 	"github.com/spf13/cobra"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -217,7 +217,7 @@ func convertBlock(n *net.IPNet, nodeName string, pool *coilv2.AddressPool) (*coi
 	for _, sub := range pool.Spec.Subnets {
 		_, subn, _ := net.ParseCIDR(*sub.IPv4)
 		if subn.Contains(n.IP) {
-			diff := util.IPDiff(subn.IP, n.IP)
+			diff := netutil.IPDiff(subn.IP, n.IP)
 			index += (diff / blockSize)
 
 			block := &coilv2.AddressBlock{}
