@@ -2,7 +2,6 @@ package sub
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -10,7 +9,7 @@ import (
 func installCniConf(cniConfName, cniEtcDir, cniNetConf, cniNetConfFile string) error {
 	data := []byte(cniNetConf)
 	if cniNetConf == "" {
-		bData, err := ioutil.ReadFile(cniNetConfFile)
+		bData, err := os.ReadFile(cniNetConfFile)
 		if err != nil {
 			return err
 		}
@@ -22,7 +21,7 @@ func installCniConf(cniConfName, cniEtcDir, cniNetConf, cniNetConfFile string) e
 		return err
 	}
 
-	files, err := ioutil.ReadDir(cniEtcDir)
+	files, err := os.ReadDir(cniEtcDir)
 	if err != nil {
 		return err
 	}
@@ -67,7 +66,7 @@ func installCoil(coilPath, cniBinDir string) error {
 		return err
 	}
 
-	g, err := ioutil.TempFile(cniBinDir, ".tmp")
+	g, err := os.CreateTemp(cniBinDir, ".tmp")
 	if err != nil {
 		return err
 	}

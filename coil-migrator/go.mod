@@ -1,6 +1,6 @@
 module github.com/cybozu-go/coil/coil-migrator
 
-go 1.13
+go 1.16
 
 require (
 	github.com/cybozu-go/coil v1.1.9

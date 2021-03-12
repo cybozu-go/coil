@@ -2,7 +2,6 @@ package cnirpc
 
 import (
 	"context"
-	"io/ioutil"
 	"net"
 	"os"
 	"testing"
@@ -35,7 +34,7 @@ func (m *mockServer) Check(context.Context, *CNIArgs) (*empty.Empty, error) {
 }
 
 func (m *mockServer) Start(ctx context.Context) error {
-	f, err := ioutil.TempFile("", "coild-mock")
+	f, err := os.CreateTemp("", "coild-mock")
 	if err != nil {
 		return err
 	}

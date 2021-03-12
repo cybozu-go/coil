@@ -1,6 +1,6 @@
 module github.com/cybozu-go/coil/v2
 
-go 1.13
+go 1.16
 
 require (
 	github.com/containernetworking/cni v0.8.0
