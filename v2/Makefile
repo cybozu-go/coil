@@ -4,6 +4,10 @@ include common.mk
 
 KUBEBUILDER_VERSION = 2.3.1
 PROTOC_VERSION=3.14.0
+CONTROLLER_TOOLS_VERSION=0.4.0
+PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
+PROTOC_GEN_GO_GRPC_VERSON=1.0.1
+PROTOC_GEN_DOC_VERSION=1.3.2
 
 ## DON'T EDIT BELOW THIS LINE
 SUDO=sudo
@@ -15,7 +19,6 @@ ROLES = config/rbac/coil-controller_role.yaml \
 	config/rbac/coil-egress_role.yaml
 GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
-GO111MODULE=on
 KUBEBUILDER_ASSETS := $(PWD)/bin
 PROTOC := PATH=$(PWD)/bin:$(PATH) $(PWD)/bin/protoc -I=$(PWD)/include:.
 PODNSLIST = pod1 pod2 pod3
@@ -23,7 +26,7 @@ NATNSLIST = nat-client nat-router nat-egress nat-target
 OTHERNSLIST = test-egress-dual test-egress-v4 test-egress-v6 \
 	test-client-dual test-client-v4 test-client-v6 test-client-custom \
 	test-fou-dual test-fou-v4 test-fou-v6
-export GO111MODULE KUBEBUILDER_ASSETS
+export KUBEBUILDER_ASSETS
 
 .PHONY: test
 test: test-tools
@@ -162,7 +165,7 @@ setup:
 	curl -sfL https://go.kubebuilder.io/dl/$(KUBEBUILDER_VERSION)/$(GOOS)/$(GOARCH) | tar -xz -C /tmp/
 	mv /tmp/kubebuilder_$(KUBEBUILDER_VERSION)_$(GOOS)_$(GOARCH)/bin/* bin/
 	rm -rf /tmp/kubebuilder_*
-	GOBIN=$(PWD)/bin go install sigs.k8s.io/controller-tools/cmd/controller-gen
+	GOBIN=$(PWD)/bin go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION)
 	# Replace bundled kube-apiserver with that of the minimal supported version
 	rm -rf tmp && mkdir -p tmp
 	curl -sfL https://github.com/kubernetes/kubernetes/archive/v$(K8S_VERSION).tar.gz | tar zxf - -C tmp
@@ -174,9 +177,9 @@ setup:
 	curl -sfL -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-linux-x86_64.zip
 	unzip -o protoc.zip bin/protoc 'include/*'
 	rm -f protoc.zip
-	GOBIN=$(PWD)/bin go install google.golang.org/protobuf/cmd/protoc-gen-go
-	GOBIN=$(PWD)/bin go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
-	GOBIN=$(PWD)/bin go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
+	GOBIN=$(PWD)/bin go install google.golang.org/protobuf/cmd/protoc-gen-go@v$(PROTOC_GEN_GO_VERSION)
+	GOBIN=$(PWD)/bin go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v$(PROTOC_GEN_GO_GRPC_VERSON)
+	GOBIN=$(PWD)/bin go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@v$(PROTOC_GEN_DOC_VERSION)
 
 .PHONY: test-tools
 test-tools: staticcheck nilerr
