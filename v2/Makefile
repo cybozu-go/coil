@@ -4,7 +4,7 @@ include common.mk
 
 KUBEBUILDER_VERSION = 2.3.1
 PROTOC_VERSION=3.14.0
-CONTROLLER_TOOLS_VERSION=0.4.0
+CONTROLLER_TOOLS_VERSION=0.5.0
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
 PROTOC_GEN_GO_GRPC_VERSON=1.0.1
 PROTOC_GEN_DOC_VERSION=1.3.2
@@ -67,11 +67,6 @@ check-generate:
 .PHONY: manifests
 manifests: $(CONTROLLER_GEN) $(ROLES)
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-
-	# workaround for CRD issue with k8s 1.18 & controller-gen 0.3
-	# ref: https://github.com/kubernetes/kubernetes/issues/91395
-	sed -i -r 's/^( +)description: Protocol for port\. Must be UDP, TCP, or SCTP\. Defaults to "TCP"\./\0\n\1default: TCP/' \
-	  config/crd/bases/coil.cybozu.com_egresses.yaml
 
 COIL_CONTROLLER_ROLE_DEPENDS = controllers/addresspool_controller.go \
 	controllers/blockrequest_controller.go \
