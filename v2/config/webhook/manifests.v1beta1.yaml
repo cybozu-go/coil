@@ -6,8 +6,8 @@ metadata:
   creationTimestamp: null
   name: mutating-webhook-configuration
 webhooks:
-- clientConfig:
-    caBundle: Cg==
+- admissionReviewVersions: null
+  clientConfig:
     service:
       name: webhook-service
       namespace: system
@@ -32,8 +32,8 @@ metadata:
   creationTimestamp: null
   name: validating-webhook-configuration
 webhooks:
-- clientConfig:
-    caBundle: Cg==
+- admissionReviewVersions: null
+  clientConfig:
     service:
       name: webhook-service
       namespace: system
@@ -51,8 +51,8 @@ webhooks:
     resources:
     - addresspools
   sideEffects: None
-- clientConfig:
-    caBundle: Cg==
+- admissionReviewVersions: null
+  clientConfig:
     service:
       name: webhook-service
       namespace: system
