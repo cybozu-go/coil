@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.6] - 2021-03-26
+
+### Added
+
+- Add coil_egress_client_pod_count metrics (#148)
+
 ## [2.0.5] - 2021-01-14
 
 ### Changed
@@ -58,7 +64,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.5...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.6...HEAD
+[2.0.6]: https://github.com/cybozu-go/coil/compare/v2.0.5...v2.0.6
 [2.0.5]: https://github.com/cybozu-go/coil/compare/v2.0.4...v2.0.5
 [2.0.4]: https://github.com/cybozu-go/coil/compare/v2.0.3...v2.0.4
 [2.0.3]: https://github.com/cybozu-go/coil/compare/v2.0.2...v2.0.3
