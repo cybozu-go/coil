@@ -1,15 +1,19 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"reflect"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 func makePodWithHostNetwork(name string, ips []string, egresses map[string]string) {
@@ -59,6 +63,15 @@ func makePod(name string, ips []string, egresses map[string]string) {
 	pod.Status.PodIPs = podIPs
 	err = k8sClient.Status().Update(context.Background(), pod)
 	ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
+}
+
+func checkMetrics(clientPodCount int) error {
+	expected := bytes.NewBufferString(fmt.Sprintf(`
+# HELP coil_egress_client_pod_count the number of client pods which use this egress
+# TYPE coil_egress_client_pod_count gauge
+coil_egress_client_pod_count{egress="egress2",namespace="internet"} %d
+`, clientPodCount))
+	return testutil.GatherAndCompare(metrics.Registry, expected, "coil_egress_client_pod_count")
 }
 
 var _ = Describe("Pod watcher", func() {
@@ -125,6 +138,8 @@ var _ = Describe("Pod watcher", func() {
 				"fd01::3":  true,
 			})
 		}).Should(BeTrue())
+
+		Expect(checkMetrics(2)).ShouldNot(HaveOccurred())
 	})
 
 	It("should handle new Pods", func() {
@@ -149,6 +164,8 @@ var _ = Describe("Pod watcher", func() {
 				"10.1.1.6": true,
 			})
 		}).Should(BeTrue())
+
+		Expect(checkMetrics(3)).ShouldNot(HaveOccurred())
 	})
 
 	It("should check Pod replacement", func() {
@@ -178,6 +195,8 @@ var _ = Describe("Pod watcher", func() {
 				"fd01::3":  true,
 			})
 		}).Should(BeTrue())
+
+		Expect(checkMetrics(3)).ShouldNot(HaveOccurred())
 
 		pod3 := &corev1.Pod{}
 		err = k8sClient.Get(ctx, client.ObjectKey{Namespace: "default", Name: "pod3"}, pod3)
@@ -209,6 +228,8 @@ var _ = Describe("Pod watcher", func() {
 				"fd01::7":  true,
 			})
 		}).Should(BeTrue())
+
+		Expect(checkMetrics(3)).ShouldNot(HaveOccurred())
 	})
 
 	It("should check Pod deletion", func() {
@@ -231,6 +252,8 @@ var _ = Describe("Pod watcher", func() {
 				"fd01::3":  true,
 			})
 		}).Should(BeTrue())
+
+		Expect(checkMetrics(1)).ShouldNot(HaveOccurred())
 	})
 
 	It("should ignore pods running in the host network", func() {
@@ -251,5 +274,7 @@ var _ = Describe("Pod watcher", func() {
 				"fd01::3":  true,
 			})
 		}, 3).Should(BeTrue())
+
+		Expect(checkMetrics(2)).ShouldNot(HaveOccurred())
 	})
 })

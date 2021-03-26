@@ -10,17 +10,37 @@ import (
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/cybozu-go/coil/v2/pkg/founat"
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
+
+var (
+	clientPods = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: constants.MetricsNS,
+			Subsystem: "egress",
+			Name:      "client_pod_count",
+			Help:      "the number of client pods which use this egress",
+		},
+		[]string{"namespace", "egress"},
+	)
+)
+
+func init() {
+	metrics.Registry.MustRegister(clientPods)
+}
 
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 // SetupPodWatcher registers pod watching reconciler to mgr.
 func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, eg founat.Egress) error {
+	clientPods.Reset()
+
 	r := &podWatcher{
 		client:   mgr.GetClient(),
 		log:      ctrl.Log.WithName("controllers").WithName("pod-watcher"),
@@ -28,6 +48,7 @@ func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, eg 
 		myName:   name,
 		ft:       ft,
 		eg:       eg,
+		metric:   clientPods.WithLabelValues(ns, name),
 		podAddrs: make(map[string][]net.IP),
 	}
 
@@ -48,6 +69,7 @@ type podWatcher struct {
 	myName string
 	ft     founat.FoUTunnel
 	eg     founat.Egress
+	metric prometheus.Gauge
 
 	mu       sync.Mutex
 	podAddrs map[string][]net.IP
@@ -158,6 +180,7 @@ OUTER2:
 	}
 
 	r.podAddrs[key] = podIPs
+	r.metric.Set(float64(len(r.podAddrs)))
 	return nil
 }
 
@@ -173,5 +196,6 @@ func (r *podWatcher) delPod(n types.NamespacedName) error {
 	}
 
 	delete(r.podAddrs, key)
+	r.metric.Set(float64(len(r.podAddrs)))
 	return nil
 }
