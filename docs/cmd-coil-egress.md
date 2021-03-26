@@ -25,3 +25,14 @@ Flags:
       --metrics-addr string   bind address of metrics endpoint (default ":8080")
   -v, --version               version for coil-egress
 ```
+
+## Prometheus metrics
+
+### `coil_egress_client_pod_count`
+
+This is the number of client pods which use the egress.
+
+| Label       | Description                   |
+| ----------- | ----------------------------- |
+| `namespace` | The egress resource namespace |
+| `egress`    | The egress resource name      |
