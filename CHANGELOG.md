@@ -5,11 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-## [2.0.6] - 2021-03-26
+## [2.0.6] - 2021-04-07
 
 ### Added
 
 - Add coil_egress_client_pod_count metrics (#148)
+- Add support for k8s 1.20 (#140)
 
 ## [2.0.5] - 2021-01-14
 
