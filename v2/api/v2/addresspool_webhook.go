@@ -17,7 +17,7 @@ func (r *AddressPool) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 
-// +kubebuilder:webhook:webhookVersions=v1beta1,verbs=create;update,path=/validate-coil-cybozu-com-v2-addresspool,mutating=false,failurePolicy=fail,sideEffects=None,groups=coil.cybozu.com,resources=addresspools,versions=v2,name=vaddresspool.kb.io
+// +kubebuilder:webhook:path=/validate-coil-cybozu-com-v2-addresspool,mutating=false,failurePolicy=fail,sideEffects=None,groups=coil.cybozu.com,resources=addresspools,verbs=create;update,versions=v2,name=vaddresspool.kb.io,admissionReviewVersions={v1,v1beta1}
 
 var _ webhook.Validator = &AddressPool{}
 

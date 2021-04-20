@@ -1,12 +1,15 @@
 package sub
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
 	v2 "github.com/cybozu-go/coil/v2"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var config struct {
@@ -20,6 +23,7 @@ var config struct {
 	compatCalico     bool
 	egressPort       int
 	registerFromMain bool
+	zapOpts          zap.Options
 }
 
 var rootCmd = &cobra.Command{
@@ -57,4 +61,10 @@ func init() {
 	pf.BoolVar(&config.compatCalico, "compat-calico", false, "make veth name compatible with Calico")
 	pf.IntVar(&config.egressPort, "egress-port", 5555, "UDP port number for egress NAT")
 	pf.BoolVar(&config.registerFromMain, "register-from-main", false, "help migration from Coil 2.0.1")
+
+	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(goflags)
+	config.zapOpts.BindFlags(goflags)
+
+	pf.AddGoFlagSet(goflags)
 }

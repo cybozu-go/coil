@@ -44,13 +44,13 @@ func (*garbageCollector) NeedLeaderElection() bool {
 }
 
 // Start starts this runner.  This implements manager.Runnable
-func (gc *garbageCollector) Start(done <-chan struct{}) error {
+func (gc *garbageCollector) Start(ctx context.Context) error {
 	tick := time.NewTicker(gc.interval)
 	defer tick.Stop()
 
 	for {
 		select {
-		case <-done:
+		case <-ctx.Done():
 			return nil
 		case <-tick.C:
 			if err := gc.do(context.Background()); err != nil {

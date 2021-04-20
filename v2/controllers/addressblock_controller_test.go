@@ -13,11 +13,11 @@ import (
 
 var _ = Describe("AddressBlock reconciler", func() {
 	ctx := context.Background()
-	var stopCh chan struct{}
+	var cancel context.CancelFunc
 	notifyCh := make(chan struct{}, 100)
 
 	BeforeEach(func() {
-		stopCh = make(chan struct{})
+		ctx, cancel = context.WithCancel(context.TODO())
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 			Scheme:             scheme,
 			LeaderElection:     false,
@@ -30,7 +30,7 @@ var _ = Describe("AddressBlock reconciler", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		go func() {
-			err := mgr.Start(stopCh)
+			err := mgr.Start(ctx)
 			if err != nil {
 				panic(err)
 			}
@@ -39,7 +39,7 @@ var _ = Describe("AddressBlock reconciler", func() {
 	})
 
 	AfterEach(func() {
-		close(stopCh)
+		cancel()
 		time.Sleep(10 * time.Millisecond)
 	})
 

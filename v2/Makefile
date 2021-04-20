@@ -2,8 +2,8 @@
 
 include common.mk
 
-KUBEBUILDER_VERSION = 2.3.1
 PROTOC_VERSION=3.14.0
+CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
 CONTROLLER_TOOLS_VERSION=0.5.0
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
 PROTOC_GEN_GO_GRPC_VERSON=1.0.1
@@ -19,23 +19,39 @@ ROLES = config/rbac/coil-controller_role.yaml \
 	config/rbac/coil-egress_role.yaml
 GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
-KUBEBUILDER_ASSETS := $(PWD)/bin
-PROTOC := PATH=$(PWD)/bin:$(PATH) $(PWD)/bin/protoc -I=$(PWD)/include:.
+PROTOC := PATH=$(PWD)/bin:'$(PATH)' $(PWD)/bin/protoc -I=$(PWD)/include:.
 PODNSLIST = pod1 pod2 pod3
 NATNSLIST = nat-client nat-router nat-egress nat-target
 OTHERNSLIST = test-egress-dual test-egress-v4 test-egress-v6 \
 	test-client-dual test-client-v4 test-client-v6 test-client-custom \
 	test-fou-dual test-fou-v4 test-fou-v6
-export KUBEBUILDER_ASSETS
 
+# Set the shell used to bash for better error handling.
+SHELL = /bin/bash
+.SHELLFLAGS = -e -o pipefail -c
+
+# Run tests, and set up envtest if not done already.
+ENVTEST_ASSETS_DIR := testbin
+ENVTEST_SCRIPT_URL := https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v$(CONTROLLER_RUNTIME_VERSION)/hack/setup-envtest.sh
 .PHONY: test
-test: test-tools
-	go test -race -v -count 1 ./...
-	go install ./...
-	go vet ./...
-	test -z $$(gofmt -s -l . | tee /dev/stderr)
+test: simple-test
+ifeq (,$(wildcard $(ENVTEST_ASSETS_DIR)/setup-envtest.sh))
+	mkdir -p $(ENVTEST_ASSETS_DIR)
+	curl -sSLo $(ENVTEST_ASSETS_DIR)/setup-envtest.sh $(ENVTEST_SCRIPT_URL)
+endif
+	{ \
+	source $(ENVTEST_ASSETS_DIR)/setup-envtest.sh && \
+	ENVTEST_K8S_VERSION= fetch_envtest_tools $(ENVTEST_ASSETS_DIR) && \
+	setup_envtest_env $(PWD)/$(ENVTEST_ASSETS_DIR) && \
+	go test -race -v -count 1 ./... ; \
+	}
+
+.PHONY: simple-test
+simple-test: test-tools
+	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
 	staticcheck ./...
-	nilerr ./...
+	test -z "$$(nilerr $$(go list ./...) 2>&1 | tee /dev/stderr)"
+	go vet ./...
 
 .PHONY: test-nodenet
 test-nodenet:
@@ -61,7 +77,7 @@ test-founat:
 check-generate:
 	$(MAKE) manifests
 	$(MAKE) generate
-	git diff --exit-code --name-only 
+	git diff --exit-code --name-only
 
 # Generate manifests e.g. CRD, RBAC etc.
 .PHONY: manifests
@@ -131,8 +147,8 @@ generate: $(CONTROLLER_GEN)
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 	$(MAKE) pkg/cnirpc/cni.pb.go pkg/cnirpc/cni_grpc.pb.go ../docs/cni-grpc.md
 
- $(CONTROLLER_GEN):
-	$(MAKE) setup
+$(CONTROLLER_GEN):
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION))
 
 pkg/cnirpc/cni.pb.go: pkg/cnirpc/cni.proto
 	$(PROTOC) --go_out=module=github.com/cybozu-go/coil/v2:. $<
@@ -156,25 +172,26 @@ setup:
 	$(SUDO) apt-get update
 	$(SUDO) apt-get -y install --no-install-recommends rsync unzip
 
-	mkdir -p bin
-	curl -sfL https://go.kubebuilder.io/dl/$(KUBEBUILDER_VERSION)/$(GOOS)/$(GOARCH) | tar -xz -C /tmp/
-	mv /tmp/kubebuilder_$(KUBEBUILDER_VERSION)_$(GOOS)_$(GOARCH)/bin/* bin/
-	rm -rf /tmp/kubebuilder_*
-	GOBIN=$(PWD)/bin go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION)
-	# Replace bundled kube-apiserver with that of the minimal supported version
-	rm -rf tmp && mkdir -p tmp
-	curl -sfL https://github.com/kubernetes/kubernetes/archive/v$(K8S_VERSION).tar.gz | tar zxf - -C tmp
-	mv tmp/kubernetes-$(K8S_VERSION) tmp/kubernetes
-	cd tmp/kubernetes; make all WHAT="cmd/kube-apiserver"
-	mv tmp/kubernetes/_output/bin/kube-apiserver bin/
-	rm -rf tmp
-
 	curl -sfL -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-linux-x86_64.zip
 	unzip -o protoc.zip bin/protoc 'include/*'
 	rm -f protoc.zip
 	GOBIN=$(PWD)/bin go install google.golang.org/protobuf/cmd/protoc-gen-go@v$(PROTOC_GEN_GO_VERSION)
 	GOBIN=$(PWD)/bin go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v$(PROTOC_GEN_GO_GRPC_VERSON)
 	GOBIN=$(PWD)/bin go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@v$(PROTOC_GEN_DOC_VERSION)
+
+# go-get-tool will 'go get' any package $2 and install it to $1.
+PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
+define go-get-tool
+@[ -f $(1) ] || { \
+set -e ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+go mod init tmp ;\
+echo "Downloading $(2)" ;\
+GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
+rm -rf $$TMP_DIR ;\
+}
+endef
 
 .PHONY: test-tools
 test-tools: staticcheck nilerr

@@ -17,12 +17,12 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // EgressReconciler reconciles a Egress object
 type EgressReconciler struct {
 	client.Client
-	Log    logr.Logger
 	Scheme *runtime.Scheme
 	Image  string
 	Port   int32
@@ -37,53 +37,52 @@ type EgressReconciler struct {
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 // Reconcile implements Reconciler interface.
-// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.6.1/pkg/reconcile?tab=doc#Reconciler
-func (r *EgressReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
-	log := r.Log.WithValues("egress", req.NamespacedName)
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.8.3/pkg/reconcile
+func (r *EgressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 
 	eg := &coilv2.Egress{}
 	if err := r.Get(ctx, req.NamespacedName, eg); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		log.Error(err, "failed to get egress")
+		logger.Error(err, "failed to get egress")
 		return ctrl.Result{}, err
 	}
 	if eg.DeletionTimestamp != nil {
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.reconcileServiceAccount(ctx, log, req.Namespace); err != nil {
-		log.Error(err, "failed to reconcile service account")
+	if err := r.reconcileServiceAccount(ctx, logger, req.Namespace); err != nil {
+		logger.Error(err, "failed to reconcile service account")
 		return ctrl.Result{}, err
 	}
 
-	log1 := log.WithValues("clusterrolebinding", constants.CRBEgress)
+	log1 := logger.WithValues("clusterrolebinding", constants.CRBEgress)
 	if err := reconcileCRB(ctx, r.Client, log1, constants.CRBEgress); err != nil {
 		log1.Error(err, "failed to reconcile cluster role binding")
 		return ctrl.Result{}, err
 	}
 
-	log2 := log.WithValues("clusterrolebinding", constants.CRBEgressPSP)
+	log2 := logger.WithValues("clusterrolebinding", constants.CRBEgressPSP)
 	if err := reconcileCRB(ctx, r.Client, log2, constants.CRBEgressPSP); err != nil {
 		log2.Error(err, "failed to reconcile cluster role binding",
 			"ClusterRoleBinding", constants.CRBEgressPSP)
 		return ctrl.Result{}, err
 	}
 
-	if err := r.reconcileDeployment(ctx, log, eg); err != nil {
-		log.Error(err, "failed to reconcile deployment")
+	if err := r.reconcileDeployment(ctx, logger, eg); err != nil {
+		logger.Error(err, "failed to reconcile deployment")
 		return ctrl.Result{}, err
 	}
 
-	if err := r.reconcileService(ctx, log, eg); err != nil {
-		log.Error(err, "failed to reconcile service")
+	if err := r.reconcileService(ctx, logger, eg); err != nil {
+		logger.Error(err, "failed to reconcile service")
 		return ctrl.Result{}, err
 	}
 
-	if err := r.updateStatus(ctx, log, eg); err != nil {
-		log.Error(err, "failed to update status")
+	if err := r.updateStatus(ctx, logger, eg); err != nil {
+		logger.Error(err, "failed to update status")
 		return ctrl.Result{}, err
 	}
 
@@ -153,6 +152,9 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	}
 	if len(egressContainer.Command) == 0 {
 		egressContainer.Command = []string{"coil-egress"}
+	}
+	if len(egressContainer.Args) == 0 {
+		egressContainer.Args = []string{"--zap-stacktrace-level=panic"}
 	}
 	egressContainer.Env = append(egressContainer.Env,
 		corev1.EnvVar{

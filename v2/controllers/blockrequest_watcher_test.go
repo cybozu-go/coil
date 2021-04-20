@@ -14,11 +14,11 @@ import (
 
 var _ = Describe("BlockRequest watcher", func() {
 	ctx := context.Background()
-	var stopCh chan struct{}
+	var cancel context.CancelFunc
 	var nodeIPAM *mockNodeIPAM
 
 	BeforeEach(func() {
-		stopCh = make(chan struct{})
+		ctx, cancel = context.WithCancel(context.TODO())
 		nodeIPAM = &mockNodeIPAM{}
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 			Scheme:             scheme,
@@ -29,7 +29,6 @@ var _ = Describe("BlockRequest watcher", func() {
 
 		brw := &BlockRequestWatcher{
 			Client:   mgr.GetClient(),
-			Log:      ctrl.Log.WithName("BlockRequest watcher"),
 			NodeIPAM: nodeIPAM,
 			NodeName: "node2",
 		}
@@ -37,7 +36,7 @@ var _ = Describe("BlockRequest watcher", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		go func() {
-			err := mgr.Start(stopCh)
+			err := mgr.Start(ctx)
 			if err != nil {
 				panic(err)
 			}
@@ -46,8 +45,8 @@ var _ = Describe("BlockRequest watcher", func() {
 	})
 
 	AfterEach(func() {
-		close(stopCh)
-		err := k8sClient.DeleteAllOf(ctx, &coilv2.BlockRequest{})
+		cancel()
+		err := k8sClient.DeleteAllOf(context.Background(), &coilv2.BlockRequest{})
 		Expect(err).To(Succeed())
 		time.Sleep(10 * time.Millisecond)
 	})

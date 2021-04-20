@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -13,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
@@ -22,7 +22,6 @@ import (
 // BlockRequestReconciler reconciles a BlockRequest object
 type BlockRequestReconciler struct {
 	client.Client
-	Log     logr.Logger
 	Scheme  *runtime.Scheme
 	Manager ipam.PoolManager
 }
@@ -31,16 +30,15 @@ type BlockRequestReconciler struct {
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=blockrequests/status,verbs=get;update;patch
 
 // Reconcile implements Reconciler interface.
-// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.6.1/pkg/reconcile?tab=doc#Reconciler
-func (r *BlockRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
-	log := r.Log.WithValues("blockrequest", req.Name)
+// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.8.3/pkg/reconcile?tab=doc#Reconciler
+func (r *BlockRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 	br := &coilv2.BlockRequest{}
 	err := r.Client.Get(ctx, req.NamespacedName, br)
 
 	if err != nil {
 		// as Delete event is ignored, this is unlikely to happen.
-		log.Error(err, "failed to get")
+		logger.Error(err, "failed to get")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -51,7 +49,7 @@ func (r *BlockRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 
 	block, err := r.Manager.AllocateBlock(ctx, br.Spec.PoolName, br.Spec.NodeName)
 	if errors.Is(err, ipam.ErrNoBlock) {
-		log.Error(err, "out of blocks", "pool", br.Spec.PoolName)
+		logger.Error(err, "out of blocks", "pool", br.Spec.PoolName)
 
 		now := metav1.Now()
 		br.Status.Conditions = []coilv2.BlockRequestCondition{
@@ -74,17 +72,17 @@ func (r *BlockRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		}
 		err = r.Client.Status().Update(ctx, br)
 		if err != nil {
-			log.Error(err, "failed to update status")
+			logger.Error(err, "failed to update status")
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
 	}
 	if err != nil {
-		log.Error(err, "internal error")
+		logger.Error(err, "internal error")
 		return ctrl.Result{}, err
 	}
 
-	log.Info("allocated", "block", block.Name, "index", block.Index, "pool", br.Spec.PoolName)
+	logger.Info("allocated", "block", block.Name, "index", block.Index, "pool", br.Spec.PoolName)
 	now := metav1.Now()
 	br.Status.Conditions = []coilv2.BlockRequestCondition{
 		{
@@ -99,7 +97,7 @@ func (r *BlockRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	br.Status.AddressBlockName = block.Name
 	err = r.Client.Status().Update(ctx, br)
 	if err != nil {
-		log.Error(err, "failed to update status")
+		logger.Error(err, "failed to update status")
 		return ctrl.Result{}, err
 	}
 

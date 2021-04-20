@@ -16,7 +16,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -32,15 +31,14 @@ var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
 var mgr manager.Manager
-var stopCh = make(chan struct{})
+var ctx = context.Background()
+var cancel context.CancelFunc
 var scheme = runtime.NewScheme()
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"IPAM Suite",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "IPAM Suite")
 }
 
 func strPtr(s string) *string {
@@ -48,7 +46,6 @@ func strPtr(s string) *string {
 }
 
 func cleanBlocks() {
-	ctx := context.Background()
 	blocks := &coilv2.AddressBlockList{}
 	err := k8sClient.List(ctx, blocks)
 	Expect(err).ToNot(HaveOccurred())
@@ -62,8 +59,10 @@ func cleanBlocks() {
 	time.Sleep(10 * time.Millisecond)
 }
 
-var _ = BeforeSuite(func(done Done) {
+var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.StacktraceLevel(zapcore.DPanicLevel)))
+
+	ctx, cancel = context.WithCancel(context.TODO())
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
@@ -99,7 +98,7 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {
-		err := mgr.Start(stopCh)
+		err := mgr.Start(ctx)
 		if err != nil {
 			panic(err)
 		}
@@ -135,11 +134,10 @@ var _ = BeforeSuite(func(done Done) {
 	err = k8sClient.Create(ctx, node2)
 	Expect(err).ToNot(HaveOccurred())
 
-	close(done)
 }, 60)
 
 var _ = AfterSuite(func() {
-	close(stopCh)
+	cancel()
 	By("tearing down the test environment")
 	err := testEnv.Stop()
 	Expect(err).ToNot(HaveOccurred())

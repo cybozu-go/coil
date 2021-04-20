@@ -1,16 +1,47 @@
 domain: cybozu.com
+layout:
+- go.kubebuilder.io/v3
+projectName: coil
 repo: github.com/cybozu-go/coil/v2
 resources:
-- group: coil
+- api:
+    crdVersion: v1
+  controller: true
+  domain: cybozu.com
+  group: coil
   kind: AddressPool
+  path: github.com/cybozu-go/coil/v2/api/v2
   version: v2
-- group: coil
+  webhooks:
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+  controller: true
+  domain: cybozu.com
+  group: coil
   kind: AddressBlock
+  path: github.com/cybozu-go/coil/v2/api/v2
   version: v2
-- group: coil
+- api:
+    crdVersion: v1
+  controller: true
+  domain: cybozu.com
+  group: coil
   kind: BlockRequest
+  path: github.com/cybozu-go/coil/v2/api/v2
   version: v2
-- group: coil
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: cybozu.com
+  group: coil
   kind: Egress
+  path: github.com/cybozu-go/coil/v2/api/v2
   version: v2
-version: "2"
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
+version: "3"

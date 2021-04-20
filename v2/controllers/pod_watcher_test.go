@@ -76,7 +76,7 @@ coil_egress_client_pod_count{egress="egress2",namespace="internet"} %d
 
 var _ = Describe("Pod watcher", func() {
 	ctx := context.Background()
-	var stopCh chan struct{}
+	var cancel context.CancelFunc
 	var ft *mockFoUTunnel
 	var eg *mockEgress
 
@@ -93,7 +93,7 @@ var _ = Describe("Pod watcher", func() {
 			"external": "egress1",
 		})
 
-		stopCh = make(chan struct{})
+		ctx, cancel = context.WithCancel(context.TODO())
 		ft = &mockFoUTunnel{peers: make(map[string]bool)}
 		eg = &mockEgress{ips: make(map[string]bool)}
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -107,7 +107,7 @@ var _ = Describe("Pod watcher", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		go func() {
-			err := mgr.Start(stopCh)
+			err := mgr.Start(ctx)
 			if err != nil {
 				panic(err)
 			}
@@ -116,8 +116,8 @@ var _ = Describe("Pod watcher", func() {
 	})
 
 	AfterEach(func() {
-		close(stopCh)
-		err := k8sClient.DeleteAllOf(ctx, &corev1.Pod{}, client.InNamespace("default"))
+		cancel()
+		err := k8sClient.DeleteAllOf(context.Background(), &corev1.Pod{}, client.InNamespace("default"))
 		Expect(err).ShouldNot(HaveOccurred())
 		time.Sleep(10 * time.Millisecond)
 	})

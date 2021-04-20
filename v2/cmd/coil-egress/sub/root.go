@@ -1,17 +1,21 @@
 package sub
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
 	v2 "github.com/cybozu-go/coil/v2"
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var config struct {
 	metricsAddr string
 	healthAddr  string
 	port        int
+	zapOpts     zap.Options
 }
 
 var rootCmd = &cobra.Command{
@@ -39,4 +43,10 @@ func init() {
 	pf.StringVar(&config.metricsAddr, "metrics-addr", ":8080", "bind address of metrics endpoint")
 	pf.StringVar(&config.healthAddr, "health-addr", ":8081", "bind address of health/readiness probes")
 	pf.IntVar(&config.port, "fou-port", 5555, "port number for foo-over-udp tunnels")
+
+	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(goflags)
+	config.zapOpts.BindFlags(goflags)
+
+	pf.AddGoFlagSet(goflags)
 }

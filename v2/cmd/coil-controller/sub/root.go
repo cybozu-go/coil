@@ -1,12 +1,15 @@
 package sub
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"time"
 
 	v2 "github.com/cybozu-go/coil/v2"
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var config struct {
@@ -16,6 +19,7 @@ var config struct {
 	certDir     string
 	gcInterval  time.Duration
 	egressPort  int32
+	zapOpts     zap.Options
 }
 
 var rootCmd = &cobra.Command{
@@ -46,4 +50,10 @@ func init() {
 	pf.StringVar(&config.certDir, "cert-dir", "/certs", "directory to locate TLS certs for webhook")
 	pf.DurationVar(&config.gcInterval, "gc-interval", 1*time.Hour, "garbage collection interval")
 	pf.Int32Var(&config.egressPort, "egress-port", 5555, "UDP port number used by coil-egress")
+
+	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(goflags)
+	config.zapOpts.BindFlags(goflags)
+
+	pf.AddGoFlagSet(goflags)
 }

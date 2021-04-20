@@ -14,8 +14,8 @@ import (
 	"github.com/cybozu-go/coil/v2/pkg/nodenet"
 	"github.com/cybozu-go/coil/v2/runners"
 	"github.com/go-logr/zapr"
-	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -26,9 +26,21 @@ const (
 	gracefulTimeout = 20 * time.Second
 )
 
+var (
+	scheme   = runtime.NewScheme()
+	setupLog = ctrl.Log.WithName("setup")
+)
+
+func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(coilv2.AddToScheme(scheme))
+
+	// +kubebuilder:scaffold:scheme
+}
+
 func subMain() error {
 	// coild needs a raw zap logger for grpc_zip.
-	zapLogger := zap.NewRaw(zap.StacktraceLevel(zapcore.DPanicLevel))
+	zapLogger := zap.NewRaw(zap.UseFlagOptions(&config.zapOpts))
 	defer zapLogger.Sync()
 
 	grpcLogger := zapLogger.Named("grpc")
@@ -37,14 +49,6 @@ func subMain() error {
 	nodeName := os.Getenv(constants.EnvNode)
 	if nodeName == "" {
 		return errors.New(constants.EnvNode + " environment variable should be set")
-	}
-
-	scheme := runtime.NewScheme()
-	if err := clientgoscheme.AddToScheme(scheme); err != nil {
-		return err
-	}
-	if err := coilv2.AddToScheme(scheme); err != nil {
-		return err
 	}
 
 	timeout := gracefulTimeout
@@ -70,7 +74,6 @@ func subMain() error {
 	nodeIPAM := ipam.NewNodeIPAM(nodeName, ctrl.Log.WithName("node-ipam"), mgr, exporter)
 	watcher := &controllers.BlockRequestWatcher{
 		Client:   mgr.GetClient(),
-		Log:      ctrl.Log.WithName("controllers").WithName("blockrequest-watcher"),
 		NodeIPAM: nodeIPAM,
 		NodeName: nodeName,
 	}
@@ -113,10 +116,9 @@ func subMain() error {
 		return err
 	}
 
-	log := ctrl.Log.WithName("main")
-	log.Info("starting manager")
+	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		log.Error(err, "problem running manager")
+		setupLog.Error(err, "problem running manager")
 		return err
 	}
 

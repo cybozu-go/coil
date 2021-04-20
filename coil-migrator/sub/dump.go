@@ -89,7 +89,7 @@ OUTER:
 
 		for i := 0; i < 100; i++ {
 			time.Sleep(1 * time.Second)
-			t := obj.DeepCopyObject()
+			t := obj.DeepCopyObject().(k8sObject)
 			err = k8sClient.Get(ctx, client.ObjectKey{Namespace: obj.GetNamespace(), Name: obj.GetName()}, t)
 			if err == nil {
 				continue

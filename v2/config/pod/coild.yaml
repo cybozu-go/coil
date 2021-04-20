@@ -28,6 +28,8 @@ spec:
       - name: coild
         image: coil:dev
         command: ["coild"]
+        args:
+          - --zap-stacktrace-level=panic
         env:
         - name: COIL_NODE_NAME
           valueFrom:

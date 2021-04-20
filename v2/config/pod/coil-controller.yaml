@@ -42,6 +42,8 @@ spec:
       - name: coil-controller
         image: coil:dev
         command: ["coil-controller"]
+        args:
+          - --zap-stacktrace-level=panic
         env:
         - name: "COIL_POD_NAMESPACE"
           valueFrom:

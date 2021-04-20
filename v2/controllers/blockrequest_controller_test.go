@@ -15,10 +15,12 @@ import (
 
 var _ = Describe("BlockRequest reconciler", func() {
 	ctx := context.Background()
-	var stopCh chan struct{}
+	var cancel context.CancelFunc
 	var poolMgr *mockPoolManager
 
 	BeforeEach(func() {
+		ctx, cancel = context.WithCancel(context.TODO())
+
 		br := &coilv2.BlockRequest{}
 		br.Name = "br-0"
 		br.Spec.NodeName = "node0"
@@ -44,7 +46,6 @@ var _ = Describe("BlockRequest reconciler", func() {
 		err = k8sClient.Status().Update(ctx, br)
 		Expect(err).To(Succeed())
 
-		stopCh = make(chan struct{})
 		poolMgr = &mockPoolManager{}
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 			Scheme:             scheme,
@@ -55,7 +56,6 @@ var _ = Describe("BlockRequest reconciler", func() {
 
 		brr := &BlockRequestReconciler{
 			Client:  mgr.GetClient(),
-			Log:     ctrl.Log.WithName("BlockRequest reconciler"),
 			Manager: poolMgr,
 			Scheme:  mgr.GetScheme(),
 		}
@@ -63,7 +63,7 @@ var _ = Describe("BlockRequest reconciler", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		go func() {
-			err := mgr.Start(stopCh)
+			err := mgr.Start(ctx)
 			if err != nil {
 				panic(err)
 			}
@@ -72,8 +72,8 @@ var _ = Describe("BlockRequest reconciler", func() {
 	})
 
 	AfterEach(func() {
-		close(stopCh)
-		err := k8sClient.DeleteAllOf(ctx, &coilv2.BlockRequest{})
+		cancel()
+		err := k8sClient.DeleteAllOf(context.Background(), &coilv2.BlockRequest{})
 		Expect(err).To(Succeed())
 		time.Sleep(10 * time.Millisecond)
 	})

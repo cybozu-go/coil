@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -21,7 +21,6 @@ import (
 // AddressPoolReconciler watches child AddressBlocks and pool itself for deletion.
 type AddressPoolReconciler struct {
 	client.Client
-	Log     logr.Logger
 	Scheme  *runtime.Scheme
 	Manager ipam.PoolManager
 }
@@ -32,15 +31,14 @@ var _ reconcile.Reconciler = &AddressPoolReconciler{}
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=addressblocks,verbs=get;list;watch
 
 // Reconcile implements Reconciler interface.
-// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.6.1/pkg/reconcile?tab=doc#Reconciler
-func (r *AddressPoolReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
-	log := r.Log.WithValues("addresspool", req.Name)
+// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.8.3/pkg/reconcile?tab=doc#Reconciler
+func (r *AddressPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 	ap := &coilv2.AddressPool{}
 	err := r.Client.Get(ctx, req.NamespacedName, ap)
 
 	if apierrors.IsNotFound(err) {
-		log.Info("dropping address pool from manager")
+		logger.Info("dropping address pool from manager")
 		r.Manager.DropPool(req.Name)
 		return ctrl.Result{}, nil
 	}
@@ -52,7 +50,7 @@ func (r *AddressPoolReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{}, fmt.Errorf("SyncPool failed: %w", err)
 	}
 
-	r.Log.Info("synchronized")
+	logger.Info("synchronized")
 	return ctrl.Result{}, nil
 }
 
