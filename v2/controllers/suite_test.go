@@ -110,7 +110,7 @@ var _ = BeforeSuite(func() {
 	err = k8sClient.Create(ctx, ns)
 	Expect(err).ToNot(HaveOccurred())
 
-}, 60)
+})
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")

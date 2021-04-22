@@ -134,7 +134,7 @@ var _ = BeforeSuite(func() {
 	err = k8sClient.Create(ctx, node2)
 	Expect(err).ToNot(HaveOccurred())
 
-}, 60)
+})
 
 var _ = AfterSuite(func() {
 	cancel()
