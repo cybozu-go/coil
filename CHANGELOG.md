@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.7] - 2021-04-22
+
+### Changed
+
+- Upgrade kubebuilder to v3 and controller-runtime to v0.8.3 (#154)
+  - Also, add node-role.kubernetes.io/control-plane label to tolerations
+
 ## [2.0.6] - 2021-04-07
 
 ### Added
@@ -65,7 +72,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.6...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.7...HEAD
+[2.0.7]: https://github.com/cybozu-go/coil/compare/v2.0.6...v2.0.7
 [2.0.6]: https://github.com/cybozu-go/coil/compare/v2.0.5...v2.0.6
 [2.0.5]: https://github.com/cybozu-go/coil/compare/v2.0.4...v2.0.5
 [2.0.4]: https://github.com/cybozu-go/coil/compare/v2.0.3...v2.0.4
