@@ -54,12 +54,12 @@ func createBlock(ctx context.Context, name, nodeName string, ipv4, ipv6 *net.IPN
 
 var _ = Describe("Router", func() {
 	ctx := context.Background()
-	var stopCh chan struct{}
+	var cancel context.CancelFunc
 	syncCh := make(chan struct{})
 	resultCh := make(chan map[string]nodenet.GatewayInfo)
 
 	BeforeEach(func() {
-		stopCh = make(chan struct{})
+		ctx, cancel = context.WithCancel(context.TODO())
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 			Scheme:             scheme,
 			LeaderElection:     false,
@@ -72,7 +72,7 @@ var _ = Describe("Router", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		go func() {
-			err := mgr.Start(stopCh)
+			err := mgr.Start(ctx)
 			if err != nil {
 				panic(err)
 			}
@@ -81,7 +81,7 @@ var _ = Describe("Router", func() {
 
 	AfterEach(func() {
 		deleteAllAddressBlocks()
-		close(stopCh)
+		cancel()
 		time.Sleep(10 * time.Millisecond)
 	})
 

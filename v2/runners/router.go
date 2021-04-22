@@ -80,7 +80,7 @@ func (r *router) NeedLeaderElection() bool {
 	return false
 }
 
-func (r *router) Start(done <-chan struct{}) error {
+func (r *router) Start(ctx context.Context) error {
 	initMetrics(r.nodeName)
 
 	tick := time.NewTicker(r.interval)
@@ -88,7 +88,7 @@ func (r *router) Start(done <-chan struct{}) error {
 
 	for {
 		select {
-		case <-done:
+		case <-ctx.Done():
 			return nil
 		case <-r.notifyCh:
 		case <-tick.C:

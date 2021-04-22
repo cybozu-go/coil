@@ -10,8 +10,8 @@ import (
 	"github.com/cybozu-go/coil/v2/controllers"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/cybozu-go/coil/v2/pkg/founat"
-	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -22,8 +22,19 @@ const (
 	gracefulTimeout = 5 * time.Second
 )
 
+var (
+	scheme   = runtime.NewScheme()
+	setupLog = ctrl.Log.WithName("setup")
+)
+
+func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+
+	// +kubebuilder:scaffold:scheme
+}
+
 func subMain() error {
-	ctrl.SetLogger(zap.New(zap.StacktraceLevel(zapcore.DPanicLevel)))
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&config.zapOpts)))
 
 	myNS := os.Getenv(constants.EnvPodNamespace)
 	if myNS == "" {
@@ -52,13 +63,7 @@ func subMain() error {
 		}
 	}
 
-	log := ctrl.Log.WithName("main")
-	log.Info("detected local IP addresses", "ipv4", ipv4.String(), "ipv6", ipv6.String())
-
-	scheme := runtime.NewScheme()
-	if err := clientgoscheme.AddToScheme(scheme); err != nil {
-		return err
-	}
+	setupLog.Info("detected local IP addresses", "ipv4", ipv4.String(), "ipv6", ipv6.String())
 
 	timeout := gracefulTimeout
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
@@ -93,9 +98,9 @@ func subMain() error {
 		return err
 	}
 
-	log.Info("starting manager")
+	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		log.Error(err, "problem running manager")
+		setupLog.Error(err, "problem running manager")
 		return err
 	}
 

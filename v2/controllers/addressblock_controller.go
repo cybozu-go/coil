@@ -1,10 +1,11 @@
 package controllers
 
 import (
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"context"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // AddressBlockReconciler watches AddressBlocks and notifies a channel
@@ -17,7 +18,7 @@ var _ reconcile.Reconciler = &AddressBlockReconciler{}
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=addressblocks,verbs=get;list;watch
 
 // Reconcile implements Reconciler interface.
-func (r *AddressBlockReconciler) Reconcile(ctrl.Request) (ctrl.Result, error) {
+func (r *AddressBlockReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	select {
 	case r.Notify <- struct{}{}:
 	default:

@@ -10,10 +10,9 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
@@ -25,13 +24,12 @@ import (
 func SetupCRBReconciler(mgr manager.Manager) error {
 	r := &crbReconciler{
 		Client: mgr.GetClient(),
-		log:    ctrl.Log.WithName("controllers").WithName("clusterrolebinding-reconciler"),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rbacv1.ClusterRoleBinding{}).
-		WithEventFilter(predicate.NewPredicateFuncs(func(meta metav1.Object, _ runtime.Object) bool {
-			switch meta.GetName() {
+		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
+			switch object.GetName() {
 			case constants.CRBEgress, constants.CRBEgressPSP:
 				return true
 			}
@@ -42,21 +40,19 @@ func SetupCRBReconciler(mgr manager.Manager) error {
 
 type crbReconciler struct {
 	client.Client
-	log logr.Logger
 }
 
-func (r *crbReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *crbReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	switch req.Name {
 	case constants.CRBEgress, constants.CRBEgressPSP:
 	default:
 		return ctrl.Result{}, nil
 	}
 
-	ctx := context.Background()
-	log := r.log.WithValues("clusterrolebinding", req.Name)
+	logger := log.FromContext(ctx)
 
-	if err := reconcileCRB(ctx, r.Client, log, req.Name); err != nil {
-		log.Error(err, "failed to reconcile cluster role binding")
+	if err := reconcileCRB(ctx, r.Client, logger, req.Name); err != nil {
+		logger.Error(err, "failed to reconcile cluster role binding")
 		return ctrl.Result{}, err
 	}
 

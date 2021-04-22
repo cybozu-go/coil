@@ -30,7 +30,7 @@ func makeEgress(name string) *coilv2.Egress {
 
 var _ = Describe("Egress reconciler", func() {
 	ctx := context.Background()
-	var stopCh chan struct{}
+	var cancel context.CancelFunc
 
 	BeforeEach(func() {
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -42,7 +42,6 @@ var _ = Describe("Egress reconciler", func() {
 
 		egr := &EgressReconciler{
 			Client: mgr.GetClient(),
-			Log:    ctrl.Log.WithName("Egress reconciler"),
 			Scheme: mgr.GetScheme(),
 			Image:  "coil:dev",
 			Port:   5555,
@@ -53,9 +52,9 @@ var _ = Describe("Egress reconciler", func() {
 		err = SetupCRBReconciler(mgr)
 		Expect(err).ToNot(HaveOccurred())
 
-		stopCh = make(chan struct{})
+		ctx, cancel = context.WithCancel(context.TODO())
 		go func() {
-			err := mgr.Start(stopCh)
+			err := mgr.Start(ctx)
 			if err != nil {
 				panic(err)
 			}
@@ -64,7 +63,7 @@ var _ = Describe("Egress reconciler", func() {
 	})
 
 	AfterEach(func() {
-		close(stopCh)
+		cancel()
 		time.Sleep(10 * time.Millisecond)
 	})
 

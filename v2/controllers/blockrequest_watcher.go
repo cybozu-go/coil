@@ -17,7 +17,6 @@ import (
 // BlockRequestWatcher watches BlockRequest status on each node.
 type BlockRequestWatcher struct {
 	client.Client
-	Log      logr.Logger
 	NodeIPAM ipam.NodeIPAM
 	NodeName string
 }
@@ -26,16 +25,16 @@ type BlockRequestWatcher struct {
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=blockrequests/status,verbs=get
 
 // Reconcile implements Reconcile interface.
-// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.6.1/pkg/reconcile?tab=doc#Watcher
-func (r *BlockRequestWatcher) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
-	log := r.Log.WithValues("blockrequest", req.Name)
+// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.8.3/pkg/reconcile?tab=doc#Watcher
+func (r *BlockRequestWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := logr.FromContext(ctx)
+
 	br := &coilv2.BlockRequest{}
 	err := r.Client.Get(ctx, req.NamespacedName, br)
 
 	if err != nil {
 		// as Delete event is ignored, this is unlikely to happen.
-		log.Error(err, "failed to get")
+		logger.Error(err, "failed to get")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 

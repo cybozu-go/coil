@@ -146,7 +146,7 @@ func fieldExtractor(fullMethod string, req interface{}) map[string]interface{} {
 	return ret
 }
 
-func (s *coildServer) Start(ch <-chan struct{}) error {
+func (s *coildServer) Start(ctx context.Context) error {
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(
 		grpc_middleware.ChainUnaryServer(
 			grpc_ctxtags.UnaryServerInterceptor(grpc_ctxtags.WithFieldExtractor(fieldExtractor)),
@@ -164,7 +164,7 @@ func (s *coildServer) Start(ch <-chan struct{}) error {
 	reflection.Register(grpcServer)
 
 	go func() {
-		<-ch
+		<-ctx.Done()
 		grpcServer.GracefulStop()
 	}()
 

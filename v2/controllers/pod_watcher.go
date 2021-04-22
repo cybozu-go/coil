@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
@@ -43,7 +44,6 @@ func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, eg 
 
 	r := &podWatcher{
 		client:   mgr.GetClient(),
-		log:      ctrl.Log.WithName("controllers").WithName("pod-watcher"),
 		myNS:     ns,
 		myName:   name,
 		ft:       ft,
@@ -64,7 +64,6 @@ func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, eg 
 // do no harm, though.
 type podWatcher struct {
 	client client.Client
-	log    logr.Logger
 	myNS   string
 	myName string
 	ft     founat.FoUTunnel
@@ -104,9 +103,8 @@ func (r *podWatcher) shouldHandle(pod *corev1.Pod) bool {
 	return false
 }
 
-func (r *podWatcher) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
-	log := r.log.WithValues("pod", req.NamespacedName)
+func (r *podWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 
 	pod := &corev1.Pod{}
 	err := r.client.Get(ctx, req.NamespacedName, pod)
@@ -115,8 +113,8 @@ func (r *podWatcher) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return ctrl.Result{}, err
 		}
 
-		if err := r.addPod(pod); err != nil {
-			log.Error(err, "failed to setup tunnel")
+		if err := r.addPod(pod, logger); err != nil {
+			logger.Error(err, "failed to setup tunnel")
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
@@ -124,17 +122,17 @@ func (r *podWatcher) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	if apierrors.IsNotFound(err) {
 		if err := r.delPod(req.NamespacedName); err != nil {
-			log.Error(err, "failed to remove tunnel")
+			logger.Error(err, "failed to remove tunnel")
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
 	}
 
-	log.Error(err, "failed to get pod")
+	logger.Error(err, "failed to get pod")
 	return ctrl.Result{}, nil
 }
 
-func (r *podWatcher) addPod(pod *corev1.Pod) error {
+func (r *podWatcher) addPod(pod *corev1.Pod, logger logr.Logger) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -155,7 +153,7 @@ OUTER:
 
 		link, err := r.ft.AddPeer(ip)
 		if errors.Is(err, founat.ErrIPFamilyMismatch) {
-			r.log.Info("skipping unsupported pod IP", "pod", pod.Namespace+"/"+pod.Name, "ip", ip.String())
+			logger.Info("skipping unsupported pod IP", "pod", pod.Namespace+"/"+pod.Name, "ip", ip.String())
 			continue
 		}
 		if err != nil {

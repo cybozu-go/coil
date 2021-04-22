@@ -20,6 +20,8 @@ spec:
       tolerations:
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        effect: NoSchedule
       - key: node.kubernetes.io/not-ready
         effect: NoSchedule
       affinity:
@@ -42,6 +44,8 @@ spec:
       - name: coil-controller
         image: coil:dev
         command: ["coil-controller"]
+        args:
+          - --zap-stacktrace-level=panic
         env:
         - name: "COIL_POD_NAMESPACE"
           valueFrom:

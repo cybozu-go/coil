@@ -137,7 +137,6 @@ func (ns *mockNATSetup) Hook(gwnets []GWNets, _ *uberzap.Logger) func(ipv4, ipv6
 }
 
 var _ = Describe("Coild server", func() {
-	ctx := context.Background()
 	tmpFile, err := os.CreateTemp("", "")
 	if err != nil {
 		panic(err)
@@ -146,7 +145,8 @@ var _ = Describe("Coild server", func() {
 	tmpFile.Close()
 	os.Remove(coildSocket)
 
-	var stopCh chan struct{}
+	ctx := context.Background()
+	var cancel context.CancelFunc
 	var nodeIPAM *mockNodeIPAM
 	var podNet *mockPodNetwork
 	var natsetup *mockNATSetup
@@ -156,7 +156,7 @@ var _ = Describe("Coild server", func() {
 	metricPort := 13449
 
 	BeforeEach(func() {
-		stopCh = make(chan struct{})
+		ctx, cancel = context.WithCancel(context.TODO())
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 			Scheme:             scheme,
 			LeaderElection:     false,
@@ -179,7 +179,7 @@ var _ = Describe("Coild server", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		go func() {
-			err := mgr.Start(stopCh)
+			err := mgr.Start(ctx)
 			if err != nil {
 				panic(err)
 			}
@@ -200,10 +200,7 @@ var _ = Describe("Coild server", func() {
 			conn.Close()
 			conn = nil
 		}
-		if stopCh != nil {
-			close(stopCh)
-			stopCh = nil
-		}
+		cancel()
 		time.Sleep(10 * time.Millisecond)
 		os.Remove(coildSocket)
 	})

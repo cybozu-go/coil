@@ -13,8 +13,8 @@ import (
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
 	"github.com/cybozu-go/coil/v2/runners"
-	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,16 +26,20 @@ const (
 	gracefulTimeout = 20 * time.Second
 )
 
-func subMain() error {
-	ctrl.SetLogger(zap.New(zap.StacktraceLevel(zapcore.DPanicLevel)))
+var (
+	scheme   = runtime.NewScheme()
+	setupLog = ctrl.Log.WithName("setup")
+)
 
-	scheme := runtime.NewScheme()
-	if err := clientgoscheme.AddToScheme(scheme); err != nil {
-		return err
-	}
-	if err := coilv2.AddToScheme(scheme); err != nil {
-		return err
-	}
+func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(coilv2.AddToScheme(scheme))
+
+	// +kubebuilder:scaffold:scheme
+}
+
+func subMain() error {
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&config.zapOpts)))
 
 	host, portStr, err := net.SplitHostPort(config.webhookAddr)
 	if err != nil {
@@ -75,7 +79,6 @@ func subMain() error {
 	pm := ipam.NewPoolManager(mgr.GetClient(), ctrl.Log.WithName("pool-manager"), scheme)
 	apctrl := controllers.AddressPoolReconciler{
 		Client:  mgr.GetClient(),
-		Log:     ctrl.Log.WithName("addresspool-reconciler"),
 		Scheme:  scheme,
 		Manager: pm,
 	}
@@ -88,7 +91,6 @@ func subMain() error {
 
 	brctrl := controllers.BlockRequestReconciler{
 		Client:  mgr.GetClient(),
-		Log:     ctrl.Log.WithName("blockrequest-reconciler"),
 		Scheme:  scheme,
 		Manager: pm,
 	}
@@ -104,7 +106,6 @@ func subMain() error {
 	}
 	egressctrl := controllers.EgressReconciler{
 		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("egress-reconciler"),
 		Scheme: scheme,
 		Image:  img,
 		Port:   config.egressPort,
@@ -133,10 +134,9 @@ func subMain() error {
 		return err
 	}
 
-	log := ctrl.Log.WithName("main")
-	log.Info("starting manager")
+	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		log.Error(err, "problem running manager")
+		setupLog.Error(err, "problem running manager")
 		return err
 	}
 

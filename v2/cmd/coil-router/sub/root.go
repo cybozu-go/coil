@@ -1,12 +1,15 @@
 package sub
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"time"
 
 	v2 "github.com/cybozu-go/coil/v2"
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var config struct {
@@ -14,6 +17,7 @@ var config struct {
 	healthAddr     string
 	protocolId     int
 	updateInterval time.Duration
+	zapOpts        zap.Options
 }
 
 var rootCmd = &cobra.Command{
@@ -48,4 +52,10 @@ func init() {
 	pf.StringVar(&config.healthAddr, "health-addr", ":9389", "bind address of health/readiness probes")
 	pf.IntVar(&config.protocolId, "protocol-id", 31, "route author ID")
 	pf.DurationVar(&config.updateInterval, "update-interval", 10*time.Minute, "interval for forced route update")
+
+	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(goflags)
+	config.zapOpts.BindFlags(goflags)
+
+	pf.AddGoFlagSet(goflags)
 }

@@ -13,11 +13,11 @@ import (
 
 var _ = Describe("AddressPool reconciler", func() {
 	ctx := context.Background()
-	var stopCh chan struct{}
+	var cancel context.CancelFunc
 	var poolMgr *mockPoolManager
 
 	BeforeEach(func() {
-		stopCh = make(chan struct{})
+		ctx, cancel = context.WithCancel(context.TODO())
 		poolMgr = &mockPoolManager{}
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 			Scheme:             scheme,
@@ -28,7 +28,6 @@ var _ = Describe("AddressPool reconciler", func() {
 
 		apr := AddressPoolReconciler{
 			Client:  mgr.GetClient(),
-			Log:     ctrl.Log.WithName("AddressPool reconciler"),
 			Manager: poolMgr,
 			Scheme:  mgr.GetScheme(),
 		}
@@ -36,7 +35,7 @@ var _ = Describe("AddressPool reconciler", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		go func() {
-			err := mgr.Start(stopCh)
+			err := mgr.Start(ctx)
 			if err != nil {
 				panic(err)
 			}
@@ -45,7 +44,7 @@ var _ = Describe("AddressPool reconciler", func() {
 	})
 
 	AfterEach(func() {
-		close(stopCh)
+		cancel()
 		ap := &coilv2.AddressPool{}
 		ap.Name = "default"
 		ap.Spec.BlockSizeBits = 1
@@ -53,7 +52,7 @@ var _ = Describe("AddressPool reconciler", func() {
 			{IPv4: strPtr("10.2.0.0/29"), IPv6: strPtr("fd02::0200/125")},
 			{IPv4: strPtr("10.3.0.0/30"), IPv6: strPtr("fd02::0300/126")},
 		}
-		k8sClient.Create(ctx, ap)
+		k8sClient.Create(context.Background(), ap)
 		time.Sleep(10 * time.Millisecond)
 	})
 

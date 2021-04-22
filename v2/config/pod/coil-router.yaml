@@ -27,6 +27,8 @@ spec:
       - name: coil-router
         image: coil:dev
         command: ["coil-router"]
+        args:
+          - --zap-stacktrace-level=panic
         env:
         - name: COIL_NODE_NAME
           valueFrom:

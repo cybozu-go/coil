@@ -14,10 +14,10 @@ import (
 
 var _ = Describe("Garbage collector", func() {
 	ctx := context.Background()
-	var stopCh chan struct{}
+	var cancel context.CancelFunc
 
 	BeforeEach(func() {
-		stopCh = make(chan struct{})
+		ctx, cancel = context.WithCancel(context.TODO())
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 			Scheme:             scheme,
 			LeaderElection:     false,
@@ -30,7 +30,7 @@ var _ = Describe("Garbage collector", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		go func() {
-			err := mgr.Start(stopCh)
+			err := mgr.Start(ctx)
 			if err != nil {
 				panic(err)
 			}
@@ -39,8 +39,8 @@ var _ = Describe("Garbage collector", func() {
 
 	AfterEach(func() {
 		deleteAllAddressBlocks()
-		close(stopCh)
-		err := k8sClient.DeleteAllOf(ctx, &coilv2.BlockRequest{})
+		cancel()
+		err := k8sClient.DeleteAllOf(context.Background(), &coilv2.BlockRequest{})
 		Expect(err).To(Succeed())
 		time.Sleep(10 * time.Millisecond)
 	})

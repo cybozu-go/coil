@@ -274,7 +274,7 @@ func (p *pool) AllocateBlock(ctx context.Context, nodeName string) (*coilv2.Addr
 
 // SetupIndexer setups the required indexer for PoolManager.
 func SetupIndexer(ctx context.Context, mgr manager.Manager) error {
-	return mgr.GetFieldIndexer().IndexField(ctx, &coilv2.AddressBlock{}, constants.IndexController, func(o runtime.Object) []string {
+	return mgr.GetFieldIndexer().IndexField(ctx, &coilv2.AddressBlock{}, constants.IndexController, func(o client.Object) []string {
 		job := o.(*coilv2.AddressBlock)
 		owner := metav1.GetControllerOf(job)
 		if owner == nil {
