@@ -2,12 +2,12 @@
 
 include common.mk
 
-PROTOC_VERSION=3.14.0
+PROTOC_VERSION=3.17.1
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
 CONTROLLER_TOOLS_VERSION=0.5.0
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
-PROTOC_GEN_GO_GRPC_VERSON=1.0.1
-PROTOC_GEN_DOC_VERSION=1.3.2
+PROTOC_GEN_GO_GRPC_VERSON=1.1.0
+PROTOC_GEN_DOC_VERSION=1.4.1
 
 ## DON'T EDIT BELOW THIS LINE
 SUDO=sudo

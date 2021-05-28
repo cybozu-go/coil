@@ -1,7 +1,8 @@
 include ../common.mk
 
-IMAGE = kindest/node:v1.18.15
-KIND_VERSION=0.10.0
+IMAGE = kindest/node:v1.19.11
+KIND_VERSION=0.11.1
+KUSTOMIZE_VERSION = 4.1.3
 BINDIR := $(abspath $(PWD)/../bin)
 
 KIND := $(BINDIR)/kind
@@ -44,5 +45,5 @@ setup:
 	mkdir -p $(BINDIR)
 	curl -o $(BINDIR)/kind -sfL https://kind.sigs.k8s.io/dl/v$(KIND_VERSION)/kind-linux-amd64
 	curl -o $(BINDIR)/kubectl -sfL https://storage.googleapis.com/kubernetes-release/release/v$(K8S_VERSION)/bin/linux/amd64/kubectl
-	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.7.0/kustomize_v3.7.0_linux_amd64.tar.gz | tar -xz -C $(BINDIR)
+	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv%(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz | tar -xz -C $(BINDIR)
 	chmod a+x $(BINDIR)/kubectl $(BINDIR)/kind

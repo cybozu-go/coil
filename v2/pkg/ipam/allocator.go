@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/bits-and-blooms/bitset"
 	"github.com/cybozu-go/netutil"
-	"github.com/willf/bitset"
 )
 
 type allocator struct {
