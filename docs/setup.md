@@ -20,9 +20,9 @@ You can tweak optional parameters by editing [`kustomization.yaml`](../v2/kustom
 
 ## Install `kustomize`
 
-Follow the instructions: https://kubernetes-sigs.github.io/kustomize/installation/
+Follow the instructions: https://kubectl.docs.kubernetes.io/installation/kustomize/
 
-`kustomize` 3.7.0 and 3.8.2 are verified to work for Coil.
+`kustomize` 4.1.3 is verified to work for Coil.
 
 ## Generate TLS certificate
 

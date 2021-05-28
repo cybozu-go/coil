@@ -137,10 +137,13 @@ config/rbac/coil-egress_role.yaml: controllers/pod_watcher.go
 
 # TLS certificates for webhook
 .PHONY: certs
-certs: config/default/cert.pem config/default/key.pem
+certs: config/default/cert.pem config/default/key.pem config/default/webhook_manifests_patch.yaml
 
 config/default/cert.pem config/default/key.pem:
 	go run ./cmd/gencert -outdir=$(PWD)/config/default
+
+config/default/webhook_manifests_patch.yaml: config/default/cert.pem config/default/webhook_manifests_patch.yaml.tmpl
+	sed "s/%CACERT%/$$(base64 -w0 < $<)/g" $@.tmpl > $@
 
 # Generate code
 .PHONY: generate

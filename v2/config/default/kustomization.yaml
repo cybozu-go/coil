@@ -17,15 +17,3 @@ secretGenerator:
   - tls.crt=./cert.pem
   - tls.key=./key.pem
   type: "kubernetes.io/tls"
-
-configurations:
-- kustomizeconfig.yaml
-
-vars:
-- name: CACERT
-  objref:
-    version: v1
-    kind: Secret
-    name: coilv2-webhook-server-cert
-  fieldref:
-    fieldpath: data[ca.crt]

@@ -5,7 +5,7 @@ metadata:
 webhooks:
 - name: megress.kb.io
   clientConfig:
-    caBundle: $(CACERT)
+    caBundle: "%CACERT%"
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
@@ -14,8 +14,8 @@ metadata:
 webhooks:
 - name: vaddresspool.kb.io
   clientConfig:
-    caBundle: $(CACERT)
+    caBundle: "%CACERT%"
 - name: vegress.kb.io
   clientConfig:
-    caBundle: $(CACERT)
+    caBundle: "%CACERT%"
 ---

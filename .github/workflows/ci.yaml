@@ -3,7 +3,7 @@ on:
   pull_request:
   push:
     branches:
-      - 'main'
+    - 'main'
 defaults:
   run:
     working-directory: v2
@@ -15,57 +15,65 @@ jobs:
     name: Small test
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
-        with:
-          go-version: ${{ env.go-version }}
-      - name: Cache tools
-        id: cache-tools
-        uses: actions/cache@v2
-        with:
-          path: |
-            v2/bin
-            v2/include
-          key: cache-${{ env.cache-version }}-go-${{ env.go-version }}-${{ hashFiles('v2/Makefile', 'v2/common.mk') }}
-      - run: make setup
-        if: steps.cache-tools.outputs.cache-hit != 'true'
-      - run: make test
-      - run: make test-nodenet
-        timeout-minutes: 10
-      - run: make test-founat
-        timeout-minutes: 10
-      - run: make check-generate
-      - name: Build coil-migrator
-        run: go build .
-        working-directory: coil-migrator
+    - uses: actions/checkout@v2
+    - uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.go-version }}
+    - name: Cache tools
+      id: cache-tools
+      uses: actions/cache@v2
+      with:
+        path: |
+          v2/bin
+          v2/include
+        key: cache-${{ env.cache-version }}-go-${{ env.go-version }}-${{ hashFiles('v2/Makefile', 'v2/common.mk') }}
+    - run: make setup
+      if: steps.cache-tools.outputs.cache-hit != 'true'
+    - run: make test
+    - run: make test-nodenet
+      timeout-minutes: 10
+    - run: make test-founat
+      timeout-minutes: 10
+    - run: make check-generate
+    - name: Build coil-migrator
+      run: go build .
+      working-directory: coil-migrator
   e2e:
     name: End-to-end Test
     strategy:
       matrix:
-        kindest-node: ["kindest/node:v1.19.11", "kindest/node:v1.20.7", "kindest/node:v1.21.1"]
+        kindest-node: ["1.19.11", "1.20.7", "1.21.1"]
         ip-version: ["ipv4", "ipv6"]
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
-        with:
-          go-version: ${{ env.go-version }}
-      - run: make image
-      - run: make certs
-      - run: make setup
-        working-directory: v2/e2e
-      - name: Enable docker IPv6 mode
-        if: matrix.ip-version == 'ipv6'
-        working-directory: v2/e2e
-        run: |
-          sudo mkdir -p /etc/docker
-          sudo cp daemon.json /etc/docker/daemon.json
-          sudo systemctl restart docker.service
-          sleep 10
-          echo TEST_IPV6=true >> $GITHUB_ENV
-      - run: make start IMAGE=${{ matrix.kindest-node }}
-        working-directory: v2/e2e
-      - run: make install-coil
-        working-directory: v2/e2e
-      - run: make test
-        working-directory: v2/e2e
+    - uses: actions/checkout@v2
+    - uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.go-version }}
+    - run: make image
+    - run: make certs
+    - run: make setup
+      working-directory: v2/e2e
+    - name: Enable docker IPv6 mode
+      if: matrix.ip-version == 'ipv6'
+      working-directory: v2/e2e
+      run: |
+        sudo mkdir -p /etc/docker
+        sudo cp daemon.json /etc/docker/daemon.json
+        sudo systemctl restart docker.service
+        sleep 10
+        echo TEST_IPV6=true >> $GITHUB_ENV
+    - run: make start IMAGE=kindest/node:v${{ matrix.kindest-node }}
+      working-directory: v2/e2e
+    - run: make install-coil
+      working-directory: v2/e2e
+    - run: make test
+      working-directory: v2/e2e
+    - run: make logs
+      working-directory: v2/e2e
+      if: always()
+    - uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: logs-${{ matrix.ip-version }}-${{ matrix.kindest-node }}.tar.gz
+        path: v2/e2e/logs.tar.gz
