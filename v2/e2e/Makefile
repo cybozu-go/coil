@@ -1,7 +1,8 @@
 include ../common.mk
 
-IMAGE = kindest/node:v1.18.15
-KIND_VERSION=0.10.0
+IMAGE = kindest/node:v1.19.11
+KIND_VERSION=0.11.1
+KUSTOMIZE_VERSION = 4.1.3
 BINDIR := $(abspath $(PWD)/../bin)
 
 KIND := $(BINDIR)/kind
@@ -29,7 +30,7 @@ install-coil:
 	$(KUBECTL) label nodes coil-worker test=coil
 	$(KUBECTL) label nodes coil-worker2 test=coil
 	$(KIND) load docker-image --name coil coil:dev
-	$(KUSTOMIZE) --load_restrictor=none build . | $(KUBECTL) apply -f -
+	$(KUSTOMIZE) build --load-restrictor=LoadRestrictionsNone . | $(KUBECTL) apply -f -
 	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-controller
 
 .PHONY: test
@@ -39,10 +40,17 @@ test:
 	rm echotest
 	go test -count 1 -v . -args -ginkgo.progress -ginkgo.v
 
+.PHONY: logs
+logs:
+	rm -rf logs.tar.gz logs
+	$(KIND) export logs --name=coil ./logs
+	tar czf logs.tar.gz logs
+	rm -rf logs
+
 .PHONY: setup
 setup:
 	mkdir -p $(BINDIR)
 	curl -o $(BINDIR)/kind -sfL https://kind.sigs.k8s.io/dl/v$(KIND_VERSION)/kind-linux-amd64
 	curl -o $(BINDIR)/kubectl -sfL https://storage.googleapis.com/kubernetes-release/release/v$(K8S_VERSION)/bin/linux/amd64/kubectl
-	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.7.0/kustomize_v3.7.0_linux_amd64.tar.gz | tar -xz -C $(BINDIR)
+	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz | tar -xz -C $(BINDIR)
 	chmod a+x $(BINDIR)/kubectl $(BINDIR)/kind

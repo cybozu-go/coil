@@ -8,9 +8,9 @@ require (
 	github.com/cybozu-go/etcdutil v1.3.5
 	github.com/cybozu-go/netutil v1.4.1
 	github.com/spf13/cobra v1.1.3
-	k8s.io/api v0.20.6
-	k8s.io/apimachinery v0.20.6
-	k8s.io/client-go v0.20.6
+	k8s.io/api v0.20.7
+	k8s.io/apimachinery v0.20.7
+	k8s.io/client-go v0.20.7
 	sigs.k8s.io/controller-runtime v0.8.3
 )
 

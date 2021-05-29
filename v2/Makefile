@@ -2,12 +2,12 @@
 
 include common.mk
 
-PROTOC_VERSION=3.14.0
+PROTOC_VERSION=3.17.1
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
 CONTROLLER_TOOLS_VERSION=0.5.0
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
-PROTOC_GEN_GO_GRPC_VERSON=1.0.1
-PROTOC_GEN_DOC_VERSION=1.3.2
+PROTOC_GEN_GO_GRPC_VERSON=1.1.0
+PROTOC_GEN_DOC_VERSION=1.4.1
 
 ## DON'T EDIT BELOW THIS LINE
 SUDO=sudo
@@ -137,10 +137,13 @@ config/rbac/coil-egress_role.yaml: controllers/pod_watcher.go
 
 # TLS certificates for webhook
 .PHONY: certs
-certs: config/default/cert.pem config/default/key.pem
+certs: config/default/cert.pem config/default/key.pem config/default/webhook_manifests_patch.yaml
 
 config/default/cert.pem config/default/key.pem:
 	go run ./cmd/gencert -outdir=$(PWD)/config/default
+
+config/default/webhook_manifests_patch.yaml: config/default/cert.pem config/default/webhook_manifests_patch.yaml.tmpl
+	sed "s/%CACERT%/$$(base64 -w0 < $<)/g" $@.tmpl > $@
 
 # Generate code
 .PHONY: generate

@@ -12,6 +12,7 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
+// Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
 // CNIClient is the client API for CNI service.
@@ -91,7 +92,7 @@ type UnsafeCNIServer interface {
 }
 
 func RegisterCNIServer(s grpc.ServiceRegistrar, srv CNIServer) {
-	s.RegisterService(&_CNI_serviceDesc, srv)
+	s.RegisterService(&CNI_ServiceDesc, srv)
 }
 
 func _CNI_Add_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -148,7 +149,10 @@ func _CNI_Check_Handler(srv interface{}, ctx context.Context, dec func(interface
 	return interceptor(ctx, in, info, handler)
 }
 
-var _CNI_serviceDesc = grpc.ServiceDesc{
+// CNI_ServiceDesc is the grpc.ServiceDesc for CNI service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var CNI_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "pkg.cnirpc.CNI",
 	HandlerType: (*CNIServer)(nil),
 	Methods: []grpc.MethodDesc{
