@@ -50,6 +50,7 @@ var _ = BeforeSuite(func() {
 		WebhookInstallOptions: envtest.WebhookInstallOptions{
 			Paths: []string{filepath.Join("..", "..", "config", "webhook")},
 		},
+		ErrorIfCRDPathMissing: true,
 	}
 
 	var err error

@@ -11,7 +11,8 @@ PROTOC_GEN_DOC_VERSION=1.4.1
 
 ## DON'T EDIT BELOW THIS LINE
 SUDO=sudo
-CONTROLLER_GEN := $(PWD)/bin/controller-gen
+CONTROLLER_GEN := $(shell pwd)/bin/controller-gen
+SETUP_ENVTEST := $(shell pwd)/bin/setup-envtest
 CRD_OPTIONS = "crd:crdVersions=v1"
 ROLES = config/rbac/coil-controller_role.yaml \
 	config/rbac/coild_role.yaml \
@@ -31,20 +32,10 @@ SHELL = /bin/bash
 .SHELLFLAGS = -e -o pipefail -c
 
 # Run tests, and set up envtest if not done already.
-ENVTEST_ASSETS_DIR := testbin
-ENVTEST_SCRIPT_URL := https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v$(CONTROLLER_RUNTIME_VERSION)/hack/setup-envtest.sh
 .PHONY: test
-test: simple-test
-ifeq (,$(wildcard $(ENVTEST_ASSETS_DIR)/setup-envtest.sh))
-	mkdir -p $(ENVTEST_ASSETS_DIR)
-	curl -sSLo $(ENVTEST_ASSETS_DIR)/setup-envtest.sh $(ENVTEST_SCRIPT_URL)
-endif
-	{ \
-	source $(ENVTEST_ASSETS_DIR)/setup-envtest.sh && \
-	ENVTEST_K8S_VERSION= fetch_envtest_tools $(ENVTEST_ASSETS_DIR) && \
-	setup_envtest_env $(PWD)/$(ENVTEST_ASSETS_DIR) && \
-	go test -race -v -count 1 ./... ; \
-	}
+test: simple-test setup-envtest
+	source <($(SETUP_ENVTEST) use -p env); \
+		go test -race -v -count 1 ./...
 
 .PHONY: simple-test
 simple-test: test-tools
@@ -182,6 +173,11 @@ setup:
 	GOBIN=$(PWD)/bin go install google.golang.org/protobuf/cmd/protoc-gen-go@v$(PROTOC_GEN_GO_VERSION)
 	GOBIN=$(PWD)/bin go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v$(PROTOC_GEN_GO_GRPC_VERSON)
 	GOBIN=$(PWD)/bin go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@v$(PROTOC_GEN_DOC_VERSION)
+
+.PHONY: setup-envtest
+setup-envtest: ## Download setup-envtest locally if necessary
+	# see https://github.com/kubernetes-sigs/controller-runtime/tree/master/tools/setup-envtest
+	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
