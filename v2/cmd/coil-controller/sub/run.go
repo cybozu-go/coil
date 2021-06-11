@@ -1,7 +1,6 @@
 package sub
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
@@ -76,16 +75,13 @@ func subMain() error {
 
 	// register controllers
 
-	pm := ipam.NewPoolManager(mgr.GetClient(), ctrl.Log.WithName("pool-manager"), scheme)
+	pm := ipam.NewPoolManager(mgr.GetClient(), mgr.GetAPIReader(), ctrl.Log.WithName("pool-manager"), scheme)
 	apctrl := controllers.AddressPoolReconciler{
 		Client:  mgr.GetClient(),
 		Scheme:  scheme,
 		Manager: pm,
 	}
 	if err := apctrl.SetupWithManager(mgr); err != nil {
-		return err
-	}
-	if err := ipam.SetupIndexer(context.Background(), mgr); err != nil {
 		return err
 	}
 

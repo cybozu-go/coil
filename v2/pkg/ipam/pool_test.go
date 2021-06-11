@@ -23,7 +23,7 @@ var _ = Describe("PoolManager", func() {
 
 	Context("default pool", func() {
 		It("should allocate blocks", func() {
-			pm := NewPoolManager(mgr.GetClient(), ctrl.Log.WithName("PoolManager"), scheme)
+			pm := NewPoolManager(mgr.GetClient(), mgr.GetAPIReader(), ctrl.Log.WithName("PoolManager"), scheme)
 
 			blocks := make([]*coilv2.AddressBlock, 0, 6)
 			block, err := pm.AllocateBlock(ctx, "default", "node1")
@@ -82,7 +82,7 @@ var _ = Describe("PoolManager", func() {
 
 	Context("IPv4 pool", func() {
 		It("should allocate blocks", func() {
-			pm := NewPoolManager(mgr.GetClient(), ctrl.Log.WithName("PoolManager"), scheme)
+			pm := NewPoolManager(mgr.GetClient(), mgr.GetAPIReader(), ctrl.Log.WithName("PoolManager"), scheme)
 
 			blocks := make([]*coilv2.AddressBlock, 0, 2)
 			block, err := pm.AllocateBlock(ctx, "v4", "node1")

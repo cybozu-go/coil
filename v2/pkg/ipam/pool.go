@@ -12,11 +12,9 @@ import (
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
@@ -69,6 +67,7 @@ func init() {
 
 type poolManager struct {
 	client client.Client
+	reader client.Reader
 	log    logr.Logger
 	scheme *runtime.Scheme
 
@@ -77,12 +76,13 @@ type poolManager struct {
 }
 
 // NewPoolManager creates a new PoolManager.
-func NewPoolManager(cl client.Client, l logr.Logger, scheme *runtime.Scheme) PoolManager {
+func NewPoolManager(cl client.Client, r client.Reader, l logr.Logger, scheme *runtime.Scheme) PoolManager {
 	poolMaxBlocks.Reset()
 	poolAllocated.Reset()
 
 	return &poolManager{
 		client: cl,
+		reader: r,
 		log:    l,
 		scheme: scheme,
 		pools:  make(map[string]*pool),
@@ -100,6 +100,7 @@ func (pm *poolManager) getPool(ctx context.Context, name string) (*pool, error) 
 			name:            name,
 			log:             l,
 			client:          pm.client,
+			reader:          pm.reader,
 			scheme:          pm.scheme,
 			maxBlocks:       poolMaxBlocks.WithLabelValues(name),
 			allocatedBlocks: poolAllocated.WithLabelValues(name),
@@ -143,6 +144,7 @@ func (pm *poolManager) AllocateBlock(ctx context.Context, poolName, nodeName str
 type pool struct {
 	name            string
 	client          client.Client
+	reader          client.Reader
 	log             logr.Logger
 	scheme          *runtime.Scheme
 	maxBlocks       prometheus.Gauge
@@ -180,8 +182,8 @@ func (p *pool) SyncBlocks(ctx context.Context) error {
 
 	p.allocated.ClearAll()
 	blocks := &coilv2.AddressBlockList{}
-	err = p.client.List(ctx, blocks, client.MatchingFields{
-		constants.IndexController: p.name,
+	err = p.reader.List(ctx, blocks, client.MatchingLabels{
+		constants.LabelPool: p.name,
 	})
 	if err != nil {
 		return err
@@ -270,20 +272,4 @@ func (p *pool) AllocateBlock(ctx context.Context, nodeName string) (*coilv2.Addr
 
 	p.log.Error(ErrNoBlock, "no available blocks")
 	return nil, ErrNoBlock
-}
-
-// SetupIndexer setups the required indexer for PoolManager.
-func SetupIndexer(ctx context.Context, mgr manager.Manager) error {
-	return mgr.GetFieldIndexer().IndexField(ctx, &coilv2.AddressBlock{}, constants.IndexController, func(o client.Object) []string {
-		job := o.(*coilv2.AddressBlock)
-		owner := metav1.GetControllerOf(job)
-		if owner == nil {
-			pname := job.Labels[constants.LabelPool]
-			if pname != "" {
-				return []string{pname}
-			}
-			return nil
-		}
-		return []string{owner.Name}
-	})
 }
