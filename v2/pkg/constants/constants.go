@@ -17,11 +17,6 @@ const (
 	LabelAppComponent = "app.kubernetes.io/component"
 )
 
-// Index keys
-const (
-	IndexController = ".metadata.controller"
-)
-
 // Finalizers
 const (
 	FinCoil = "coil.cybozu.com"

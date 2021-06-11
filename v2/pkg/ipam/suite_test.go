@@ -94,8 +94,6 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	ctx := context.Background()
-	err = SetupIndexer(ctx, mgr)
-	Expect(err).ToNot(HaveOccurred())
 
 	go func() {
 		err := mgr.Start(ctx)
