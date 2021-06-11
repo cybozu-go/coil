@@ -158,7 +158,7 @@ type pool struct {
 // This also updates the metrics of the pool.
 func (p *pool) SyncBlocks(ctx context.Context) error {
 	ap := &coilv2.AddressPool{}
-	err := p.reader.Get(ctx, client.ObjectKey{Name: p.name}, ap)
+	err := p.client.Get(ctx, client.ObjectKey{Name: p.name}, ap)
 	if err != nil {
 		p.log.Error(err, "failed to get AddressPool")
 		return err
@@ -212,7 +212,7 @@ func (p *pool) AllocateBlock(ctx context.Context, nodeName string) (*coilv2.Addr
 	}
 
 	ap := &coilv2.AddressPool{}
-	err := p.reader.Get(ctx, client.ObjectKey{Name: p.name}, ap)
+	err := p.client.Get(ctx, client.ObjectKey{Name: p.name}, ap)
 	if err != nil {
 		p.log.Error(err, "failed to get AddressPool")
 		return nil, err
