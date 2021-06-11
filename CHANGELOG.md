@@ -5,6 +5,17 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.8] - 2021-06-11
+
+### Added
+
+- Update tools and dependencies, add support for k8s 1.21, drop support for k8s 1.18 (#160)
+
+### Changed
+
+- Use a client that reads directly from a API server when SyncBlocks synchronizes allocated field (#161)
+- Update controller-runtime to 0.9.0 (#162)
+
 ## [2.0.7] - 2021-04-22
 
 ### Changed
@@ -72,7 +83,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.7...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.8...HEAD
+[2.0.8]: https://github.com/cybozu-go/coil/compare/v2.0.7...v2.0.8
 [2.0.7]: https://github.com/cybozu-go/coil/compare/v2.0.6...v2.0.7
 [2.0.6]: https://github.com/cybozu-go/coil/compare/v2.0.5...v2.0.6
 [2.0.5]: https://github.com/cybozu-go/coil/compare/v2.0.4...v2.0.5
