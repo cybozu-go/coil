@@ -8,10 +8,10 @@ require (
 	github.com/cybozu-go/etcdutil v1.3.5
 	github.com/cybozu-go/netutil v1.4.1
 	github.com/spf13/cobra v1.1.3
-	k8s.io/api v0.21.1
-	k8s.io/apimachinery v0.21.1
-	k8s.io/client-go v0.21.1
-	sigs.k8s.io/controller-runtime v0.9.0
+	k8s.io/api v0.21.2
+	k8s.io/apimachinery v0.21.2
+	k8s.io/client-go v0.21.2
+	sigs.k8s.io/controller-runtime v0.9.2
 )
 
 replace (

@@ -26,10 +26,10 @@ require (
 	golang.org/x/sys v0.0.0-20210608053332-aa57babbf139
 	google.golang.org/grpc v1.38.0
 	google.golang.org/protobuf v1.26.0
-	k8s.io/api v0.21.1
-	k8s.io/apimachinery v0.21.1
-	k8s.io/client-go v0.21.1
+	k8s.io/api v0.21.2
+	k8s.io/apimachinery v0.21.2
+	k8s.io/client-go v0.21.2
 	k8s.io/klog/v2 v2.9.0
 	k8s.io/utils v0.0.0-20210527160623-6fdb442a123b
-	sigs.k8s.io/controller-runtime v0.9.0
+	sigs.k8s.io/controller-runtime v0.9.2
 )
