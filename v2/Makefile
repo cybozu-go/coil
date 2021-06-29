@@ -34,7 +34,8 @@ SHELL = /bin/bash
 # Run tests, and set up envtest if not done already.
 .PHONY: test
 test: simple-test setup-envtest
-	source <($(SETUP_ENVTEST) use -p env); \
+	# Use 1.20 to workaround Timeout error. See https://github.com/kubernetes-sigs/controller-runtime/issues/1571
+	source <($(SETUP_ENVTEST) use -p env 1.20.x!); \
 		go test -race -v -count 1 ./...
 
 .PHONY: simple-test
