@@ -270,7 +270,7 @@ func (s *coildServer) Del(ctx context.Context, args *cnirpc.CNIArgs) (*empty.Emp
 	deadline, ok := ctx.Deadline()
 	if ok {
 		d2 := time.Until(deadline)
-		if d2 < duration && d2 > time.Second {
+		if d2 < (duration+1*time.Second) && d2 > time.Second {
 			duration = d2 - time.Second
 		}
 	}
