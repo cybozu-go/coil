@@ -239,23 +239,19 @@ var _ = Describe("Pod watcher", func() {
 		err = k8sClient.Delete(ctx, pod2)
 		Expect(err).NotTo(HaveOccurred())
 
-		var peers map[string]bool
 		Eventually(func() bool {
-			peers = ft.GetPeers()
-			return reflect.DeepEqual(peers, map[string]bool{
+			return reflect.DeepEqual(ft.GetPeers(), map[string]bool{
 				"fd01::3": true,
 			})
-		}).Should(BeTrue(), "peers: %v", peers)
+		}).Should(BeTrue())
 
-		var clients map[string]bool
 		Eventually(func() bool {
-			clients = eg.GetClients()
-			return reflect.DeepEqual(clients, map[string]bool{
+			return reflect.DeepEqual(eg.GetClients(), map[string]bool{
 				"10.1.1.2": true, // cannot be removed
 				"fd01::2":  true, // ditto
 				"fd01::3":  true,
 			})
-		}).Should(BeTrue(), "clients: %v", clients)
+		}).Should(BeTrue())
 
 		Expect(checkMetrics(1)).ShouldNot(HaveOccurred())
 	})
