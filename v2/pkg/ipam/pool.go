@@ -36,6 +36,9 @@ type PoolManager interface {
 	// AllocateBlock curves an AddressBlock out of the pool for a node.
 	// If the pool runs out of the free blocks, this returns ErrNoBlock.
 	AllocateBlock(ctx context.Context, poolName, nodeName string) (*coilv2.AddressBlock, error)
+
+	// IsUsed returns true if a pool is used by some AddressBlock.
+	IsUsed(ctx context.Context, name string) (bool, error)
 }
 
 var (
@@ -138,6 +141,14 @@ func (pm *poolManager) AllocateBlock(ctx context.Context, poolName, nodeName str
 		return nil, err
 	}
 	return p.AllocateBlock(ctx, nodeName)
+}
+
+func (pm *poolManager) IsUsed(ctx context.Context, name string) (bool, error) {
+	p, err := pm.getPool(ctx, name)
+	if err != nil {
+		return false, err
+	}
+	return p.IsUsed(ctx)
 }
 
 // pool manages the allocation of AddressBlock CR of an AddressPool CR.
@@ -272,4 +283,16 @@ func (p *pool) AllocateBlock(ctx context.Context, nodeName string) (*coilv2.Addr
 
 	p.log.Error(ErrNoBlock, "no available blocks")
 	return nil, ErrNoBlock
+}
+
+// IsUsed returns true if the pool is used by some AddressBlock.
+func (p *pool) IsUsed(ctx context.Context) (bool, error) {
+	blocks := &coilv2.AddressBlockList{}
+	err := p.reader.List(ctx, blocks, client.MatchingLabels{
+		constants.LabelPool: p.name,
+	})
+	if err != nil {
+		return false, err
+	}
+	return len(blocks.Items) > 0, nil
 }
