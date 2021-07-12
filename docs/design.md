@@ -24,13 +24,14 @@ Design notes for Coil v2
   - [Implementation](#implementation)
 - [Garbage Collection](#garbage-collection)
   - [AddressBlock](#addressblock)
+  - [AddressPool](#addresspool)
   - [BlockRequest](#blockrequest)
 - [Upgrading from v1](#upgrading-from-v1)
 - [Diagrams](#diagrams)
   - [IPAM & Routing](#ipam--routing)
   - [On-demand NAT for Egress Traffics](#on-demand-nat-for-egress-traffics-1)
 - [Custom Resource Definitions (CRDs)](#custom-resource-definitions-crds)
-  - [AddressPool](#addresspool)
+  - [AddressPool](#addresspool-1)
   - [AddressBlock](#addressblock-1)
   - [BlockRequest](#blockrequest-1)
   - [Egress](#egress)
@@ -288,7 +289,7 @@ If you don't know much, read the following materials:
 ### AddressBlock
 
 **The owner reference of an `AddressBlock` is set to the `AddressPool`** from which the block was allocated.
-Therefore, when the owning `AddressPool` is deleted, all `AddressBlocks` from the pool is garbage collected automatically by Kubernetes.
+Therefore, when the deletion of the owning `AddressPool` is directed, all `AddressBlocks` from the pool is garbage collected automatically by Kubernetes.
 
 That said, an `AddressBlock` should not be deleted until there are no more Pods with an address in the block.
 For this purpose, Coil adds a finalizer to each `AddressBlock`.  **`coild` checks the usage of addresses in the block**, and once there are no more Pods using the addresses, it removes the finalizer to delete the `AddressBlock`.
@@ -298,6 +299,16 @@ For this purpose, Coil adds a finalizer to each `AddressBlock`.  **`coild` check
 `coild` also deletes `AddressBlock` when it frees the last IP address used in the block.  At startup, `coild` also checks each `AddressBlock` for the Node, and if no Pod is using the addresses in the block, it deletes the `AddressBlock`.
 
 Note that Coil does not include `Node` in the list of owner references of an `AddressBlock`.  This is because Kubernetes only deletes a resource after _all_ owners in the owner references of the resource are deleted.
+
+### AddressPool
+
+Similar to an `AddressBlock` and its addresses, an `AddressPool` should not be deleted until there are no more `AddressBlock`s derived from the pool.
+For this purpose, Coil adds a finalizer to each `AddressPool`.  `coil-controller` checks the usage of blocks in the pool.
+
+Note that `blockOwnerDeletion: true` in `AddressBlock`'s `ownerReferences` does not always block the deletion of the owning `AddressPool`.
+This directive has effect only when foreground cascading deletion is adopted.
+
+Also note that a finalizer for an `AddressPool` does not block the garbage collection on `AddressBlock`s.
 
 ### BlockRequest
 

@@ -9,12 +9,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
 )
 
@@ -51,6 +53,27 @@ func (r *AddressPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	logger.Info("synchronized")
+
+	if ap.DeletionTimestamp == nil {
+		return ctrl.Result{}, nil
+	}
+
+	if !controllerutil.ContainsFinalizer(ap, constants.FinCoil) {
+		return ctrl.Result{}, nil
+	}
+
+	used, err := r.Manager.IsUsed(ctx, req.Name)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("IsUsed failed: %w", err)
+	}
+	if used {
+		return ctrl.Result{}, nil
+	}
+
+	controllerutil.RemoveFinalizer(ap, constants.FinCoil)
+	if err := r.Update(ctx, ap); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to remove finalizer from address pool: %w", err)
+	}
 	return ctrl.Result{}, nil
 }
 
