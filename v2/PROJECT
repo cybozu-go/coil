@@ -13,6 +13,7 @@ resources:
   path: github.com/cybozu-go/coil/v2/api/v2
   version: v2
   webhooks:
+    defaulting: true
     validation: true
     webhookVersion: v1
 - api:

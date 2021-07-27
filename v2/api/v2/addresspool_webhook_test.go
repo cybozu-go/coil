@@ -3,11 +3,13 @@ package v2
 import (
 	"context"
 
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 var _ = Describe("AddressPool Webhook", func() {
@@ -15,12 +17,20 @@ var _ = Describe("AddressPool Webhook", func() {
 
 	BeforeEach(func() {
 		r := &AddressPool{}
-		r.Name = "test"
-		err := k8sClient.Delete(ctx, r)
-		if err == nil {
+		err := k8sClient.Get(ctx, client.ObjectKey{Name: "test"}, r)
+		if err != nil {
+			Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			return
 		}
-		Expect(apierrors.IsNotFound(err)).To(BeTrue())
+
+		if controllerutil.ContainsFinalizer(r, constants.FinCoil) {
+			controllerutil.RemoveFinalizer(r, constants.FinCoil)
+			err = k8sClient.Update(ctx, r)
+			Expect(err).NotTo(HaveOccurred())
+		}
+
+		err = k8sClient.Delete(ctx, r)
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	It("should create an address pool with sane defaults", func() {
@@ -41,6 +51,7 @@ var _ = Describe("AddressPool Webhook", func() {
 		ap := &AddressPool{}
 		err = k8sClient.Get(ctx, client.ObjectKey{Name: "test"}, ap)
 		Expect(err).NotTo(HaveOccurred())
+		Expect(controllerutil.ContainsFinalizer(ap, constants.FinCoil)).To(BeTrue())
 		Expect(ap.Spec.BlockSizeBits).To(BeNumerically("==", 5))
 	})
 

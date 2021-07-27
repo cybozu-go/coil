@@ -3,6 +3,9 @@ kind: MutatingWebhookConfiguration
 metadata:
   name: coilv2-mutating-webhook-configuration
 webhooks:
+- name: maddresspool.kb.io
+  clientConfig:
+    caBundle: "%CACERT%"
 - name: megress.kb.io
   clientConfig:
     caBundle: "%CACERT%"

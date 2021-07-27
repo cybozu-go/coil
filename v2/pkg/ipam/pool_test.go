@@ -25,6 +25,10 @@ var _ = Describe("PoolManager", func() {
 		It("should allocate blocks", func() {
 			pm := NewPoolManager(mgr.GetClient(), mgr.GetAPIReader(), ctrl.Log.WithName("PoolManager"), scheme)
 
+			used, err := pm.IsUsed(ctx, "default")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(used).To(BeFalse())
+
 			blocks := make([]*coilv2.AddressBlock, 0, 6)
 			block, err := pm.AllocateBlock(ctx, "default", "node1")
 			Expect(err).ToNot(HaveOccurred())
@@ -36,6 +40,10 @@ var _ = Describe("PoolManager", func() {
 			Expect(block.Labels[constants.LabelNode]).To(Equal("node1"))
 			Expect(block.Labels[constants.LabelPool]).To(Equal("default"))
 			Expect(controllerutil.ContainsFinalizer(block, constants.FinCoil)).To(BeTrue())
+
+			used, err = pm.IsUsed(ctx, "default")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(used).To(BeTrue())
 
 			verify := &coilv2.AddressBlock{}
 			err = k8sClient.Get(ctx, client.ObjectKey{Name: block.Name}, verify)
@@ -77,6 +85,18 @@ var _ = Describe("PoolManager", func() {
 			Expect(block.IPv6).To(Equal(strPtr("fd02::300/127")))
 			Expect(block.Labels[constants.LabelNode]).To(Equal("node2"))
 			Expect(block.Labels[constants.LabelPool]).To(Equal("default"))
+
+			blocks[4] = block
+			for _, b := range blocks {
+				controllerutil.RemoveFinalizer(b, constants.FinCoil)
+				err = k8sClient.Update(ctx, b)
+				Expect(err).ToNot(HaveOccurred())
+				err = k8sClient.Delete(ctx, b)
+				Expect(err).ToNot(HaveOccurred())
+			}
+			used, err = pm.IsUsed(ctx, "default")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(used).To(BeFalse())
 		})
 	})
 

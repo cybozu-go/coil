@@ -17,6 +17,7 @@ type mockPoolManager struct {
 	dropped   map[string]int
 	synced    map[string]int
 	allocated int
+	used      bool
 }
 
 var _ ipam.PoolManager = &mockPoolManager{}
@@ -54,6 +55,13 @@ func (pm *mockPoolManager) AllocateBlock(ctx context.Context, poolName, nodeName
 	return block, nil
 }
 
+func (pm *mockPoolManager) IsUsed(ctx context.Context, name string) (bool, error) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	return pm.used, nil
+}
+
 func (pm *mockPoolManager) GetDropped() map[string]int {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
@@ -79,6 +87,13 @@ func (pm *mockPoolManager) GetAllocated() int {
 	defer pm.mu.Unlock()
 
 	return pm.allocated
+}
+
+func (pm *mockPoolManager) SetUsed(used bool) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	pm.used = used
 }
 
 type mockNodeIPAM struct {

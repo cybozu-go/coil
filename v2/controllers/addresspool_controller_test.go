@@ -2,13 +2,17 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 var _ = Describe("AddressPool reconciler", func() {
@@ -56,7 +60,7 @@ var _ = Describe("AddressPool reconciler", func() {
 		time.Sleep(10 * time.Millisecond)
 	})
 
-	It("works as expected", func() {
+	It("should synchronize pools", func() {
 		By("checking the synchronization status after startup")
 		Eventually(func() map[string]int {
 			return poolMgr.GetSynced()
@@ -101,5 +105,52 @@ var _ = Describe("AddressPool reconciler", func() {
 		}).Should(Equal(map[string]int{
 			"default": 1,
 		}))
+	})
+
+	It("should handle finalizers", func() {
+		By("adding the finalizer on behalf of webhook")
+		ap := &coilv2.AddressPool{}
+		err := k8sClient.Get(ctx, client.ObjectKey{Name: "default"}, ap)
+		Expect(err).To(Succeed())
+
+		controllerutil.AddFinalizer(ap, constants.FinCoil)
+		err = k8sClient.Update(ctx, ap)
+		Expect(err).To(Succeed())
+
+		By("trying to delete the pool while it is marked as used-by-AddressBlock")
+		poolMgr.SetUsed(true)
+		err = k8sClient.Delete(ctx, ap)
+		Expect(err).To(Succeed())
+		Consistently(func() error {
+			ap := &coilv2.AddressPool{}
+			return k8sClient.Get(ctx, client.ObjectKey{Name: "default"}, ap)
+		}).Should(Succeed())
+
+		By("marking the pool as not-used")
+		poolMgr.SetUsed(false)
+
+		// Update the pool to trigger reconciliation.
+		// In the real environment, reconciliation will be triggered by the deletion of dependent AddressBlocks.
+		err = k8sClient.Get(ctx, client.ObjectKey{Name: "default"}, ap)
+		Expect(err).To(Succeed())
+		if ap.Annotations == nil {
+			ap.Annotations = make(map[string]string)
+		}
+		ap.Annotations["foo"] = "bar"
+		err = k8sClient.Update(ctx, ap)
+		Expect(err).To(Succeed())
+
+		Eventually(func() error {
+			ap := &coilv2.AddressPool{}
+			err := k8sClient.Get(ctx, client.ObjectKey{Name: "default"}, ap)
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+
+			return errors.New("pool still exists")
+		}).Should(Succeed())
 	})
 })
