@@ -43,7 +43,7 @@ You should also update `sigs.k8s.io/controller-runtime` Go package periodically.
 2. Make a branch to release
 
     ```console
-    $ git neco dev "$VERSION"`
+    $ git neco dev "$VERSION"
     ```
 
 4. Edit `CHANGELOG.md` for the new version ([example][]).
