@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.10] - 2021-08-20
+
+### Changed
+
+- Add finalizer for AddressPool to prevent deletion while it is used by some AddressBlock (#168)
+
 ## [2.0.9] - 2021-06-30
 
 ### Changed
@@ -89,7 +95,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.9...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.10...HEAD
+[2.0.10]: https://github.com/cybozu-go/coil/compare/v2.0.9...v2.0.10
 [2.0.9]: https://github.com/cybozu-go/coil/compare/v2.0.8...v2.0.9
 [2.0.8]: https://github.com/cybozu-go/coil/compare/v2.0.7...v2.0.8
 [2.0.7]: https://github.com/cybozu-go/coil/compare/v2.0.6...v2.0.7
