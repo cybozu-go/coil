@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.11] - 2021-08-27
+
+### Added
+
+- Add CNI Version 0.3.1 (#171)
+
 ## [2.0.10] - 2021-08-20
 
 ### Changed
@@ -95,7 +101,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.10...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.11...HEAD
+[2.0.11]: https://github.com/cybozu-go/coil/compare/v2.0.10...v2.0.11
 [2.0.10]: https://github.com/cybozu-go/coil/compare/v2.0.9...v2.0.10
 [2.0.9]: https://github.com/cybozu-go/coil/compare/v2.0.8...v2.0.9
 [2.0.8]: https://github.com/cybozu-go/coil/compare/v2.0.7...v2.0.8
