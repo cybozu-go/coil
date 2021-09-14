@@ -104,6 +104,10 @@ The user manual is [docs/usage.md](./docs/usage.md).
 
 [docs](docs/) directory contains other documents about designs and specifications.
 
+## License
+
+Coil is licensed under the Apache License, Version 2.0.
+
 [releases]: https://github.com/cybozu-go/coil/releases
 [CNI]: https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/
 [BIRD]: https://bird.network.cz/
