@@ -266,6 +266,7 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 
 			containerIPv6, err = findLinkLocalIPv6(cLink)
 			if err != nil {
+				netlink.LinkDel(cLink)
 				return err
 			}
 		}
