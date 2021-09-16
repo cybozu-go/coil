@@ -21,9 +21,11 @@ import (
 var (
 	errNotFound = errors.New("not found")
 
-	hostIPv4    = net.ParseIP("169.254.1.1") // link-local address
-	defaultGWv4 = &net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: net.CIDRMask(0, 32)}
-	defaultGWv6 = &net.IPNet{IP: net.ParseIP("::"), Mask: net.CIDRMask(0, 128)}
+	hostIPv4      = net.ParseIP("169.254.1.1") // link-local address
+	containerIPv4 = net.ParseIP("169.254.1.2") // link-local address
+	ipv4Mask      = net.CIDRMask(30, 32)
+	defaultGWv4   = &net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: net.CIDRMask(0, 32)}
+	defaultGWv6   = &net.IPNet{IP: net.ParseIP("::"), Mask: net.CIDRMask(0, 128)}
 )
 
 // SetupHook is a signature of hook function for PodNetwork.Setup
@@ -197,6 +199,7 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 	defer containerNS.Close()
 
 	// setup veth and configure IP addresses
+	var containerIPv6 net.IP
 	result := &current.Result{}
 	err = containerNS.Do(func(hostNS ns.NetNS) error {
 		vethName := ""
@@ -213,16 +216,29 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 			return fmt.Errorf("netlink: failed to get veth link for container: %w", err)
 		}
 
+		lo, err := netlink.LinkByName("lo")
+		if err != nil {
+			return fmt.Errorf("netlink: failed to get lo: %w", err)
+		}
+
 		idx := 0
 		if conf.IPv4 != nil {
 			ipnet := netlink.NewIPNet(conf.IPv4)
-			err := netlink.AddrAdd(cLink, &netlink.Addr{
+			err := netlink.AddrAdd(lo, &netlink.Addr{
 				IPNet: ipnet,
 				Scope: unix.RT_SCOPE_UNIVERSE,
 			})
 			if err != nil {
 				netlink.LinkDel(cLink)
 				return fmt.Errorf("netlink: failed to add an address: %w", err)
+			}
+			err = netlink.AddrAdd(cLink, &netlink.Addr{
+				IPNet: &net.IPNet{IP: containerIPv4, Mask: ipv4Mask},
+				Scope: unix.RT_SCOPE_LINK,
+			})
+			if err != nil {
+				netlink.LinkDel(cLink)
+				return fmt.Errorf("netlink: failed to add a link local address: %w", err)
 			}
 			result.IPs = append(result.IPs, &current.IPConfig{
 				Version:   "4",
@@ -233,7 +249,7 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 
 		if conf.IPv6 != nil {
 			ipnet := netlink.NewIPNet(conf.IPv6)
-			err := netlink.AddrAdd(cLink, &netlink.Addr{
+			err := netlink.AddrAdd(lo, &netlink.Addr{
 				IPNet: ipnet,
 				Scope: unix.RT_SCOPE_UNIVERSE,
 			})
@@ -247,6 +263,12 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 				Address:   *ipnet,
 				Interface: &idx,
 			})
+
+			containerIPv6, err = findLinkLocalIPv6(cLink)
+			if err != nil {
+				netlink.LinkDel(cLink)
+				return err
+			}
 		}
 
 		result.Interfaces = []*current.Interface{
@@ -289,24 +311,15 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 	var hostIPv6 net.IP
 	if conf.IPv6 != nil {
 		ip.SettleAddresses(hName, 10)
-		v6Addrs, err := netlink.AddrList(hLink, netlink.FAMILY_V6)
+		hostIPv6, err = findLinkLocalIPv6(hLink)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get v6 addresses: %w", err)
-		}
-		for _, a := range v6Addrs {
-			if a.Scope == unix.RT_SCOPE_LINK {
-				hostIPv6 = a.IP
-				break
-			}
-		}
-		if hostIPv6 == nil {
-			return nil, fmt.Errorf("failed to find link-local address of %s", hLink.Attrs().Name)
+			return nil, err
 		}
 
 		err = netlink.RouteAdd(&netlink.Route{
 			Dst:       netlink.NewIPNet(conf.IPv6),
+			Gw:        containerIPv6,
 			LinkIndex: hLink.Attrs().Index,
-			Scope:     netlink.SCOPE_LINK,
 			Protocol:  pn.protocolId,
 			Table:     pn.podTableId,
 		})
@@ -316,7 +329,7 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 	}
 	if conf.IPv4 != nil {
 		err = netlink.AddrAdd(hLink, &netlink.Addr{
-			IPNet: netlink.NewIPNet(hostIPv4),
+			IPNet: &net.IPNet{IP: hostIPv4, Mask: ipv4Mask},
 			Scope: unix.RT_SCOPE_LINK,
 		})
 		if err != nil {
@@ -325,8 +338,8 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 
 		err = netlink.RouteAdd(&netlink.Route{
 			Dst:       netlink.NewIPNet(conf.IPv4),
+			Gw:        containerIPv4,
 			LinkIndex: hLink.Attrs().Index,
-			Scope:     netlink.SCOPE_LINK,
 			Protocol:  pn.protocolId,
 			Table:     pn.podTableId,
 		})
@@ -342,14 +355,6 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 			return fmt.Errorf("netlink: failed to find link: %w", err)
 		}
 		if conf.IPv4 != nil {
-			err := netlink.RouteAdd(&netlink.Route{
-				Dst:       netlink.NewIPNet(hostIPv4),
-				LinkIndex: l.Attrs().Index,
-				Scope:     netlink.SCOPE_LINK,
-			})
-			if err != nil {
-				return fmt.Errorf("netlink: failed to add route to %s: %w", hostIPv4.String(), err)
-			}
 			err = netlink.RouteAdd(&netlink.Route{
 				Dst:   defaultGWv4,
 				Gw:    hostIPv4,
@@ -382,6 +387,26 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 
 	hLink = nil
 	return result, nil
+}
+
+func findLinkLocalIPv6(link netlink.Link) (net.IP, error) {
+	v6Addrs, err := netlink.AddrList(link, netlink.FAMILY_V6)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get v6 addresses: %w", err)
+	}
+
+	var ipv6 net.IP
+	for _, a := range v6Addrs {
+		if a.Scope == unix.RT_SCOPE_LINK {
+			ipv6 = a.IP
+			break
+		}
+	}
+	if ipv6 == nil {
+		return nil, fmt.Errorf("failed to find link-local address of %s", link.Attrs().Name)
+	}
+
+	return ipv6, nil
 }
 
 func (pn *podNetwork) Check(containerId, iface string) error {
