@@ -149,10 +149,7 @@ func (n *nodeIPAM) GC(ctx context.Context) error {
 		return err
 	}
 
-	if err := n.gc(ctx); err != nil {
-		return err
-	}
-	return nil
+	return n.gc(ctx)
 }
 
 func (n *nodeIPAM) gc(ctx context.Context) error {
