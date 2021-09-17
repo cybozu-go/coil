@@ -264,7 +264,7 @@ var _ = Describe("NodeIPAM", func() {
 		_, _, err = nodeIPAM.Allocate(ctx, "v4", "d0", "eth0")
 		Expect(err).ToNot(HaveOccurred())
 
-		// confirm that 2 blocks are assigned
+		// confirm that 3 blocks are assigned
 		blocks := &coilv2.AddressBlockList{}
 		err = k8sClient.List(ctx, blocks)
 		Expect(err).ToNot(HaveOccurred())
