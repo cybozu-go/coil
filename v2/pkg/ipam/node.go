@@ -145,6 +145,14 @@ func (n *nodeIPAM) Register(ctx context.Context, poolName, containerID, iface st
 }
 
 func (n *nodeIPAM) GC(ctx context.Context) error {
+	if err := n.syncUnregisteredPool(ctx); err != nil {
+		return err
+	}
+
+	return n.gc(ctx)
+}
+
+func (n *nodeIPAM) gc(ctx context.Context) error {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
@@ -154,6 +162,26 @@ func (n *nodeIPAM) GC(ctx context.Context) error {
 		}
 	}
 	return n.sync(ctx)
+}
+
+func (n *nodeIPAM) syncUnregisteredPool(ctx context.Context) error {
+	blocks := &coilv2.AddressBlockList{}
+	if err := n.apiReader.List(ctx, blocks, client.MatchingLabels{
+		constants.LabelNode: n.nodeName,
+	}); err != nil {
+		return err
+	}
+
+	for _, block := range blocks.Items {
+		pool := block.Labels[constants.LabelPool]
+		if _, ok := n.pools[pool]; !ok {
+			_, err := n.getPool(ctx, pool)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (n *nodeIPAM) Allocate(ctx context.Context, poolName, containerID, iface string) (ipv4, ipv6 net.IP, err error) {

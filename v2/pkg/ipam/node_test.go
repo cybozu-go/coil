@@ -260,11 +260,15 @@ var _ = Describe("NodeIPAM", func() {
 		Expect(ipv4).To(EqualIP(net.ParseIP("10.2.0.2")))
 		Expect(ipv6).To(EqualIP(net.ParseIP("fd02::0202")))
 
-		// confirm that 2 blocks are assigned
+		// Allocate from another pool to check if an unused block from an unregistered pool is properly released
+		_, _, err = nodeIPAM.Allocate(ctx, "v4", "d0", "eth0")
+		Expect(err).ToNot(HaveOccurred())
+
+		// confirm that 3 blocks are assigned
 		blocks := &coilv2.AddressBlockList{}
 		err = k8sClient.List(ctx, blocks)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(blocks.Items).To(HaveLen(2))
+		Expect(blocks.Items).To(HaveLen(3))
 
 		// recreate node IPAM
 		e1 := &mockExporter{}
