@@ -23,7 +23,6 @@ var (
 
 	hostIPv4      = net.ParseIP("169.254.1.1") // link-local address
 	containerIPv4 = net.ParseIP("169.254.1.2") // link-local address
-	ipv4Mask      = net.CIDRMask(30, 32)
 	defaultGWv4   = &net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: net.CIDRMask(0, 32)}
 	defaultGWv6   = &net.IPNet{IP: net.ParseIP("::"), Mask: net.CIDRMask(0, 128)}
 )
@@ -233,7 +232,7 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 				return fmt.Errorf("netlink: failed to add an address: %w", err)
 			}
 			err = netlink.AddrAdd(cLink, &netlink.Addr{
-				IPNet: &net.IPNet{IP: containerIPv4, Mask: ipv4Mask},
+				IPNet: &net.IPNet{IP: containerIPv4, Mask: net.CIDRMask(30, 32)},
 				Scope: unix.RT_SCOPE_LINK,
 			})
 			if err != nil {
@@ -328,7 +327,7 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 	}
 	if conf.IPv4 != nil {
 		err = netlink.AddrAdd(hLink, &netlink.Addr{
-			IPNet: &net.IPNet{IP: hostIPv4, Mask: ipv4Mask},
+			IPNet: &net.IPNet{IP: hostIPv4, Mask: net.CIDRMask(30, 32)},
 			Scope: unix.RT_SCOPE_LINK,
 		})
 		if err != nil {
