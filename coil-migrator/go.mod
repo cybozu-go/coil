@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/cybozu-go/coil v1.1.9
 	github.com/cybozu-go/coil/v2 v2.0.7
-	github.com/cybozu-go/etcdutil v1.3.5
+	github.com/cybozu-go/etcdutil v1.4.1
 	github.com/cybozu-go/netutil v1.4.1
 	github.com/spf13/cobra v1.1.3
 	k8s.io/api v0.21.2
@@ -49,6 +49,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852 // indirect
 	github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae // indirect
+	go.etcd.io/etcd v0.5.0-alpha.5.0.20211004023027-19e2e70e4f50 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.17.0 // indirect
@@ -78,5 +79,6 @@ require (
 replace (
 	github.com/cybozu-go/coil => ../v1
 	github.com/cybozu-go/coil/v2 => ../v2
+	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt v3.2.2+incompatible
 	google.golang.org/grpc => google.golang.org/grpc v1.26.0
 )
