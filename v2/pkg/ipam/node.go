@@ -66,6 +66,9 @@ type NodeIPAM interface {
 
 	// Notify notifies a goroutine waiting for BlockRequest completion
 	Notify(req *coilv2.BlockRequest)
+
+	// NodeInternalIP returns node's internal IP addresses
+	NodeInternalIP(ctx context.Context) (ipv4, ipv6 net.IP, err error)
 }
 
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=addressblocks,verbs=get;list;update;patch;delete
@@ -243,12 +246,8 @@ func (n *nodeIPAM) getPool(ctx context.Context, name string) (*nodePool, error) 
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
-	if n.node == nil {
-		node := &corev1.Node{}
-		if err := n.apiReader.Get(ctx, client.ObjectKey{Name: n.nodeName}, node); err != nil {
-			return nil, fmt.Errorf("failed to get Node resource: %w", err)
-		}
-		n.node = node
+	if err := n.getNode(ctx); err != nil {
+		return nil, err
 	}
 
 	p, ok := n.pools[name]
@@ -271,6 +270,44 @@ func (n *nodeIPAM) getPool(ctx context.Context, name string) (*nodePool, error) 
 	}
 
 	return p, nil
+}
+
+func (n *nodeIPAM) getNode(ctx context.Context) error {
+	if n.node == nil {
+		node := &corev1.Node{}
+		if err := n.apiReader.Get(ctx, client.ObjectKey{Name: n.nodeName}, node); err != nil {
+			return fmt.Errorf("failed to get Node resource: %w", err)
+		}
+		n.node = node
+	}
+
+	return nil
+}
+
+func (n *nodeIPAM) NodeInternalIP(ctx context.Context) (net.IP, net.IP, error) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	if err := n.getNode(ctx); err != nil {
+		return nil, nil, err
+	}
+
+	var ipv4, ipv6 net.IP
+	for _, a := range n.node.Status.Addresses {
+		if a.Type != corev1.NodeInternalIP {
+			continue
+		}
+		ip := net.ParseIP(a.Address)
+		if ip.To4() != nil {
+			ipv4 = ip.To4()
+			continue
+		}
+		if ip.To16() != nil {
+			ipv6 = ip.To16()
+		}
+	}
+
+	return ipv4, ipv6, nil
 }
 
 type nodePool struct {

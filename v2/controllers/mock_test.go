@@ -134,6 +134,10 @@ func (n *mockNodeIPAM) GetNotified() int {
 	return n.notified
 }
 
+func (n *mockNodeIPAM) NodeInternalIP(ctx context.Context) (net.IP, net.IP, error) {
+	panic("not implemented")
+}
+
 type mockFoUTunnel struct {
 	mu    sync.Mutex
 	peers map[string]bool

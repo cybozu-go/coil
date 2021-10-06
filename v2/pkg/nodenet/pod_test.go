@@ -20,7 +20,8 @@ func TestPodNetwork(t *testing.T) {
 		t.Skip("run as root")
 	}
 
-	pn := NewPodNetwork(116, 2000, 30, false, false, ctrl.Log.WithName("pod-network"))
+	pn := NewPodNetwork(116, 2000, 30, net.ParseIP("10.20.30.41"), net.ParseIP("fd10::41"),
+		false, false, ctrl.Log.WithName("pod-network"))
 	if err := pn.Init(); err != nil {
 		t.Fatal(err)
 	}
