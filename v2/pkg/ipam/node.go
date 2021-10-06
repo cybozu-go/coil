@@ -273,13 +273,15 @@ func (n *nodeIPAM) getPool(ctx context.Context, name string) (*nodePool, error) 
 }
 
 func (n *nodeIPAM) getNode(ctx context.Context) error {
-	if n.node == nil {
-		node := &corev1.Node{}
-		if err := n.apiReader.Get(ctx, client.ObjectKey{Name: n.nodeName}, node); err != nil {
-			return fmt.Errorf("failed to get Node resource: %w", err)
-		}
-		n.node = node
+	if n.node != nil {
+		return nil
 	}
+
+	node := &corev1.Node{}
+	if err := n.apiReader.Get(ctx, client.ObjectKey{Name: n.nodeName}, node); err != nil {
+		return fmt.Errorf("failed to get Node resource: %w", err)
+	}
+	n.node = node
 
 	return nil
 }
