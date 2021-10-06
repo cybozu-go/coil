@@ -78,5 +78,6 @@ require (
 replace (
 	github.com/cybozu-go/coil => ../v1
 	github.com/cybozu-go/coil/v2 => ../v2
+	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt v3.2.2+incompatible
 	google.golang.org/grpc => google.golang.org/grpc v1.26.0
 )

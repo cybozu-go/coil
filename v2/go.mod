@@ -2,6 +2,8 @@ module github.com/cybozu-go/coil/v2
 
 go 1.17
 
+replace github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt v3.2.2+incompatible
+
 require (
 	github.com/bits-and-blooms/bitset v1.2.0
 	github.com/containernetworking/cni v0.8.1
