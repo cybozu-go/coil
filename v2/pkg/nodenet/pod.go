@@ -21,7 +21,6 @@ import (
 var (
 	errNotFound = errors.New("not found")
 
-	hostIPv4    = net.ParseIP("169.254.1.1") // link-local address
 	defaultGWv4 = &net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: net.CIDRMask(0, 32)}
 	defaultGWv6 = &net.IPNet{IP: net.ParseIP("::"), Mask: net.CIDRMask(0, 128)}
 )
@@ -60,11 +59,13 @@ type PodNetwork interface {
 }
 
 // NewPodNetwork creates a PodNetwork
-func NewPodNetwork(podTableID, podRulePrio, protocolId int, compatCalico, registerFromMain bool, log logr.Logger) PodNetwork {
+func NewPodNetwork(podTableID, podRulePrio, protocolId int, hostIPv4, hostIPv6 net.IP, compatCalico, registerFromMain bool, log logr.Logger) PodNetwork {
 	return &podNetwork{
 		podTableId:       podTableID,
 		podRulePrio:      podRulePrio,
 		protocolId:       protocolId,
+		hostIPv4:         hostIPv4,
+		hostIPv6:         hostIPv6,
 		compatCalico:     compatCalico,
 		registerFromMain: registerFromMain,
 		log:              log,
@@ -76,6 +77,8 @@ type podNetwork struct {
 	podRulePrio      int
 	protocolId       int
 	mtu              int
+	hostIPv4         net.IP
+	hostIPv6         net.IP
 	compatCalico     bool
 	registerFromMain bool
 	log              logr.Logger
@@ -289,6 +292,15 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 	var hostIPv6 net.IP
 	if conf.IPv6 != nil {
 		ip.SettleAddresses(hName, 10)
+
+		err = netlink.AddrAdd(hLink, &netlink.Addr{
+			IPNet: netlink.NewIPNet(pn.hostIPv6),
+			Scope: unix.RT_SCOPE_UNIVERSE,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("netlink: failed to add a host IPv6 address: %w", err)
+		}
+
 		v6Addrs, err := netlink.AddrList(hLink, netlink.FAMILY_V6)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get v6 addresses: %w", err)
@@ -316,11 +328,11 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 	}
 	if conf.IPv4 != nil {
 		err = netlink.AddrAdd(hLink, &netlink.Addr{
-			IPNet: netlink.NewIPNet(hostIPv4),
-			Scope: unix.RT_SCOPE_LINK,
+			IPNet: netlink.NewIPNet(pn.hostIPv4),
+			Scope: unix.RT_SCOPE_UNIVERSE,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("netlink: failed to add a link-local address: %w", err)
+			return nil, fmt.Errorf("netlink: failed to add a hostIPv4 address: %w", err)
 		}
 
 		err = netlink.RouteAdd(&netlink.Route{
@@ -343,20 +355,20 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 		}
 		if conf.IPv4 != nil {
 			err := netlink.RouteAdd(&netlink.Route{
-				Dst:       netlink.NewIPNet(hostIPv4),
+				Dst:       netlink.NewIPNet(pn.hostIPv4),
 				LinkIndex: l.Attrs().Index,
 				Scope:     netlink.SCOPE_LINK,
 			})
 			if err != nil {
-				return fmt.Errorf("netlink: failed to add route to %s: %w", hostIPv4.String(), err)
+				return fmt.Errorf("netlink: failed to add route to %s: %w", pn.hostIPv4.String(), err)
 			}
 			err = netlink.RouteAdd(&netlink.Route{
 				Dst:   defaultGWv4,
-				Gw:    hostIPv4,
+				Gw:    pn.hostIPv4,
 				Scope: netlink.SCOPE_UNIVERSE,
 			})
 			if err != nil {
-				return fmt.Errorf("netlink: failed to add default gw %s: %w", hostIPv4.String(), err)
+				return fmt.Errorf("netlink: failed to add default gw %s: %w", pn.hostIPv4.String(), err)
 			}
 		}
 		if conf.IPv6 != nil {

@@ -128,11 +128,32 @@ var _ = BeforeSuite(func() {
 	err = k8sClient.Create(ctx, node1)
 	Expect(err).ToNot(HaveOccurred())
 
+	node1.Status.Addresses = []corev1.NodeAddress{
+		{Type: corev1.NodeInternalIP, Address: "10.20.30.41"},
+		{Type: corev1.NodeInternalIP, Address: "fd10::41"},
+	}
+	err = k8sClient.Status().Update(ctx, node1)
+	Expect(err).ToNot(HaveOccurred())
+
 	node2 := &corev1.Node{}
 	node2.Name = "node2"
 	err = k8sClient.Create(ctx, node2)
 	Expect(err).ToNot(HaveOccurred())
+	node2.Status.Addresses = []corev1.NodeAddress{
+		{Type: corev1.NodeInternalIP, Address: "10.20.30.42"},
+	}
+	err = k8sClient.Status().Update(ctx, node2)
+	Expect(err).ToNot(HaveOccurred())
 
+	node3 := &corev1.Node{}
+	node3.Name = "node3"
+	err = k8sClient.Create(ctx, node3)
+	Expect(err).ToNot(HaveOccurred())
+	node3.Status.Addresses = []corev1.NodeAddress{
+		{Type: corev1.NodeInternalIP, Address: "fd10::43"},
+	}
+	err = k8sClient.Status().Update(ctx, node3)
+	Expect(err).ToNot(HaveOccurred())
 })
 
 var _ = AfterSuite(func() {

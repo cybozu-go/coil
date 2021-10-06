@@ -329,4 +329,24 @@ var _ = Describe("NodeIPAM", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(blocks.Items).To(HaveLen(2))
 	}, 5)
+
+	It("can return node internal IPs", func() {
+		nodeIPAM := NewNodeIPAM("node1", ctrl.Log.WithName("NodeIPAM4"), mgr, nil)
+		ipv4, ipv6, err := nodeIPAM.NodeInternalIP(ctx)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ipv4).To(EqualIP(net.ParseIP("10.20.30.41")))
+		Expect(ipv6).To(EqualIP(net.ParseIP("fd10::41")))
+
+		nodeIPAM = NewNodeIPAM("node2", ctrl.Log.WithName("NodeIPAM5"), mgr, nil)
+		ipv4, ipv6, err = nodeIPAM.NodeInternalIP(ctx)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ipv4).To(EqualIP(net.ParseIP("10.20.30.42")))
+		Expect(ipv6).To(BeNil())
+
+		nodeIPAM = NewNodeIPAM("node3", ctrl.Log.WithName("NodeIPAM5"), mgr, nil)
+		ipv4, ipv6, err = nodeIPAM.NodeInternalIP(ctx)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ipv4).To(BeNil())
+		Expect(ipv6).To(EqualIP(net.ParseIP("fd10::43")))
+	}, 5)
 })

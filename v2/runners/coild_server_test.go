@@ -42,6 +42,9 @@ func (n *mockNodeIPAM) GC(ctx context.Context) error {
 func (n *mockNodeIPAM) Notify(*coilv2.BlockRequest) {
 	panic("not implemented")
 }
+func (n *mockNodeIPAM) NodeInternalIP(ctx context.Context) (net.IP, net.IP, error) {
+	panic("not implemented")
+}
 
 func (n *mockNodeIPAM) Allocate(ctx context.Context, poolName, containerID, iface string) (ipv4, ipv6 net.IP, err error) {
 	n.nAllocate++

@@ -81,10 +81,18 @@ func subMain() error {
 		return err
 	}
 
+	ctx := context.Background()
+	ipv4, ipv6, err := nodeIPAM.NodeInternalIP(ctx)
+	if err != nil {
+		return err
+	}
+
 	podNet := nodenet.NewPodNetwork(
 		config.podTableId,
 		config.podRulePrio,
 		config.protocolId,
+		ipv4,
+		ipv6,
 		config.compatCalico,
 		config.registerFromMain,
 		ctrl.Log.WithName("pod-network"))
@@ -96,7 +104,6 @@ func subMain() error {
 		return err
 	}
 
-	ctx := context.Background()
 	for _, c := range podConfigs {
 		if err := nodeIPAM.Register(ctx, c.PoolName, c.ContainerId, c.IFace, c.IPv4, c.IPv6); err != nil {
 			return err
