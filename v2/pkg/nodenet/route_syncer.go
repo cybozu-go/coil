@@ -26,13 +26,13 @@ type RouteSyncer interface {
 // protocolId must be different from the ID for NewPodNetwork.
 func NewRouteSyncer(protocolId int, log logr.Logger) RouteSyncer {
 	return &routeSyncer{
-		protocolId: protocolId,
+		protocolId: netlink.RouteProtocol(protocolId),
 		log:        log,
 	}
 }
 
 type routeSyncer struct {
-	protocolId int
+	protocolId netlink.RouteProtocol
 	log        logr.Logger
 
 	mu sync.Mutex

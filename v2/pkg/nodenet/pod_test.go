@@ -67,15 +67,18 @@ func TestPodNetwork(t *testing.T) {
 		if !result.IPs[0].Address.IP.Equal(net.ParseIP("10.1.2.3")) {
 			t.Error(`!result.IPs[0].Address.IP.Equal(net.ParseIP("10.1.2.3"))`)
 		}
-		if result.IPs[0].Version != "4" {
-			t.Error(`!result.IPs[0].Version != "4"`)
+		if result.IPs[0].Address.IP.To4() == nil {
+			t.Error(`!result.IPs[0] version != "4"`)
 		}
 		if !result.IPs[1].Address.IP.Equal(net.ParseIP("fd02::1")) {
 			t.Error(`!result.IPs[1].Address.IP.Equal(net.ParseIP("fd02::1"))`)
 		}
-		if result.IPs[1].Version != "6" {
-			t.Error(`!result.IPs[1].Version != "6"`)
+		if result.IPs[1].Address.IP.To4() != nil {
+			t.Error(`!result.IPs[1] version != "6"`)
 		}
+	}
+	if result.CNIVersion != "1.0.0" {
+		t.Error(`CNI version != 1.0.0`)
 	}
 
 	// run a test HTTP server
