@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/containernetworking/cni/pkg/types/current"
+	current "github.com/containernetworking/cni/pkg/types/100"
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
 	"github.com/cybozu-go/coil/v2/pkg/nodenet"
@@ -96,13 +96,11 @@ func (p *mockPodNetwork) Setup(nsPath, podName, podNS string, conf *nodenet.PodN
 	var ips []*current.IPConfig
 	if conf.IPv4 != nil {
 		ips = append(ips, &current.IPConfig{
-			Version: "4",
 			Address: *netlink.NewIPNet(conf.IPv4),
 		})
 	}
 	if conf.IPv6 != nil {
 		ips = append(ips, &current.IPConfig{
-			Version: "6",
 			Address: *netlink.NewIPNet(conf.IPv6),
 		})
 	}

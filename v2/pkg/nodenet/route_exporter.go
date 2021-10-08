@@ -18,14 +18,14 @@ type RouteExporter interface {
 func NewRouteExporter(tableId, protocolId int, log logr.Logger) RouteExporter {
 	return &routeExporter{
 		tableId:    tableId,
-		protocolId: protocolId,
+		protocolId: netlink.RouteProtocol(protocolId),
 		log:        log,
 	}
 }
 
 type routeExporter struct {
 	tableId    int
-	protocolId int
+	protocolId netlink.RouteProtocol
 	log        logr.Logger
 
 	mu sync.Mutex

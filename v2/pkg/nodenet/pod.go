@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containernetworking/cni/pkg/types/current"
+	current "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/cybozu-go/netutil"
@@ -63,7 +63,7 @@ func NewPodNetwork(podTableID, podRulePrio, protocolId int, hostIPv4, hostIPv6 n
 	return &podNetwork{
 		podTableId:       podTableID,
 		podRulePrio:      podRulePrio,
-		protocolId:       protocolId,
+		protocolId:       netlink.RouteProtocol(protocolId),
 		hostIPv4:         hostIPv4,
 		hostIPv6:         hostIPv6,
 		compatCalico:     compatCalico,
@@ -75,7 +75,7 @@ func NewPodNetwork(podTableID, podRulePrio, protocolId int, hostIPv4, hostIPv6 n
 type podNetwork struct {
 	podTableId       int
 	podRulePrio      int
-	protocolId       int
+	protocolId       netlink.RouteProtocol
 	mtu              int
 	hostIPv4         net.IP
 	hostIPv6         net.IP
@@ -200,13 +200,15 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 	defer containerNS.Close()
 
 	// setup veth and configure IP addresses
-	result := &current.Result{}
+	result := &current.Result{
+		CNIVersion: current.ImplementedSpecVersion,
+	}
 	err = containerNS.Do(func(hostNS ns.NetNS) error {
 		vethName := ""
 		if pn.compatCalico {
 			vethName = calicoVethName(podName, podNS)
 		}
-		hVeth, cVeth, err := ip.SetupVethWithName(conf.IFace, vethName, pn.mtu, hostNS)
+		hVeth, cVeth, err := ip.SetupVethWithName(conf.IFace, vethName, pn.mtu, "", hostNS)
 		if err != nil {
 			return fmt.Errorf("failed to setup veth: %w", err)
 		}
@@ -228,7 +230,6 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 				return fmt.Errorf("netlink: failed to add an address: %w", err)
 			}
 			result.IPs = append(result.IPs, &current.IPConfig{
-				Version:   "4",
 				Address:   *ipnet,
 				Interface: &idx,
 			})
@@ -246,7 +247,6 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 			}
 			ip.SettleAddresses(conf.IFace, 10)
 			result.IPs = append(result.IPs, &current.IPConfig{
-				Version:   "6",
 				Address:   *ipnet,
 				Interface: &idx,
 			})
