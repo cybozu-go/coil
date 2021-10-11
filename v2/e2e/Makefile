@@ -17,6 +17,8 @@ endif
 
 .PHONY: start
 start:
+	curl -o $(BINDIR)/kubectl -sfL https://storage.googleapis.com/kubernetes-release/release/$(subst kindest/node:,,$(IMAGE))/bin/linux/amd64/kubectl
+	chmod a+x $(BINDIR)/kubectl
 	$(KIND) create cluster --image $(IMAGE) --name coil --config $(KIND_CONFIG)
 
 .PHONY: stop
@@ -51,6 +53,5 @@ logs:
 setup:
 	mkdir -p $(BINDIR)
 	curl -o $(BINDIR)/kind -sfL https://kind.sigs.k8s.io/dl/v$(KIND_VERSION)/kind-linux-amd64
-	curl -o $(BINDIR)/kubectl -sfL https://storage.googleapis.com/kubernetes-release/release/v$(K8S_VERSION)/bin/linux/amd64/kubectl
+	chmod a+x $(BINDIR)/kind
 	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz | tar -xz -C $(BINDIR)
-	chmod a+x $(BINDIR)/kubectl $(BINDIR)/kind
