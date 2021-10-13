@@ -94,8 +94,6 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	ctx := context.Background()
-
 	go func() {
 		err := mgr.Start(ctx)
 		if err != nil {
