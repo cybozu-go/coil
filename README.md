@@ -104,6 +104,10 @@ The user manual is [docs/usage.md](./docs/usage.md).
 
 [docs](docs/) directory contains other documents about designs and specifications.
 
+### Upgrade from v1
+
+See [coil-migrator.md](https://github.com/cybozu-go/coil/blob/v2.0.11/docs/coil-migrator.md)
+
 ## License
 
 Coil is licensed under the Apache License, Version 2.0.
