@@ -111,7 +111,7 @@ $ make test
 You may change the default Kubernetes image for kind with `IMAGE` option.
 
 ```console
-$ make start IMAGE=kindest/node:v1.19.1
+$ make start KUBERNETES_VERSION=1.22.2
 ```
 
 To stop the cluster, run `make stop`.
