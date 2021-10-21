@@ -17,7 +17,6 @@ import (
 	"github.com/cybozu-go/coil/v2/pkg/founat"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
 	"github.com/cybozu-go/coil/v2/pkg/nodenet"
-	"github.com/golang/protobuf/ptypes/empty"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -28,6 +27,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -263,7 +263,7 @@ func (s *coildServer) Add(ctx context.Context, args *cnirpc.CNIArgs) (*cnirpc.Ad
 	return &cnirpc.AddResponse{Result: data}, nil
 }
 
-func (s *coildServer) Del(ctx context.Context, args *cnirpc.CNIArgs) (*empty.Empty, error) {
+func (s *coildServer) Del(ctx context.Context, args *cnirpc.CNIArgs) (*emptypb.Empty, error) {
 	logger := ctxzap.Extract(ctx)
 
 	duration := 30 * time.Second
@@ -297,17 +297,17 @@ func (s *coildServer) Del(ctx context.Context, args *cnirpc.CNIArgs) (*empty.Emp
 		logger.Sugar().Errorw("failed to free addresses", "error", err)
 		return nil, newInternalError(err, "failed to free addresses")
 	}
-	return &empty.Empty{}, nil
+	return &emptypb.Empty{}, nil
 }
 
-func (s *coildServer) Check(ctx context.Context, args *cnirpc.CNIArgs) (*empty.Empty, error) {
+func (s *coildServer) Check(ctx context.Context, args *cnirpc.CNIArgs) (*emptypb.Empty, error) {
 	logger := ctxzap.Extract(ctx)
 
 	if err := s.podNet.Check(args.ContainerId, args.Ifname); err != nil {
 		logger.Sugar().Errorw("check failed", "error", err)
 		return nil, newInternalError(err, "check failed")
 	}
-	return &empty.Empty{}, nil
+	return &emptypb.Empty{}, nil
 }
 
 func (s *coildServer) getHook(ctx context.Context, pod *corev1.Pod) (nodenet.SetupHook, error) {

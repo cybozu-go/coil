@@ -26,7 +26,7 @@ jobs:
         path: |
           v2/bin
           v2/include
-        key: cache-${{ env.cache-version }}-go-${{ env.go-version }}-${{ hashFiles('v2/Makefile', 'v2/common.mk') }}
+        key: cache-${{ env.cache-version }}-go-${{ env.go-version }}-${{ hashFiles('v2/Makefile') }}
     - run: make setup
       if: steps.cache-tools.outputs.cache-hit != 'true'
     - run: make test
@@ -39,7 +39,7 @@ jobs:
     name: End-to-end Test
     strategy:
       matrix:
-        kindest-node: ["1.19.11", "1.20.7", "1.21.1"]
+        kindest-node: ["1.20.7", "1.21.2", "1.22.2"]
         ip-version: ["ipv4", "ipv6"]
     runs-on: ubuntu-20.04
     steps:
@@ -49,8 +49,6 @@ jobs:
         go-version: ${{ env.go-version }}
     - run: make image
     - run: make certs
-    - run: make setup
-      working-directory: v2/e2e
     - name: Enable docker IPv6 mode
       if: matrix.ip-version == 'ipv6'
       working-directory: v2/e2e
@@ -60,7 +58,7 @@ jobs:
         sudo systemctl restart docker.service
         sleep 10
         echo TEST_IPV6=true >> $GITHUB_ENV
-    - run: make start IMAGE=kindest/node:v${{ matrix.kindest-node }}
+    - run: make start KUBERNETES_VERSION=${{ matrix.kindest-node }}
       working-directory: v2/e2e
     - run: make install-coil
       working-directory: v2/e2e
