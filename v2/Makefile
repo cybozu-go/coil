@@ -1,13 +1,11 @@
 # Makefile for Coil
 
-include common.mk
-
-PROTOC_VERSION=3.17.1
+PROTOC_VERSION=3.19.0
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
-CONTROLLER_TOOLS_VERSION=0.5.0
+CONTROLLER_TOOLS_VERSION=0.7.0
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
 PROTOC_GEN_GO_GRPC_VERSON=1.1.0
-PROTOC_GEN_DOC_VERSION=1.4.1
+PROTOC_GEN_DOC_VERSION=1.5.0
 
 ## DON'T EDIT BELOW THIS LINE
 SUDO=sudo
@@ -184,12 +182,8 @@ PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 define go-get-tool
 @[ -f $(1) ] || { \
 set -e ;\
-TMP_DIR=$$(mktemp -d) ;\
-cd $$TMP_DIR ;\
-go mod init tmp ;\
 echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
-rm -rf $$TMP_DIR ;\
+GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
 }
 endef
 

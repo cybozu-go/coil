@@ -1,7 +1,5 @@
-include ../common.mk
-
-IMAGE = kindest/node:v1.19.11
 KIND_VERSION=0.11.1
+KUBERNETES_VERSION=1.20.7
 KUSTOMIZE_VERSION = 4.1.3
 BINDIR := $(abspath $(PWD)/../bin)
 
@@ -16,11 +14,11 @@ KIND_CONFIG = kind-config_v6.yaml
 endif
 
 .PHONY: start
-start:
-	$(KIND) create cluster --image $(IMAGE) --name coil --config $(KIND_CONFIG)
+start: $(KIND) $(KUBECTL) $(KUSTOMIZE)
+	$(KIND) create cluster --image kindest/node:v$(KUBERNETES_VERSION) --name coil --config $(KIND_CONFIG)
 
 .PHONY: stop
-stop:
+stop: $(KIND)
 	$(KIND) delete cluster --name coil
 
 .PHONY: install-coil
@@ -47,10 +45,16 @@ logs:
 	tar czf logs.tar.gz logs
 	rm -rf logs
 
-.PHONY: setup
-setup:
+$(KIND):
 	mkdir -p $(BINDIR)
-	curl -o $(BINDIR)/kind -sfL https://kind.sigs.k8s.io/dl/v$(KIND_VERSION)/kind-linux-amd64
-	curl -o $(BINDIR)/kubectl -sfL https://storage.googleapis.com/kubernetes-release/release/v$(K8S_VERSION)/bin/linux/amd64/kubectl
+	curl -sfL -o $@ https://github.com/kubernetes-sigs/kind/releases/download/v$(KIND_VERSION)/kind-linux-amd64
+	chmod a+x $@
+
+$(KUBECTL):
+	mkdir -p $(BINDIR)
+	curl -sfL -o $@ https://dl.k8s.io/release/v$(KUBERNETES_VERSION)/bin/linux/amd64/kubectl
+	chmod a+x $@
+
+$(KUSTOMIZE):
 	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz | tar -xz -C $(BINDIR)
-	chmod a+x $(BINDIR)/kubectl $(BINDIR)/kind
+	chmod a+x $@

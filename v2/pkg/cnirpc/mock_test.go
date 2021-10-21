@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type mockServer struct {
@@ -19,7 +19,7 @@ type mockServer struct {
 	sockName string
 }
 
-func (m *mockServer) Check(context.Context, *CNIArgs) (*empty.Empty, error) {
+func (m *mockServer) Check(context.Context, *CNIArgs) (*emptypb.Empty, error) {
 	st := status.New(codes.Internal, "aaa")
 	st, err := st.WithDetails(&CNIError{
 		Code:    ErrorCode_TRY_AGAIN_LATER,

@@ -25,7 +25,7 @@ jobs:
           path: |
             v2/bin
             v2/include
-          key: cache-${{ env.cache-version }}-go-${{ env.go-version }}-${{ hashFiles('v2/Makefile', 'v2/common.mk') }}
+          key: cache-${{ env.cache-version }}-go-${{ env.go-version }}-${{ hashFiles('v2/Makefile') }}
       - run: make setup
         if: steps.cache-tools.outputs.cache-hit != 'true'
       - run: make image
