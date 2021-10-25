@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Removed
 
 - Remove v1 and coil-migrator (#190)
+- Drop k8s 1.19 support (#191)
 
 ## [2.0.12] - 2021-09-17
 
