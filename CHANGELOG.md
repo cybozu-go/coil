@@ -5,6 +5,24 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.13] - 2021-10-25
+
+### Added
+
+- Support k8s 1.22 and update dependencies (#191)
+
+### Changed
+
+- Revert "Modify Pod netrowk setup" (#179)
+- Update Go to 1.17 (#180)
+- Bump code base to CNI 1.0.0 (#181)
+- Add node's internal IP to host side veth (#184)
+
+### Removed
+
+- Remove v1 and coil-migrator (#190)
+- Drop k8s 1.19 support (#191)
+
 ## [2.0.12] - 2021-09-17
 
 ### Changed
@@ -108,7 +126,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.12...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.13...HEAD
+[2.0.13]: https://github.com/cybozu-go/coil/compare/v2.0.12...v2.0.13
 [2.0.12]: https://github.com/cybozu-go/coil/compare/v2.0.11...v2.0.12
 [2.0.11]: https://github.com/cybozu-go/coil/compare/v2.0.10...v2.0.11
 [2.0.10]: https://github.com/cybozu-go/coil/compare/v2.0.9...v2.0.10
