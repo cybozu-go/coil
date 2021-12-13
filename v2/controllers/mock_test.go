@@ -41,7 +41,7 @@ func (pm *mockPoolManager) SyncPool(ctx context.Context, name string) error {
 	return nil
 }
 
-func (pm *mockPoolManager) AllocateBlock(ctx context.Context, poolName, nodeName string) (*coilv2.AddressBlock, error) {
+func (pm *mockPoolManager) AllocateBlock(ctx context.Context, poolName, nodeName, requestName string) (*coilv2.AddressBlock, error) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 	if pm.allocated >= 2 {

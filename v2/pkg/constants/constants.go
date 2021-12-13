@@ -10,11 +10,17 @@ const (
 const (
 	LabelPool     = "coil.cybozu.com/pool"
 	LabelNode     = "coil.cybozu.com/node"
+	LabelRequest  = "coil.cybozu.com/request"
 	LabelReserved = "coil.cybozu.com/reserved"
 
 	LabelAppName      = "app.kubernetes.io/name"
 	LabelAppInstance  = "app.kubernetes.io/instance"
 	LabelAppComponent = "app.kubernetes.io/component"
+)
+
+// Index keys
+const (
+	AddressBlockRequestKey = "address-block.request"
 )
 
 // Finalizers

@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 
+	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
+	"github.com/cybozu-go/coil/v2/pkg/ipam"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,9 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-
-	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
-	"github.com/cybozu-go/coil/v2/pkg/ipam"
 )
 
 // BlockRequestReconciler reconciles a BlockRequest object
@@ -47,7 +47,23 @@ func (r *BlockRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	block, err := r.Manager.AllocateBlock(ctx, br.Spec.PoolName, br.Spec.NodeName)
+	blocks := &coilv2.AddressBlockList{}
+	err = r.Client.List(ctx, blocks, client.MatchingFields{
+		constants.AddressBlockRequestKey: string(br.UID),
+	})
+	if err != nil {
+		logger.Error(err, "failed to list AddressBlock")
+		return ctrl.Result{}, nil
+	}
+	if len(blocks.Items) > 0 {
+		if err := r.updateStatus(ctx, br, blocks.Items[0].Name); err != nil {
+			logger.Error(err, "a block for the request has been created, but failed to update status")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	block, err := r.Manager.AllocateBlock(ctx, br.Spec.PoolName, br.Spec.NodeName, string(br.UID))
 	if errors.Is(err, ipam.ErrNoBlock) {
 		logger.Error(err, "out of blocks", "pool", br.Spec.PoolName)
 
@@ -83,25 +99,34 @@ func (r *BlockRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	logger.Info("allocated", "block", block.Name, "index", block.Index, "pool", br.Spec.PoolName)
+
+	if err := r.updateStatus(ctx, br, block.Name); err != nil {
+		logger.Error(err, "failed to update status")
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (r *BlockRequestReconciler) updateStatus(ctx context.Context, br *coilv2.BlockRequest, blockName string) error {
 	now := metav1.Now()
 	br.Status.Conditions = []coilv2.BlockRequestCondition{
 		{
 			Type:               coilv2.BlockRequestComplete,
 			Status:             corev1.ConditionTrue,
 			Reason:             "allocated",
-			Message:            fmt.Sprintf("allocated a block %s", block.Name),
+			Message:            fmt.Sprintf("allocated a block %s", blockName),
 			LastProbeTime:      now,
 			LastTransitionTime: now,
 		},
 	}
-	br.Status.AddressBlockName = block.Name
-	err = r.Client.Status().Update(ctx, br)
+	br.Status.AddressBlockName = blockName
+	err := r.Client.Status().Update(ctx, br)
 	if err != nil {
-		logger.Error(err, "failed to update status")
-		return ctrl.Result{}, err
+		return err
 	}
 
-	return ctrl.Result{}, nil
+	return nil
 }
 
 // SetupWithManager registers this with the manager.

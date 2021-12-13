@@ -10,6 +10,7 @@ import (
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/controllers"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
+	"github.com/cybozu-go/coil/v2/pkg/indexing"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
 	"github.com/cybozu-go/coil/v2/runners"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -85,6 +86,11 @@ func subMain() error {
 		return err
 	}
 
+	ctx := ctrl.SetupSignalHandler()
+	if err := indexing.SetupIndexForAddressBlock(ctx, mgr); err != nil {
+		return err
+	}
+
 	brctrl := controllers.BlockRequestReconciler{
 		Client:  mgr.GetClient(),
 		Scheme:  scheme,
@@ -131,7 +137,7 @@ func subMain() error {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		return err
 	}

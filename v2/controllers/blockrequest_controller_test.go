@@ -5,6 +5,8 @@ import (
 	"time"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
+	"github.com/cybozu-go/coil/v2/pkg/indexing"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -54,6 +56,8 @@ var _ = Describe("BlockRequest reconciler", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
+		Expect(indexing.SetupIndexForAddressBlock(ctx, mgr)).ToNot(HaveOccurred())
+
 		brr := &BlockRequestReconciler{
 			Client:  mgr.GetClient(),
 			Manager: poolMgr,
@@ -75,6 +79,8 @@ var _ = Describe("BlockRequest reconciler", func() {
 		cancel()
 		err := k8sClient.DeleteAllOf(context.Background(), &coilv2.BlockRequest{})
 		Expect(err).To(Succeed())
+		err = k8sClient.DeleteAllOf(context.Background(), &coilv2.AddressBlock{})
+		Expect(err).To(Succeed())
 		time.Sleep(10 * time.Millisecond)
 	})
 
@@ -84,12 +90,47 @@ var _ = Describe("BlockRequest reconciler", func() {
 			return poolMgr.GetAllocated()
 		}).Should(Equal(1))
 
-		By("checking that it can reconcile quickly upon a new request")
+		By("checking that it does not allocate new block for the request that a block has already been assigned")
+		Eventually(func() int {
+			br := &coilv2.BlockRequest{}
+			k8sClient.Get(ctx, client.ObjectKey{Name: "br-0"}, br)
+			return len(br.Status.Conditions)
+		}).Should(Equal(1))
+
 		br := &coilv2.BlockRequest{}
+		err := k8sClient.Get(ctx, client.ObjectKey{Name: "br-0"}, br)
+		Expect(err).To(Succeed())
+
+		ab := &coilv2.AddressBlock{}
+		ab.Name = "default-0-already-allocated"
+		ab.Labels = map[string]string{
+			constants.LabelPool:    "default",
+			constants.LabelNode:    "node0",
+			constants.LabelRequest: string(br.UID),
+		}
+		err = k8sClient.Create(ctx, ab)
+		Expect(err).To(Succeed())
+
+		br.Status.Conditions = []coilv2.BlockRequestCondition{}
+		err = k8sClient.Status().Update(ctx, br)
+		Expect(err).To(Succeed())
+
+		Eventually(func() int {
+			br := &coilv2.BlockRequest{}
+			k8sClient.Get(ctx, client.ObjectKey{Name: "br-0"}, br)
+			return len(br.Status.Conditions)
+		}).Should(Equal(1))
+
+		Eventually(func() int {
+			return poolMgr.GetAllocated()
+		}).Should(Equal(1))
+
+		By("checking that it can reconcile quickly upon a new request")
+		br = &coilv2.BlockRequest{}
 		br.Name = "br-2"
 		br.Spec.NodeName = "node2"
 		br.Spec.PoolName = "default"
-		err := k8sClient.Create(ctx, br)
+		err = k8sClient.Create(ctx, br)
 		Expect(err).To(Succeed())
 
 		Eventually(func() int {
