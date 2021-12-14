@@ -30,7 +30,7 @@ var _ = Describe("PoolManager", func() {
 			Expect(used).To(BeFalse())
 
 			blocks := make([]*coilv2.AddressBlock, 0, 6)
-			block, err := pm.AllocateBlock(ctx, "default", "node1")
+			block, err := pm.AllocateBlock(ctx, "default", "node1", "5a6d130a-adbe-46f9-9da9-bc5da7cc5f04")
 			Expect(err).ToNot(HaveOccurred())
 			blocks = append(blocks, block)
 
@@ -53,14 +53,14 @@ var _ = Describe("PoolManager", func() {
 			Expect(promtest.ToFloat64(poolAllocated.WithLabelValues("default"))).To(Equal(float64(1)))
 
 			for i := 0; i < 5; i++ {
-				block, err := pm.AllocateBlock(ctx, "default", "node1")
+				block, err := pm.AllocateBlock(ctx, "default", "node1", "5a6d130a-adbe-46f9-9da9-bc5da7cc5f04")
 				Expect(err).ToNot(HaveOccurred())
 				blocks = append(blocks, block)
 			}
 
 			Expect(promtest.ToFloat64(poolAllocated.WithLabelValues("default"))).To(Equal(float64(6)))
 
-			_, err = pm.AllocateBlock(ctx, "default", "node1")
+			_, err = pm.AllocateBlock(ctx, "default", "node1", "5a6d130a-adbe-46f9-9da9-bc5da7cc5f04")
 			Expect(err).To(MatchError(ErrNoBlock))
 
 			controllerutil.RemoveFinalizer(blocks[4], constants.FinCoil)
@@ -76,7 +76,7 @@ var _ = Describe("PoolManager", func() {
 				if val := int(promtest.ToFloat64(poolAllocated.WithLabelValues("default"))); val != 5 {
 					return fmt.Errorf("unexpected allocated_blocks value: %d", val)
 				}
-				block, err = pm.AllocateBlock(ctx, "default", "node2")
+				block, err = pm.AllocateBlock(ctx, "default", "node2", "5a6d130a-adbe-46f9-9da9-bc5da7cc5f04")
 				return err
 			}, 1, 0.1).Should(Succeed())
 
@@ -105,7 +105,7 @@ var _ = Describe("PoolManager", func() {
 			pm := NewPoolManager(mgr.GetClient(), mgr.GetAPIReader(), ctrl.Log.WithName("PoolManager"), scheme)
 
 			blocks := make([]*coilv2.AddressBlock, 0, 2)
-			block, err := pm.AllocateBlock(ctx, "v4", "node1")
+			block, err := pm.AllocateBlock(ctx, "v4", "node1", "5a6d130a-adbe-46f9-9da9-bc5da7cc5f04")
 			Expect(err).ToNot(HaveOccurred())
 			blocks = append(blocks, block)
 
@@ -119,11 +119,11 @@ var _ = Describe("PoolManager", func() {
 			err = k8sClient.Get(ctx, client.ObjectKey{Name: block.Name}, verify)
 			Expect(err).ToNot(HaveOccurred())
 
-			block, err = pm.AllocateBlock(ctx, "v4", "node1")
+			block, err = pm.AllocateBlock(ctx, "v4", "node1", "5a6d130a-adbe-46f9-9da9-bc5da7cc5f04")
 			Expect(err).ToNot(HaveOccurred())
 			blocks = append(blocks, block)
 
-			_, err = pm.AllocateBlock(ctx, "v4", "node1")
+			_, err = pm.AllocateBlock(ctx, "v4", "node1", "5a6d130a-adbe-46f9-9da9-bc5da7cc5f04")
 			Expect(err).To(MatchError(ErrNoBlock))
 
 			controllerutil.RemoveFinalizer(blocks[1], constants.FinCoil)
@@ -136,7 +136,7 @@ var _ = Describe("PoolManager", func() {
 				if err := pm.SyncPool(ctx, "v4"); err != nil {
 					return err
 				}
-				block, err = pm.AllocateBlock(ctx, "v4", "node2")
+				block, err = pm.AllocateBlock(ctx, "v4", "node2", "5a6d130a-adbe-46f9-9da9-bc5da7cc5f04")
 				return err
 			}, 1, 0.1).Should(Succeed())
 

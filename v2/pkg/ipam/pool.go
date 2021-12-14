@@ -35,7 +35,7 @@ type PoolManager interface {
 
 	// AllocateBlock curves an AddressBlock out of the pool for a node.
 	// If the pool runs out of the free blocks, this returns ErrNoBlock.
-	AllocateBlock(ctx context.Context, poolName, nodeName string) (*coilv2.AddressBlock, error)
+	AllocateBlock(ctx context.Context, poolName, nodeName, requestUID string) (*coilv2.AddressBlock, error)
 
 	// IsUsed returns true if a pool is used by some AddressBlock.
 	IsUsed(ctx context.Context, name string) (bool, error)
@@ -135,12 +135,12 @@ func (pm *poolManager) SyncPool(ctx context.Context, name string) error {
 	return p.SyncBlocks(ctx)
 }
 
-func (pm *poolManager) AllocateBlock(ctx context.Context, poolName, nodeName string) (*coilv2.AddressBlock, error) {
+func (pm *poolManager) AllocateBlock(ctx context.Context, poolName, nodeName, requestUID string) (*coilv2.AddressBlock, error) {
 	p, err := pm.getPool(ctx, poolName)
 	if err != nil {
 		return nil, err
 	}
-	return p.AllocateBlock(ctx, nodeName)
+	return p.AllocateBlock(ctx, nodeName, requestUID)
 }
 
 func (pm *poolManager) IsUsed(ctx context.Context, name string) (bool, error) {
@@ -213,7 +213,7 @@ func (p *pool) SyncBlocks(ctx context.Context) error {
 
 // AllocateBlock creates an AddressBlock and returns it.
 // If the pool runs out of the free blocks, this returns ErrNoBlock.
-func (p *pool) AllocateBlock(ctx context.Context, nodeName string) (*coilv2.AddressBlock, error) {
+func (p *pool) AllocateBlock(ctx context.Context, nodeName, requestUID string) (*coilv2.AddressBlock, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -257,8 +257,9 @@ func (p *pool) AllocateBlock(ctx context.Context, nodeName string) (*coilv2.Addr
 			return nil, err
 		}
 		r.Labels = map[string]string{
-			constants.LabelPool: p.name,
-			constants.LabelNode: nodeName,
+			constants.LabelPool:    p.name,
+			constants.LabelNode:    nodeName,
+			constants.LabelRequest: requestUID,
 		}
 		controllerutil.AddFinalizer(r, constants.FinCoil)
 		r.Index = int32(nextIndex)
