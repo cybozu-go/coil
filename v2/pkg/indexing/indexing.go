@@ -16,6 +16,6 @@ func SetupIndexForAddressBlock(ctx context.Context, mgr manager.Manager) error {
 		if val == "" {
 			return nil
 		}
-		return []string{val, constants.LabelRequest}
+		return []string{val}
 	})
 }
