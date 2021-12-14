@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.14] - 2021-12-14
+
+### Changed
+
+- Fix not to create multiple address blocks for a single request (#198)
+
 ## [2.0.13] - 2021-10-25
 
 ### Added
@@ -126,7 +132,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.13...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.14...HEAD
+[2.0.14]: https://github.com/cybozu-go/coil/compare/v2.0.13...v2.0.14
 [2.0.13]: https://github.com/cybozu-go/coil/compare/v2.0.12...v2.0.13
 [2.0.12]: https://github.com/cybozu-go/coil/compare/v2.0.11...v2.0.12
 [2.0.11]: https://github.com/cybozu-go/coil/compare/v2.0.10...v2.0.11
