@@ -3,11 +3,11 @@ package controllers
 import (
 	"context"
 
-	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
@@ -27,7 +27,7 @@ type BlockRequestWatcher struct {
 // Reconcile implements Reconcile interface.
 // https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.8.3/pkg/reconcile?tab=doc#Watcher
 func (r *BlockRequestWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := logr.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
 	br := &coilv2.BlockRequest{}
 	err := r.Client.Get(ctx, req.NamespacedName, br)

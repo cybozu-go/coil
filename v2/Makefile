@@ -1,11 +1,11 @@
 # Makefile for Coil
 
-PROTOC_VERSION=3.19.0
+PROTOC_VERSION=3.20.1
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
-CONTROLLER_TOOLS_VERSION=0.7.0
+CONTROLLER_TOOLS_VERSION=0.8.0
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
-PROTOC_GEN_GO_GRPC_VERSON=1.1.0
-PROTOC_GEN_DOC_VERSION=1.5.0
+PROTOC_GEN_GO_GRPC_VERSON=1.2.0
+PROTOC_GEN_DOC_VERSION=1.5.1
 
 ## DON'T EDIT BELOW THIS LINE
 SUDO=sudo

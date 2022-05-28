@@ -39,7 +39,7 @@ jobs:
     name: End-to-end Test
     strategy:
       matrix:
-        kindest-node: ["1.20.7", "1.21.2", "1.22.2"]
+        kindest-node: ["1.21.12", "1.22.9", "1.23.6"]
         ip-version: ["ipv4", "ipv6"]
     runs-on: ubuntu-20.04
     steps:

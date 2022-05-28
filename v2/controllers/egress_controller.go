@@ -194,14 +194,14 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 		{Name: "health", ContainerPort: 8081, Protocol: corev1.ProtocolTCP},
 	}
 	egressContainer.LivenessProbe = &corev1.Probe{
-		Handler: corev1.Handler{HTTPGet: &corev1.HTTPGetAction{
+		ProbeHandler: corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{
 			Path:   "/healthz",
 			Port:   intstr.FromString("health"),
 			Scheme: corev1.URISchemeHTTP,
 		}},
 	}
 	egressContainer.ReadinessProbe = &corev1.Probe{
-		Handler: corev1.Handler{HTTPGet: &corev1.HTTPGetAction{
+		ProbeHandler: corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{
 			Path:   "/readyz",
 			Port:   intstr.FromString("health"),
 			Scheme: corev1.URISchemeHTTP,
