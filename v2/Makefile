@@ -155,7 +155,7 @@ pkg/cnirpc/cni_grpc.pb.go: pkg/cnirpc/cni.proto
 .PHONY: image
 image:
 	-rm -rf work
-	GOBIN=$(PWD)/work go install -ldflags="-s -w" ./cmd/coil*
+	GOBIN=$(PWD)/work CGO_ENABLED=0 go install -ldflags="-s -w" ./cmd/coil*
 	cp ../LICENSE work
 	docker build --no-cache -t coil:dev .
 	rm -rf work
