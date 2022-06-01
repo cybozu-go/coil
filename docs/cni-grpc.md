@@ -3,28 +3,28 @@
 
 ## Table of Contents
 
-- [pkg/cnirpc/cni.proto](#pkg/cnirpc/cni.proto)
-    - [AddResponse](#pkg.cnirpc.AddResponse)
-    - [CNIArgs](#pkg.cnirpc.CNIArgs)
-    - [CNIArgs.ArgsEntry](#pkg.cnirpc.CNIArgs.ArgsEntry)
-    - [CNIError](#pkg.cnirpc.CNIError)
+- [pkg/cnirpc/cni.proto](#pkg_cnirpc_cni-proto)
+    - [AddResponse](#pkg-cnirpc-AddResponse)
+    - [CNIArgs](#pkg-cnirpc-CNIArgs)
+    - [CNIArgs.ArgsEntry](#pkg-cnirpc-CNIArgs-ArgsEntry)
+    - [CNIError](#pkg-cnirpc-CNIError)
   
-    - [ErrorCode](#pkg.cnirpc.ErrorCode)
+    - [ErrorCode](#pkg-cnirpc-ErrorCode)
   
-    - [CNI](#pkg.cnirpc.CNI)
+    - [CNI](#pkg-cnirpc-CNI)
   
 - [Scalar Value Types](#scalar-value-types)
 
 
 
-<a name="pkg/cnirpc/cni.proto"></a>
+<a name="pkg_cnirpc_cni-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
 ## pkg/cnirpc/cni.proto
 
 
 
-<a name="pkg.cnirpc.AddResponse"></a>
+<a name="pkg-cnirpc-AddResponse"></a>
 
 ### AddResponse
 AddResponse represents the response for ADD command.
@@ -42,7 +42,7 @@ https://pkg.go.dev/github.com/containernetworking/cni@v0.8.0/pkg/types/current?t
 
 
 
-<a name="pkg.cnirpc.CNIArgs"></a>
+<a name="pkg-cnirpc-CNIArgs"></a>
 
 ### CNIArgs
 CNIArgs is a mirror of cni.pkg.skel.CmdArgs struct.
@@ -54,7 +54,7 @@ https://pkg.go.dev/github.com/containernetworking/cni@v0.8.0/pkg/skel?tab=doc#Cm
 | container_id | [string](#string) |  |  |
 | netns | [string](#string) |  |  |
 | ifname | [string](#string) |  |  |
-| args | [CNIArgs.ArgsEntry](#pkg.cnirpc.CNIArgs.ArgsEntry) | repeated | Key-Value pairs parsed from CNI_ARGS |
+| args | [CNIArgs.ArgsEntry](#pkg-cnirpc-CNIArgs-ArgsEntry) | repeated | Key-Value pairs parsed from CNI_ARGS |
 | path | [string](#string) |  |  |
 | stdin_data | [bytes](#bytes) |  |  |
 
@@ -63,7 +63,7 @@ https://pkg.go.dev/github.com/containernetworking/cni@v0.8.0/pkg/skel?tab=doc#Cm
 
 
 
-<a name="pkg.cnirpc.CNIArgs.ArgsEntry"></a>
+<a name="pkg-cnirpc-CNIArgs-ArgsEntry"></a>
 
 ### CNIArgs.ArgsEntry
 
@@ -79,7 +79,7 @@ https://pkg.go.dev/github.com/containernetworking/cni@v0.8.0/pkg/skel?tab=doc#Cm
 
 
 
-<a name="pkg.cnirpc.CNIError"></a>
+<a name="pkg-cnirpc-CNIError"></a>
 
 ### CNIError
 CNIError is a mirror of cin.pkg.types.Error struct.
@@ -91,7 +91,7 @@ https://pkg.go.dev/google.golang.org/grpc@v1.31.0/internal/status?tab=doc#Status
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| code | [ErrorCode](#pkg.cnirpc.ErrorCode) |  |  |
+| code | [ErrorCode](#pkg-cnirpc-ErrorCode) |  |  |
 | msg | [string](#string) |  |  |
 | details | [string](#string) |  |  |
 
@@ -102,7 +102,7 @@ https://pkg.go.dev/google.golang.org/grpc@v1.31.0/internal/status?tab=doc#Status
  
 
 
-<a name="pkg.cnirpc.ErrorCode"></a>
+<a name="pkg-cnirpc-ErrorCode"></a>
 
 ### ErrorCode
 ErrorCode enumerates errors for CNIError
@@ -126,16 +126,16 @@ ErrorCode enumerates errors for CNIError
  
 
 
-<a name="pkg.cnirpc.CNI"></a>
+<a name="pkg-cnirpc-CNI"></a>
 
 ### CNI
 CNI implements CNI commands over gRPC.
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
-| Add | [CNIArgs](#pkg.cnirpc.CNIArgs) | [AddResponse](#pkg.cnirpc.AddResponse) |  |
-| Del | [CNIArgs](#pkg.cnirpc.CNIArgs) | [.google.protobuf.Empty](#google.protobuf.Empty) |  |
-| Check | [CNIArgs](#pkg.cnirpc.CNIArgs) | [.google.protobuf.Empty](#google.protobuf.Empty) |  |
+| Add | [CNIArgs](#pkg-cnirpc-CNIArgs) | [AddResponse](#pkg-cnirpc-AddResponse) |  |
+| Del | [CNIArgs](#pkg-cnirpc-CNIArgs) | [.google.protobuf.Empty](#google-protobuf-Empty) |  |
+| Check | [CNIArgs](#pkg-cnirpc-CNIArgs) | [.google.protobuf.Empty](#google-protobuf-Empty) |  |
 
  
 
