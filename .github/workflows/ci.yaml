@@ -15,13 +15,13 @@ jobs:
     name: Small test
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-go@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-go@v3
       with:
         go-version: ${{ env.go-version }}
     - name: Cache tools
       id: cache-tools
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: |
           v2/bin
@@ -43,8 +43,8 @@ jobs:
         ip-version: ["ipv4", "ipv6"]
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-go@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-go@v3
       with:
         go-version: ${{ env.go-version }}
     - run: make image
@@ -67,7 +67,7 @@ jobs:
     - run: make logs
       working-directory: v2/e2e
       if: always()
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       if: always()
       with:
         name: logs-${{ matrix.ip-version }}-${{ matrix.kindest-node }}.tar.gz

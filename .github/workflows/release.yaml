@@ -14,13 +14,13 @@ jobs:
     name: Push container image
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
         with:
           go-version: ${{ env.go-version }}
       - name: Cache tools
         id: cache-tools
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             v2/bin
@@ -31,23 +31,21 @@ jobs:
       - run: make image
       - name: Login to ghcr.io
         run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
-      - run: docker tag coil:dev ghcr.io/cybozu-go/coil:${GITHUB_REF#refs/tags/v}
-      - run: docker push ghcr.io/cybozu-go/coil:${GITHUB_REF#refs/tags/v}
+      - name: Push to ghcr.io
+        run: |
+          IMAGE_TAG=${GITHUB_REF#refs/tags/v} # Remove "v" prefix.
+          docker tag coil:dev ghcr.io/cybozu-go/coil:$IMAGE_TAG
+          docker push ghcr.io/cybozu-go/coil:$IMAGE_TAG
   release:
     name: Release on GitHub
     needs: image
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Create release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
-            See [CHANGELOG.md](./CHANGELOG.md) for details.
-          draft: false
-          prerelease: ${{ contains(github.ref, '-') }}
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/} # Don't remove "v" prefix.
+          if echo ${VERSION} | grep -q -e '-'; then PRERELEASE_FLAG=-p; fi
+          gh release create $VERSION $PRERELEASE_FLAG \
+            -t "Release $VERSION"  \
+            -n "See [CHANGELOG.md](./CHANGELOG.md) for details."
