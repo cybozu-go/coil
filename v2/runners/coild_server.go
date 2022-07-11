@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"time"
 
 	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -265,17 +264,6 @@ func (s *coildServer) Add(ctx context.Context, args *cnirpc.CNIArgs) (*cnirpc.Ad
 
 func (s *coildServer) Del(ctx context.Context, args *cnirpc.CNIArgs) (*emptypb.Empty, error) {
 	logger := ctxzap.Extract(ctx)
-
-	duration := 30 * time.Second
-	deadline, ok := ctx.Deadline()
-	if ok {
-		d2 := time.Until(deadline)
-		if d2 < (duration+1*time.Second) && d2 > time.Second {
-			duration = d2 - time.Second
-		}
-	}
-	logger.Sugar().Infow("waiting before destroying pod network", "duration", duration.String())
-	time.Sleep(duration)
 
 	if err := s.podNet.Destroy(args.ContainerId, args.Ifname); err != nil {
 		logger.Sugar().Errorw("failed to destroy pod network", "error", err)
