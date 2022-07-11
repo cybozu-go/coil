@@ -32,37 +32,51 @@ It should look like:
 
 - Edit [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml) and edit `kindtest-node` field values.
 - Edit Kubernetes versions in [`README.md`](README.md).
-- If the minimal supported version is to be changed, edit `v2/common.mk` too.
 - Make sure that the changes pass CI.
 
 You should also update `sigs.k8s.io/controller-runtime` Go package periodically.
 
 ## Bump version
 
-1. Determine a new version number.  Let it write `$VERSION` as `VERSION=x.y.z`.
+1. Determine a new version number. Then set `VERSION` variable.
+
+    ```console
+    # Set VERSION and confirm it. It should not have "v" prefix.
+    $ VERSION=x.y.x
+    $ echo $VERSION
+    ```
+
 2. Make a branch to release
 
     ```console
     $ git neco dev "$VERSION"
     ```
 
-4. Edit `CHANGELOG.md` for the new version ([example][]).
-5. Edit `v2/version.go` for the new version.
-6. Edit `v2/kustomization.yaml` and update `newTag` value for the new version.
-7. Commit the changes and push it.
+3. Edit `CHANGELOG.md` for the new version ([example][]).
+4. Edit `v2/version.go` for the new version.
+5. Edit `v2/kustomization.yaml` and update `newTag` value for the new version.
+6. Commit the changes and push it.
 
     ```console
     $ git commit -a -m "Bump version to $VERSION"
     $ git neco review
     ```
 
-8. Merge this branch.
-6. Add a git tag to the main HEAD, then push it.
+7. Merge this branch.
+8.  Add a git tag to the main HEAD, then push it.
 
     ```console
+    # Set `VERSION` again.
+    $ VERSION=x.y.x
+    $ echo $VERSION
+
     $ git checkout main
     $ git pull
     $ git tag -a -m "Release v$VERSION" "v$VERSION"
+
+    # Make sure the release tag exists.
+    $ git tag -ln | grep $VERSION
+
     $ git push origin "v$VERSION"
     ```
 
