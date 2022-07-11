@@ -20,7 +20,7 @@ func getRoutes(t *testing.T) map[string]bool {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer h.Delete()
+	defer h.Close()
 
 	filter := &netlink.Route{Table: testTable}
 	routes, err := h.RouteListFiltered(0, filter, netlink.RT_FILTER_TABLE)
