@@ -40,7 +40,6 @@ test: simple-test setup-envtest
 simple-test: test-tools
 	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
 	staticcheck ./...
-	nilerr ./...
 	go install ./...
 	go vet ./...
 
@@ -191,16 +190,10 @@ GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
 endef
 
 .PHONY: test-tools
-test-tools: staticcheck nilerr
+test-tools: staticcheck
 
 .PHONY: staticcheck
 staticcheck:
 	if ! which staticcheck >/dev/null; then \
 		env GOFLAGS= go install honnef.co/go/tools/cmd/staticcheck@latest; \
-	fi
-
-.PHONY: nilerr
-nilerr:
-	if ! which nilerr >/dev/null; then \
-		env GOFLAGS= go install github.com/gostaticanalysis/nilerr/cmd/nilerr@latest; \
 	fi
