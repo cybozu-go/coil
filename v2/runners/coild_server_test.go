@@ -381,37 +381,31 @@ var _ = Describe("Coild server", func() {
 		Expect(err).To(HaveOccurred())
 
 		By("calling Del")
-		ctx2, cancel := context.WithTimeout(ctx, 2*time.Second)
-		_, err = cniClient.Del(ctx2, &cnirpc.CNIArgs{
+		_, err = cniClient.Del(ctx, &cnirpc.CNIArgs{
 			Args:        map[string]string{"K8S_POD_NAME": "bar", "K8S_POD_NAMESPACE": "ns2"},
 			ContainerId: "dns1",
 			Ifname:      "eth0",
 			Netns:       "/run/netns/bar",
 		})
-		cancel()
 		Expect(err).NotTo(HaveOccurred())
 
 		nodeIPAM.errFree = true
-		ctx2, cancel = context.WithTimeout(ctx, 2*time.Second)
-		_, err = cniClient.Del(ctx2, &cnirpc.CNIArgs{
+		_, err = cniClient.Del(ctx, &cnirpc.CNIArgs{
 			Args:        map[string]string{"K8S_POD_NAME": "bar", "K8S_POD_NAMESPACE": "ns2"},
 			ContainerId: "dns1",
 			Ifname:      "eth0",
 			Netns:       "/run/netns/bar",
 		})
-		cancel()
 		Expect(err).To(HaveOccurred())
 
 		nodeIPAM.errFree = false
 		podNet.errDestroy = true
-		ctx2, cancel = context.WithTimeout(ctx, 2*time.Second)
-		_, err = cniClient.Del(ctx2, &cnirpc.CNIArgs{
+		_, err = cniClient.Del(ctx, &cnirpc.CNIArgs{
 			Args:        map[string]string{"K8S_POD_NAME": "bar", "K8S_POD_NAMESPACE": "ns2"},
 			ContainerId: "dns1",
 			Ifname:      "eth0",
 			Netns:       "/run/netns/bar",
 		})
-		cancel()
 		Expect(err).To(HaveOccurred())
 	})
 
