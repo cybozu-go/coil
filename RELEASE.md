@@ -63,10 +63,10 @@ You should also update `sigs.k8s.io/controller-runtime` Go package periodically.
     ```
 
 7. Merge this branch.
-8.  Add a git tag to the main HEAD, then push it.
+8. Add a git tag to the main HEAD, then push it.
 
     ```console
-    # Set `VERSION` again.
+    # Set VERSION again.
     $ VERSION=x.y.x
     $ echo $VERSION
 
