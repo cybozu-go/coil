@@ -42,7 +42,7 @@ func (r *routeExporter) Sync(nets []*net.IPNet) error {
 		r.log.Error(err, "netlink: failed to open handle")
 		return fmt.Errorf("netlink: failed to open handle: %w", err)
 	}
-	defer h.Delete()
+	defer h.Close()
 
 	lo, err := h.LinkByName("lo")
 	if err != nil {

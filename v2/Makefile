@@ -1,8 +1,8 @@
 # Makefile for Coil
 
-PROTOC_VERSION=3.20.1
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
-CONTROLLER_TOOLS_VERSION=0.8.0
+CONTROLLER_TOOLS_VERSION=0.9.2
+PROTOC_VERSION=21.2
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
 PROTOC_GEN_GO_GRPC_VERSON=1.2.0
 PROTOC_GEN_DOC_VERSION=1.5.1
@@ -16,6 +16,7 @@ ROLES = config/rbac/coil-controller_role.yaml \
 	config/rbac/coild_role.yaml \
 	config/rbac/coil-router_role.yaml \
 	config/rbac/coil-egress_role.yaml
+PROTOC_OUTPUTS = pkg/cnirpc/cni.pb.go pkg/cnirpc/cni_grpc.pb.go ../docs/cni-grpc.md
 GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
 PROTOC := PATH=$(PWD)/bin:'$(PATH)' $(PWD)/bin/protoc -I=$(PWD)/include:.
@@ -39,7 +40,6 @@ test: simple-test setup-envtest
 simple-test: test-tools
 	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
 	staticcheck ./...
-	nilerr ./...
 	go install ./...
 	go vet ./...
 
@@ -65,8 +65,10 @@ test-founat:
 
 .PHONY: check-generate
 check-generate:
-	$(MAKE) manifests
+	-rm $(ROLES) $(PROTOC_OUTPUTS)
 	$(MAKE) generate
+	$(MAKE) manifests
+	go mod tidy
 	git diff --exit-code --name-only
 
 # Generate manifests e.g. CRD, RBAC etc.
@@ -137,8 +139,8 @@ config/default/webhook_manifests_patch.yaml: config/default/cert.pem config/defa
 # Generate code
 .PHONY: generate
 generate: $(CONTROLLER_GEN)
+	$(MAKE) $(PROTOC_OUTPUTS)
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
-	$(MAKE) pkg/cnirpc/cni.pb.go pkg/cnirpc/cni_grpc.pb.go ../docs/cni-grpc.md
 
 $(CONTROLLER_GEN):
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION))
@@ -188,16 +190,10 @@ GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
 endef
 
 .PHONY: test-tools
-test-tools: staticcheck nilerr
+test-tools: staticcheck
 
 .PHONY: staticcheck
 staticcheck:
 	if ! which staticcheck >/dev/null; then \
 		env GOFLAGS= go install honnef.co/go/tools/cmd/staticcheck@latest; \
-	fi
-
-.PHONY: nilerr
-nilerr:
-	if ! which nilerr >/dev/null; then \
-		env GOFLAGS= go install github.com/gostaticanalysis/nilerr/cmd/nilerr@latest; \
 	fi

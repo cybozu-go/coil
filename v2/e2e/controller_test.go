@@ -12,7 +12,7 @@ import (
 
 var _ = Describe("coil-controller", func() {
 	It("should elect a leader instance of coil-controller", func() {
-		kubectlSafe(nil, "-n", "kube-system", "get", "configmaps", "coil-leader")
+		kubectlSafe(nil, "-n", "kube-system", "get", "leases", "coil-leader")
 	})
 
 	It("should run the admission webhook", func() {

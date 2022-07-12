@@ -8,20 +8,20 @@ defaults:
   run:
     working-directory: v2
 env:
-  go-version: 1.17
+  go-version: 1.18
   cache-version: 1
 jobs:
   test:
     name: Small test
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-go@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-go@v3
       with:
         go-version: ${{ env.go-version }}
     - name: Cache tools
       id: cache-tools
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: |
           v2/bin
@@ -39,12 +39,12 @@ jobs:
     name: End-to-end Test
     strategy:
       matrix:
-        kindest-node: ["1.21.12", "1.22.9", "1.23.6"]
+        kindest-node: ["1.22.9", "1.23.6", "1.24.0"]
         ip-version: ["ipv4", "ipv6"]
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-go@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-go@v3
       with:
         go-version: ${{ env.go-version }}
     - run: make image
@@ -67,7 +67,7 @@ jobs:
     - run: make logs
       working-directory: v2/e2e
       if: always()
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       if: always()
       with:
         name: logs-${{ matrix.ip-version }}-${{ matrix.kindest-node }}.tar.gz
