@@ -5,6 +5,24 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.1.0] - 2022-07-12
+
+### Added
+
+- Support Kubernetes 1.23 and update dependencies (#211)
+- Support Kubernetes 1.24 (#214)
+
+### Changed
+
+- DualStack Pools not working. (#209)
+- Remove sleep from CNI DEL implementation (#215)
+
+### Upgrade Note
+
+- To users of v2.0.6 or earlier, upgrade to v2.0.14 first and then to v2.1.0. Please do not upgrade to v2.1.0 directly.
+  - The leader election of controller-runtime may not work as expected during the rolling update of coil if you upgrade to v2.1.0 directly because controller-runtime uses leases as the default resource lock object since v0.12.0. See https://github.com/kubernetes-sigs/controller-runtime/pull/1773
+- kube-systme/coil-leader configmap might remain after the upgrade. Please remove it manually.
+
 ## [2.0.14] - 2021-12-14
 
 ### Changed
@@ -132,7 +150,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.0.14...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/cybozu-go/coil/compare/v2.0.14...v2.1.0
 [2.0.14]: https://github.com/cybozu-go/coil/compare/v2.0.13...v2.0.14
 [2.0.13]: https://github.com/cybozu-go/coil/compare/v2.0.12...v2.0.13
 [2.0.12]: https://github.com/cybozu-go/coil/compare/v2.0.11...v2.0.12
