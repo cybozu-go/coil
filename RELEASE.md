@@ -42,14 +42,14 @@ You should also update `sigs.k8s.io/controller-runtime` Go package periodically.
 
     ```console
     # Set VERSION and confirm it. It should not have "v" prefix.
-    $ VERSION=x.y.x
+    $ VERSION=x.y.z
     $ echo $VERSION
     ```
 
 2. Make a branch to release
 
     ```console
-    $ git neco dev "$VERSION"
+    $ git neco dev "bump-$VERSION"
     ```
 
 3. Edit `CHANGELOG.md` for the new version ([example][]).
@@ -67,7 +67,7 @@ You should also update `sigs.k8s.io/controller-runtime` Go package periodically.
 
     ```console
     # Set VERSION again.
-    $ VERSION=x.y.x
+    $ VERSION=x.y.z
     $ echo $VERSION
 
     $ git checkout main
