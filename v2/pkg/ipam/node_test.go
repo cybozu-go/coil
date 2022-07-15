@@ -10,7 +10,7 @@ import (
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	. "github.com/cybozu-go/coil/v2/pkg/test"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

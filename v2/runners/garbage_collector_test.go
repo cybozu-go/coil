@@ -7,7 +7,7 @@ import (
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
