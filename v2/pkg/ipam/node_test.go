@@ -239,7 +239,7 @@ var _ = Describe("NodeIPAM", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(ipv4).To(EqualIP(net.ParseIP("10.4.0.0")))
 		Expect(ipv6).To(BeNil())
-	}, 5)
+	})
 
 	It("can restore state and return unused blocks", func() {
 		nodeIPAM := NewNodeIPAM("node1", ctrl.Log.WithName("NodeIPAM3"), mgr, nil)
@@ -290,7 +290,7 @@ var _ = Describe("NodeIPAM", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(ipv4).To(EqualIP(net.ParseIP("10.2.0.3")))
 		Expect(ipv6).To(EqualIP(net.ParseIP("fd02::0203")))
-	}, 5)
+	})
 
 	It("should ignore reserved blocks", func() {
 		By("creating a reserved block")
@@ -328,7 +328,7 @@ var _ = Describe("NodeIPAM", func() {
 		err = k8sClient.List(ctx, blocks)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(blocks.Items).To(HaveLen(2))
-	}, 5)
+	})
 
 	It("can return node internal IPs", func() {
 		nodeIPAM := NewNodeIPAM("node1", ctrl.Log.WithName("NodeIPAM4"), mgr, nil)
@@ -348,5 +348,5 @@ var _ = Describe("NodeIPAM", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(ipv4).To(BeNil())
 		Expect(ipv6).To(EqualIP(net.ParseIP("fd10::43")))
-	}, 5)
+	})
 })
