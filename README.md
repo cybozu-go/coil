@@ -78,7 +78,6 @@ $ make certs
 $ make image
 
 $ cd e2e
-$ make setup
 $ make start
 $ make install-coil
 $ ../bin/kubectl apply -f manifests/default_pool.yaml
