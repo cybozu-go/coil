@@ -171,7 +171,7 @@ OUTER2:
 				continue OUTER2
 			}
 		}
-		logger.Info("delete peer", "caller", "addPod", "key", pod.Namespace+"/"+pod.Name, "ip", eip.String(), "podIPs", podIPs, "existing", existing)
+		logger.Info("delete peer", "caller", "addPod", "ip", eip.String(), "podIPs", podIPs, "existing", existing)
 		if err := r.ft.DelPeer(eip); err != nil {
 			return err
 		}
@@ -188,7 +188,7 @@ func (r *podWatcher) delPod(n types.NamespacedName, logger logr.Logger) error {
 
 	key := n.Namespace + "/" + n.Name
 	for _, ip := range r.podAddrs[key] {
-		logger.Info("delete peer", "caller", "delPod", "key", key, "ip", ip.String(), "podIPs", r.podAddrs[key])
+		logger.Info("delete peer", "caller", "delPod", "ip", ip.String(), "podIPs", r.podAddrs[key])
 		if err := r.ft.DelPeer(ip); err != nil {
 			return err
 		}
