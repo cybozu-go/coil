@@ -121,7 +121,7 @@ func (r *podWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if apierrors.IsNotFound(err) {
-		if err := r.delPod(req.NamespacedName); err != nil {
+		if err := r.delPod(req.NamespacedName, logger); err != nil {
 			logger.Error(err, "failed to remove tunnel")
 			return ctrl.Result{}, err
 		}
@@ -171,7 +171,7 @@ OUTER2:
 				continue OUTER2
 			}
 		}
-
+		logger.Info("delete peer", "caller", "addPod", "pod", pod.Namespace+"/"+pod.Name, "ip", eip.String())
 		if err := r.ft.DelPeer(eip); err != nil {
 			return err
 		}
@@ -182,12 +182,13 @@ OUTER2:
 	return nil
 }
 
-func (r *podWatcher) delPod(n types.NamespacedName) error {
+func (r *podWatcher) delPod(n types.NamespacedName, logger logr.Logger) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	key := n.Namespace + "/" + n.Name
 	for _, ip := range r.podAddrs[key] {
+		logger.Info("delete peer", "caller", "delPod", "pod", key, "ip", ip.String())
 		if err := r.ft.DelPeer(ip); err != nil {
 			return err
 		}
