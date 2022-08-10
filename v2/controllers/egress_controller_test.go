@@ -288,7 +288,6 @@ var _ = Describe("Egress reconciler", func() {
 			return nil
 		}).Should(Succeed())
 
-		Expect(depl.Spec.Template.Annotations).NotTo(HaveKey("ann1"))
 		Expect(depl.Spec.Template.Labels).NotTo(HaveKey("foo"))
 		Expect(depl.Spec.Template.Spec.SchedulerName).To(Equal("default-scheduler"))
 		Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(1))
@@ -468,5 +467,47 @@ var _ = Describe("Egress reconciler", func() {
 
 		Expect(saNS).To(HaveKey("default"))
 		Expect(saNS).To(HaveKey("egtest"))
+	})
+
+	It("should take over annotations when updated", func() {
+		By("creating an Egress")
+		eg := makeEgress("eg6")
+		err := k8sClient.Create(ctx, eg)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		By("checking Deployment")
+		var depl *appsv1.Deployment
+		Eventually(func() error {
+			depl = &appsv1.Deployment{}
+			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, depl)
+		}).Should(Succeed())
+
+		By("updating restartedAt annotation and a label")
+		if depl.Spec.Template.Annotations == nil {
+			depl.Spec.Template.Annotations = make(map[string]string)
+		}
+		depl.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = "2022-01-01T00:00:00+00:00"
+		depl.Spec.Template.Labels["foo"] = "bar"
+		Eventually(func() error {
+			return k8sClient.Update(ctx, depl)
+		}).Should(Succeed())
+
+		By("checking to take over annotations and deleting labels")
+		var updatedDepl *appsv1.Deployment
+		Eventually(func() error {
+			updatedDepl = &appsv1.Deployment{}
+			if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, updatedDepl); err != nil {
+				return err
+			}
+			_, ok := updatedDepl.Spec.Template.Labels["foo"]
+			if ok {
+				return errors.New("labels key foo must be deleted")
+			}
+			_, ok = updatedDepl.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"]
+			if !ok {
+				return errors.New("kubectl.kubernetes.io/restartedAt annotation must be set")
+			}
+			return nil
+		}).Should(Succeed())
 	})
 })
