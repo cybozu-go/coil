@@ -113,15 +113,10 @@ func selectorLabels(name string) map[string]string {
 }
 
 func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.Deployment) {
-	tmpMap := make(map[string]string)
-	for k, v := range depl.Spec.Template.Annotations {
-		tmpMap[k] = v
-	}
 	target := &depl.Spec.Template
 	target.Labels = make(map[string]string)
-	target.Annotations = make(map[string]string)
-	for k, v := range tmpMap {
-		target.Annotations[k] = v
+	if target.Annotations == nil {
+		target.Annotations = make(map[string]string)
 	}
 
 	desired := eg.Spec.Template
