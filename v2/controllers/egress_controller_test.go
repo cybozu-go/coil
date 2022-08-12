@@ -469,7 +469,7 @@ var _ = Describe("Egress reconciler", func() {
 		Expect(saNS).To(HaveKey("egtest"))
 	})
 
-	It("should take over annotations when updated", func() {
+	It("shouldn't remove annotations when reconciling deployments", func() {
 		By("creating an Egress")
 		eg := makeEgress("eg6")
 		err := k8sClient.Create(ctx, eg)
