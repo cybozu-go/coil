@@ -18,6 +18,12 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: ${{ env.go-version }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: linux/amd64,linux/arm64/v8
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
       - name: Cache tools
         id: cache-tools
         uses: actions/cache@v3
@@ -28,14 +34,12 @@ jobs:
           key: cache-${{ env.cache-version }}-go-${{ env.go-version }}-${{ hashFiles('v2/Makefile') }}
       - run: make setup
         if: steps.cache-tools.outputs.cache-hit != 'true'
-      - run: make image
       - name: Login to ghcr.io
         run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
-      - name: Push to ghcr.io
+      - run: make build
+      - name: Build & Push to ghcr.io
         run: |
-          IMAGE_TAG=${GITHUB_REF#refs/tags/v} # Remove "v" prefix.
-          docker tag coil:dev ghcr.io/cybozu-go/coil:$IMAGE_TAG
-          docker push ghcr.io/cybozu-go/coil:$IMAGE_TAG
+          make image IMAGE_TAG=${GITHUB_REF#refs/tags/v} # Remove "v" prefix.
   release:
     name: Release on GitHub
     needs: image

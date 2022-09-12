@@ -1,5 +1,6 @@
 # Makefile for Coil
 
+IMAGE_TAG := latest
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
 CONTROLLER_TOOLS_VERSION=0.9.2
 PROTOC_VERSION=21.2
@@ -29,6 +30,11 @@ OTHERNSLIST = test-egress-dual test-egress-v4 test-egress-v6 \
 # Set the shell used to bash for better error handling.
 SHELL = /bin/bash
 .SHELLFLAGS = -e -o pipefail -c
+
+PLATFORM := linux/amd64
+ifeq ($(GOARCH),arm64)
+PLATFORM := linux/arm64/v8
+endif
 
 # Run tests, and set up envtest if not done already.
 .PHONY: test
@@ -154,13 +160,17 @@ pkg/cnirpc/cni_grpc.pb.go: pkg/cnirpc/cni.proto
 ../docs/cni-grpc.md: pkg/cnirpc/cni.proto
 	$(PROTOC) --doc_out=../docs --doc_opt=markdown,$@ $<
 
-.PHONY: image
-image:
-	-rm -rf work
-	GOBIN=$(PWD)/work CGO_ENABLED=0 go install -ldflags="-s -w" ./cmd/coil*
+work/LICENSE:
+	mkdir -p work
 	cp ../LICENSE work
-	docker build --no-cache -t coil:dev .
-	rm -rf work
+
+.PHONY: image
+image: work/LICENSE
+	docker buildx build --no-cache --load -t coil:dev .
+
+.PHONY: push
+push: work/LICENSE
+	docker buildx build --no-cache --platform linux/amd64,linux/arm64/v8 --push -t ghcr.io/cybozu-go/coil:$(IMAGE_TAG) .
 
 .PHONY: setup
 setup:
