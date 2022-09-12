@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -50,6 +51,7 @@ func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, eg 
 		eg:       eg,
 		metric:   clientPods.WithLabelValues(ns, name),
 		podAddrs: make(map[string][]net.IP),
+		peers:    make(map[string]map[string]struct{}),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -72,6 +74,7 @@ type podWatcher struct {
 
 	mu       sync.Mutex
 	podAddrs map[string][]net.IP
+	peers    map[string]map[string]struct{}
 }
 
 func (r *podWatcher) shouldHandle(pod *corev1.Pod) bool {
@@ -103,6 +106,10 @@ func (r *podWatcher) shouldHandle(pod *corev1.Pod) bool {
 	return false
 }
 
+func isTerminated(pod *corev1.Pod) bool {
+	return pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed
+}
+
 func (r *podWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
@@ -113,10 +120,18 @@ func (r *podWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, err
 		}
 
-		if err := r.addPod(pod, logger); err != nil {
-			logger.Error(err, "failed to setup tunnel")
-			return ctrl.Result{}, err
+		if !isTerminated(pod) {
+			if err := r.addPod(pod, logger); err != nil {
+				logger.Error(err, "failed to setup tunnel")
+				return ctrl.Result{}, err
+			}
+		} else {
+			if err := r.delTerminatedPod(pod, logger); err != nil {
+				logger.Error(err, "failed to remove tunnel for a terminated pod")
+				return ctrl.Result{}, err
+			}
 		}
+
 		return ctrl.Result{}, nil
 	}
 
@@ -178,23 +193,61 @@ OUTER2:
 	}
 
 	r.podAddrs[key] = podIPs
+	for _, ip := range podIPs {
+		keySet, ok := r.peers[ip.String()]
+		if !ok {
+			keySet = map[string]struct{}{}
+			r.peers[ip.String()] = keySet
+		}
+		keySet[key] = struct{}{}
+	}
+
 	r.metric.Set(float64(len(r.podAddrs)))
 	return nil
+}
+
+func (r *podWatcher) delTerminatedPod(pod *corev1.Pod, logger logr.Logger) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.delPeer(fmt.Sprintf("%s/%s", pod.Namespace, pod.Name), "delTerminatedPod", string(pod.Status.Phase), logger)
 }
 
 func (r *podWatcher) delPod(n types.NamespacedName, logger logr.Logger) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	key := n.Namespace + "/" + n.Name
+	return r.delPeer(fmt.Sprintf("%s/%s", n.Namespace, n.Name), "delPod", "", logger)
+}
+
+func (r *podWatcher) delPeer(key, caller, podStatus string, logger logr.Logger) error {
 	for _, ip := range r.podAddrs[key] {
-		logger.Info("delete peer", "caller", "delPod", "ip", ip.String(), "podIPs", r.podAddrs[key])
-		if err := r.ft.DelPeer(ip); err != nil {
-			return err
+		if !r.existsOtherLivePeers(key, ip.String()) {
+			logger.Info("delete peer", "caller", caller, "ip", ip.String(), "podIPs", r.podAddrs[key], "podPhase", podStatus)
+			if err := r.ft.DelPeer(ip); err != nil {
+				return err
+			}
+		}
+
+		if keySet, ok := r.peers[ip.String()]; ok {
+			delete(keySet, key)
+			if len(keySet) == 0 {
+				delete(r.peers, ip.String())
+			}
 		}
 	}
 
 	delete(r.podAddrs, key)
 	r.metric.Set(float64(len(r.podAddrs)))
 	return nil
+}
+
+func (r *podWatcher) existsOtherLivePeers(key, ip string) bool {
+	if keySet, ok := r.peers[ip]; ok {
+		if _, ok := keySet[key]; ok {
+			return len(keySet) > 1
+		}
+		return len(keySet) > 0
+	}
+	return false
 }
