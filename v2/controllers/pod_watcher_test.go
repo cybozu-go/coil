@@ -277,4 +277,97 @@ var _ = Describe("Pod watcher", func() {
 
 		Expect(checkMetrics(2)).ShouldNot(HaveOccurred())
 	})
+
+	It("should not delete a peer that another pod is reusing", func() {
+		makePod("job", []string{"10.1.1.5"}, map[string]string{
+			"internet": "egress2",
+		})
+
+		Eventually(func() bool {
+			return reflect.DeepEqual(ft.GetPeers(), map[string]bool{
+				"10.1.1.2": true,
+				"fd01::2":  true,
+				"fd01::3":  true,
+				"10.1.1.5": true,
+			})
+		}).Should(BeTrue())
+
+		jobPod := &corev1.Pod{}
+		err := k8sClient.Get(ctx, client.ObjectKey{Namespace: "default", Name: "job"}, jobPod)
+		Expect(err).NotTo(HaveOccurred())
+		jobPod.Status.Phase = corev1.PodSucceeded
+		err = k8sClient.Status().Update(context.Background(), jobPod)
+		Expect(err).NotTo(HaveOccurred())
+
+		// coil-egress deletes the peer when the job pod completed
+		Eventually(func() bool {
+			return reflect.DeepEqual(ft.GetPeers(), map[string]bool{
+				"10.1.1.2": true,
+				"fd01::2":  true,
+				"fd01::3":  true,
+			})
+		}).Should(BeTrue())
+
+		// another pod reuses the same ip
+		makePod("another", []string{"10.1.1.5"}, map[string]string{
+			"internet": "egress2",
+		})
+
+		jobPod = &corev1.Pod{}
+		err = k8sClient.Get(ctx, client.ObjectKey{Namespace: "default", Name: "job"}, jobPod)
+		Expect(err).NotTo(HaveOccurred())
+		err = k8sClient.Delete(ctx, jobPod)
+		Expect(err).NotTo(HaveOccurred())
+
+		// coil-egress doesn't delete the peer that the job pod used because another pod is reusing it
+		Consistently(func() bool {
+			return reflect.DeepEqual(ft.GetPeers(), map[string]bool{
+				"10.1.1.2": true,
+				"fd01::2":  true,
+				"fd01::3":  true,
+				"10.1.1.5": true,
+			})
+		}, 5*time.Second, 1*time.Second).Should(BeTrue())
+	})
+
+	It("should not delete a peer when another pod accidentally hits the same one", func() {
+		makePod("job", []string{"10.1.1.5"}, map[string]string{
+			"internet": "egress2",
+		})
+
+		Eventually(func() bool {
+			return reflect.DeepEqual(ft.GetPeers(), map[string]bool{
+				"10.1.1.2": true,
+				"fd01::2":  true,
+				"fd01::3":  true,
+				"10.1.1.5": true,
+			})
+		}).Should(BeTrue())
+
+		// another pod hits the same ip and trigger the adding pod event
+		makePod("another", []string{"10.1.1.5"}, map[string]string{
+			"internet": "egress2",
+		})
+
+		jobPod := &corev1.Pod{}
+		err := k8sClient.Get(ctx, client.ObjectKey{Namespace: "default", Name: "job"}, jobPod)
+		Expect(err).NotTo(HaveOccurred())
+		jobPod.Status.Phase = corev1.PodSucceeded
+		// Trigger the terminating pod event
+		err = k8sClient.Status().Update(context.Background(), jobPod)
+		Expect(err).NotTo(HaveOccurred())
+		// Trigger the deleting pod event
+		err = k8sClient.Delete(ctx, jobPod)
+		Expect(err).NotTo(HaveOccurred())
+
+		// coil-egress doesn't delete the peer of another pod
+		Consistently(func() bool {
+			return reflect.DeepEqual(ft.GetPeers(), map[string]bool{
+				"10.1.1.2": true,
+				"fd01::2":  true,
+				"fd01::3":  true,
+				"10.1.1.5": true,
+			})
+		}, 5*time.Second, 1*time.Second).Should(BeTrue())
+	})
 })
