@@ -210,20 +210,24 @@ func (r *podWatcher) delTerminatedPod(pod *corev1.Pod, logger logr.Logger) error
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	return r.delPeer(fmt.Sprintf("%s/%s", pod.Namespace, pod.Name), "delTerminatedPod", string(pod.Status.Phase), logger)
+	return r.delPeer(pod.Namespace+"/"+pod.Name, "delTerminatedPod", string(pod.Status.Phase), logger)
 }
 
 func (r *podWatcher) delPod(n types.NamespacedName, logger logr.Logger) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	return r.delPeer(fmt.Sprintf("%s/%s", n.Namespace, n.Name), "delPod", "", logger)
+	return r.delPeer(n.Namespace+"/"+n.Name, "delPod", "", logger)
 }
 
-func (r *podWatcher) delPeer(key, caller, podStatus string, logger logr.Logger) error {
+func (r *podWatcher) delPeer(key, caller, podPhase string, logger logr.Logger) error {
 	for _, ip := range r.podAddrs[key] {
-		if !r.existsOtherLivePeers(key, ip.String()) {
-			logger.Info("delete peer", "caller", caller, "ip", ip.String(), "podIPs", r.podAddrs[key], "podPhase", podStatus)
+		existsLivePeers, err := r.existsOtherLivePeers(key, ip.String())
+		if err != nil {
+			return err
+		}
+		if !existsLivePeers {
+			logger.Info("delete peer", "caller", caller, "ip", ip.String(), "podIPs", r.podAddrs[key], "podPhase", podPhase)
 			if err := r.ft.DelPeer(ip); err != nil {
 				return err
 			}
@@ -242,12 +246,12 @@ func (r *podWatcher) delPeer(key, caller, podStatus string, logger logr.Logger) 
 	return nil
 }
 
-func (r *podWatcher) existsOtherLivePeers(key, ip string) bool {
+func (r *podWatcher) existsOtherLivePeers(key, ip string) (bool, error) {
 	if keySet, ok := r.peers[ip]; ok {
 		if _, ok := keySet[key]; ok {
-			return len(keySet) > 1
+			return len(keySet) > 1, nil
 		}
-		return len(keySet) > 0
+		return false, fmt.Errorf("keySet in the peers doesn't contain my key. key: %s ip: %s", key, ip)
 	}
-	return false
+	return false, fmt.Errorf("peers doesn't contain my IP. key: %s ip: %s", key, ip)
 }
