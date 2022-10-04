@@ -160,6 +160,15 @@ pkg/cnirpc/cni_grpc.pb.go: pkg/cnirpc/cni.proto
 ../docs/cni-grpc.md: pkg/cnirpc/cni.proto
 	$(PROTOC) --doc_out=../docs --doc_opt=markdown,$@ $<
 
+.PHONY: build
+build:
+	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil -ldflags="-s -w" cmd/coil/*.go
+	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil-controller -ldflags="-s -w" cmd/coil-controller/*.go
+	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil-egress -ldflags="-s -w" cmd/coil-egress/*.go
+	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil-installer -ldflags="-s -w" cmd/coil-installer/*.go
+	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil-router -ldflags="-s -w" cmd/coil-router/*.go
+	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coild -ldflags="-s -w" cmd/coild/*.go
+
 work/LICENSE:
 	mkdir -p work
 	cp ../LICENSE work

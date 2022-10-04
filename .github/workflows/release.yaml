@@ -36,10 +36,9 @@ jobs:
         if: steps.cache-tools.outputs.cache-hit != 'true'
       - name: Login to ghcr.io
         run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
-      - run: make build
       - name: Build & Push to ghcr.io
         run: |
-          make image IMAGE_TAG=${GITHUB_REF#refs/tags/v} # Remove "v" prefix.
+          make push IMAGE_TAG=${GITHUB_REF#refs/tags/v} # Remove "v" prefix.
   release:
     name: Release on GitHub
     needs: image
