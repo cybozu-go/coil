@@ -7,8 +7,9 @@ WORKDIR /workdir
 
 RUN make build GOARCH=${TARGETARCH}
 
-# https://github.com/cybozu/ubuntu-base/tree/6507099cc3955a9ec3b7a5a18c0944d819a605a8/20.04/ubuntu-dev
 FROM k8s.gcr.io/pause:3.6 as pause
+
+# https://github.com/cybozu/ubuntu-base/tree/6507099cc3955a9ec3b7a5a18c0944d819a605a8/20.04/ubuntu-dev
 FROM ubuntu:focal-20220801
 
 RUN apt-get update \
