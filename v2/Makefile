@@ -31,11 +31,6 @@ OTHERNSLIST = test-egress-dual test-egress-v4 test-egress-v6 \
 SHELL = /bin/bash
 .SHELLFLAGS = -e -o pipefail -c
 
-PLATFORM := linux/amd64
-ifeq ($(GOARCH),arm64)
-PLATFORM := linux/arm64/v8
-endif
-
 # Run tests, and set up envtest if not done already.
 .PHONY: test
 test: simple-test setup-envtest
