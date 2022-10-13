@@ -7,7 +7,7 @@ replace github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
 require (
 	github.com/bits-and-blooms/bitset v1.3.3
 	github.com/containernetworking/cni v1.1.2
-	github.com/containernetworking/plugins v1.0.1
+	github.com/containernetworking/plugins v1.1.1
 	github.com/coreos/go-iptables v0.6.0
 	github.com/cybozu-go/netutil v1.4.3
 	github.com/go-logr/logr v1.2.3
