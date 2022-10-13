@@ -219,6 +219,7 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 		}
 
 		if err := netlink.LinkSetUp(cLink); err != nil {
+			netlink.LinkDel(cLink)
 			return fmt.Errorf("netlink: failed to up link for container: %w", err)
 		}
 
