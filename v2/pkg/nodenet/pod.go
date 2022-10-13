@@ -218,6 +218,10 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 			return fmt.Errorf("netlink: failed to get veth link for container: %w", err)
 		}
 
+		if err := netlink.LinkSetUp(cLink); err != nil {
+			return fmt.Errorf("netlink: failed to up link for container: %w", err)
+		}
+
 		idx := 0
 		if conf.IPv4 != nil {
 			ipnet := netlink.NewIPNet(conf.IPv4)
