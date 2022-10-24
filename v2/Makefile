@@ -1,8 +1,8 @@
 # Makefile for Coil
 
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
-CONTROLLER_TOOLS_VERSION=0.9.2
-PROTOC_VERSION=21.2
+CONTROLLER_TOOLS_VERSION=0.10.0
+PROTOC_VERSION=21.6
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
 PROTOC_GEN_GO_GRPC_VERSON=1.2.0
 PROTOC_GEN_DOC_VERSION=1.5.1
