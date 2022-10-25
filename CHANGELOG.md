@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.1.3] - 2022-10-25
+
+### Changed
+
+- Update dependencies (#230)
+
 ## [2.1.2] - 2022-09-15
 
 ### Changed
@@ -164,7 +170,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.1.2...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.1.3...HEAD
+[2.1.3]: https://github.com/cybozu-go/coil/compare/v2.1.2...v2.1.3
 [2.1.2]: https://github.com/cybozu-go/coil/compare/v2.1.1...v2.1.2
 [2.1.1]: https://github.com/cybozu-go/coil/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/cybozu-go/coil/compare/v2.0.14...v2.1.0
