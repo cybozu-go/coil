@@ -10,6 +10,7 @@ func TestAllocator(t *testing.T) {
 	t.Run("v6", testAllocatorV6)
 	t.Run("dual", testAllocatorDual)
 	t.Run("fill", testAllocatorFill)
+	t.Run("notToReuse", testAllocatorNotToReUse)
 }
 
 func testAllocatorV4(t *testing.T) {
@@ -44,19 +45,26 @@ func testAllocatorV4(t *testing.T) {
 	if ip1, ip2, idx, ok := a.allocate(); !ok {
 		t.Error("should allocate addresses")
 	} else {
-		if !ip1.Equal(net.ParseIP("10.2.3.1")) {
+		if !ip1.Equal(net.ParseIP("10.2.3.3")) {
 			t.Error("unexpected ip1:", ip1)
 		}
 		if ip2 != nil {
 			t.Error("should not allocate IPv6 address")
 		}
-		if idx != 1 {
-			t.Error("idx should be 1, but", idx)
+		if idx != 3 {
+			t.Error("idx should be 3, but", idx)
 		}
 	}
 
-	if _, _, _, ok := a.allocate(); !ok {
+	if ip1, _, idx, ok := a.allocate(); !ok {
 		t.Error("should allocate addresses")
+	} else {
+		if !ip1.Equal(net.ParseIP("10.2.3.1")) {
+			t.Error("unexpected ip1:", ip1)
+		}
+		if idx != 1 {
+			t.Error("idx should be 1, but ", idx)
+		}
 	}
 
 	if !a.isFull() {
@@ -120,16 +128,23 @@ func testAllocatorV6(t *testing.T) {
 		if ip1 != nil {
 			t.Error("should not allocate IPv4 address")
 		}
+		if !ip2.Equal(net.ParseIP("fd02::0003")) {
+			t.Error("unexpected ip2:", ip2)
+		}
+		if idx != 3 {
+			t.Error("idx should be 3, but", idx)
+		}
+	}
+
+	if _, ip2, idx, ok := a.allocate(); !ok {
+		t.Error("should allocate addresses")
+	} else {
 		if !ip2.Equal(net.ParseIP("fd02::0001")) {
 			t.Error("unexpected ip2:", ip2)
 		}
 		if idx != 1 {
-			t.Error("idx should be 1, but", idx)
+			t.Error("idx should be 1, but ", idx)
 		}
-	}
-
-	if _, _, _, ok := a.allocate(); !ok {
-		t.Error("should allocate addresses")
 	}
 
 	if !a.isFull() {
@@ -191,6 +206,20 @@ func testAllocatorDual(t *testing.T) {
 	if ip1, ip2, idx, ok := a.allocate(); !ok {
 		t.Error("should allocate addresses")
 	} else {
+		if !ip1.Equal(net.ParseIP("10.2.3.3")) {
+			t.Error("unexpected ip1:", ip1)
+		}
+		if !ip2.Equal(net.ParseIP("fd02::0003")) {
+			t.Error("unexpected ip2:", ip2)
+		}
+		if idx != 3 {
+			t.Error("idx should be 3, but", idx)
+		}
+	}
+
+	if ip1, ip2, idx, ok := a.allocate(); !ok {
+		t.Error("should allocate addresses")
+	} else {
 		if !ip1.Equal(net.ParseIP("10.2.3.1")) {
 			t.Error("unexpected ip1:", ip1)
 		}
@@ -200,10 +229,6 @@ func testAllocatorDual(t *testing.T) {
 		if idx != 1 {
 			t.Error("idx should be 1, but", idx)
 		}
-	}
-
-	if _, _, _, ok := a.allocate(); !ok {
-		t.Error("should allocate addresses")
 	}
 
 	if !a.isFull() {
@@ -253,5 +278,57 @@ func testAllocatorFill(t *testing.T) {
 	a.free(3)
 	if !a.isEmpty() {
 		t.Error("fill changed the length")
+	}
+}
+
+func testAllocatorNotToReUse(t *testing.T) {
+	t.Parallel()
+
+	ipv4 := "10.2.3.0/30"
+	ipv6 := "fd02::/126"
+
+	a := newAllocator(&ipv4, &ipv6)
+	if !a.isEmpty() {
+		t.Error("new allocator should be empty")
+	}
+
+	a.fill()
+	if !a.isFull() {
+		t.Error("fill does not fill")
+	}
+
+	if _, _, idx, ok := a.allocate(); ok {
+		t.Error("should not allocate addresses ", idx)
+	}
+
+	a.free(3)
+	a.free(0)
+
+	if ip1, ip2, idx, ok := a.allocate(); !ok {
+		t.Error("should not allocate addresses")
+	} else {
+		if !ip1.Equal(net.ParseIP("10.2.3.0")) {
+			t.Error("unexpected ip1:", ip1)
+		}
+		if !ip2.Equal(net.ParseIP("fd02::")) {
+			t.Error("unexpected ip2:", ip2)
+		}
+		if idx != 0 {
+			t.Error("idx should be 0, but", idx)
+		}
+	}
+
+	if ip1, ip2, idx, ok := a.allocate(); !ok {
+		t.Error("should allocate addresses")
+	} else {
+		if !ip1.Equal(net.ParseIP("10.2.3.3")) {
+			t.Error("unexpected ip1:", ip1)
+		}
+		if !ip2.Equal(net.ParseIP("fd02::0003")) {
+			t.Error("unexpected ip2:", ip2)
+		}
+		if idx != 3 {
+			t.Error("idx should be 3, but", idx)
+		}
 	}
 }

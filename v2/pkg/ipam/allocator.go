@@ -9,12 +9,15 @@ import (
 )
 
 type allocator struct {
-	ipv4  *net.IPNet
-	ipv6  *net.IPNet
-	usage *bitset.BitSet
+	ipv4         *net.IPNet
+	ipv6         *net.IPNet
+	usage        *bitset.BitSet
+	lastAllocIdx *uint
 }
 
 func newAllocator(ipv4, ipv6 *string) (a allocator) {
+	var lastAllocIdx uint
+	a.lastAllocIdx = &lastAllocIdx
 	if ipv4 != nil {
 		ip, n, _ := net.ParseCIDR(*ipv4)
 		if ip.To4() == nil {
@@ -23,6 +26,7 @@ func newAllocator(ipv4, ipv6 *string) (a allocator) {
 		a.ipv4 = n
 		ones, bits := n.Mask.Size()
 		a.usage = bitset.New(uint(1) << (bits - ones))
+		*a.lastAllocIdx = 0
 	}
 	if ipv6 != nil {
 		_, n, _ := net.ParseCIDR(*ipv6)
@@ -31,6 +35,7 @@ func newAllocator(ipv4, ipv6 *string) (a allocator) {
 			ones, bits := n.Mask.Size()
 			a.usage = bitset.New(uint(1) << (bits - ones))
 		}
+		*a.lastAllocIdx = 0
 	}
 	return
 }
@@ -47,6 +52,8 @@ func (a allocator) fill() {
 	for i := uint(0); i < a.usage.Len(); i++ {
 		a.usage.Set(i)
 	}
+	*a.lastAllocIdx = uint(a.usage.Len() - 1)
+	fmt.Println("fill: ", *a.lastAllocIdx)
 }
 
 func (a allocator) register(ipv4, ipv6 net.IP) (uint, bool) {
@@ -56,6 +63,8 @@ func (a allocator) register(ipv4, ipv6 net.IP) (uint, bool) {
 			panic(fmt.Sprintf("ip: %v, base: %v, offset: %v", ipv4, a.ipv4.IP, offset))
 		}
 		a.usage.Set(uint(offset))
+		*a.lastAllocIdx = uint(offset)
+		fmt.Println("register: last allocated index = ", *a.lastAllocIdx)
 		return uint(offset), true
 	}
 	if a.ipv6 != nil && a.ipv6.Contains(ipv6) {
@@ -64,15 +73,21 @@ func (a allocator) register(ipv4, ipv6 net.IP) (uint, bool) {
 			panic(fmt.Sprintf("ip: %v, base: %v, offset: %v", ipv6, a.ipv6.IP, offset))
 		}
 		a.usage.Set(uint(offset))
+		*a.lastAllocIdx = uint(offset)
+		fmt.Println("register: last allocated index = ", *a.lastAllocIdx)
 		return uint(offset), true
 	}
 	return 0, false
 }
 
 func (a allocator) allocate() (ipv4, ipv6 net.IP, idx uint, ok bool) {
-	idx, ok = a.usage.NextClear(0)
+	// try to get an usable index from the last allocated index
+	idx, ok = a.usage.NextClear(*a.lastAllocIdx + 1)
 	if !ok {
-		return nil, nil, 0, false
+		// if an usable index is not found, try to get from index 0
+		if idx, ok = a.usage.NextClear(0); !ok {
+			return nil, nil, 0, false
+		}
 	}
 
 	if a.ipv4 != nil {
@@ -82,6 +97,7 @@ func (a allocator) allocate() (ipv4, ipv6 net.IP, idx uint, ok bool) {
 		ipv6 = netutil.IPAdd(a.ipv6.IP, int64(idx))
 	}
 	a.usage.Set(idx)
+	*a.lastAllocIdx = idx
 	return
 }
 
