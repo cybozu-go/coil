@@ -104,6 +104,15 @@ These blocks are called _address blocks_, and assigned to nodes.  Since all IP a
 
 For example, if an address pool defines that the size of an address block is 2<sup>5</sup>, `coil-controller` will curve an address block for IPv4 with `/27` subnet mask out of the pool, and assigns it to a node.
 
+When assigning an address, if `coil-controller` assigns the last released address again, it is possible to use old routes and it is not possible to establish a new connection via egress NAT.
+Therefore, avoiding reassigning the last released address, it records the index of the last assigned address.
+And in the next time, it assigns an address next to the recorded index.
+
+When we use an address block with the size `/32`, it may occur that reassignment of the same address block.
+However, the address block with the size `/32` is usually used as a global address.
+A global address will not frequently allocate and release.
+Thus, we don't implement this.
+
 ### How `coild` manages IP address assignments
 
 `coild` picks up a free IP address from an address block, assigns it to a pod.
