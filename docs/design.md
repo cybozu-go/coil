@@ -104,14 +104,16 @@ These blocks are called _address blocks_, and assigned to nodes.  Since all IP a
 
 For example, if an address pool defines that the size of an address block is 2<sup>5</sup>, `coil-controller` will curve an address block for IPv4 with `/27` subnet mask out of the pool, and assigns it to a node.
 
-When assigning an address, if `coil-controller` assigns the last released address again, it is possible to use old routes and it is not possible to establish a new connection via egress NAT.
-Therefore, avoiding reassigning the last released address, it records the index of the last assigned address.
-And in the next time, it assigns an address next to the recorded index.
 
-When we use an address block with the size `/32`, it may occur that reassignment of the same address block.
-However, the address block with the size `/32` is usually used as a global address.
-A global address will not frequently allocate and release.
-Thus, we don't implement this.
+When assigning an address, if `coil-controller` reuses the last released address immediately, it tends to use old routes.
+In general, avoiding immediate reuse of IP addresses is better not to confuse other software or components.
+Avoiding this, `coil-controller` remembers the last used address, and it assigns the address from the next address.
+
+Same problem may occurs when we use address blocks of the size `/32`.
+In this case, there is a high chance of reusing the same address immediately.
+However, the address block of the size `/32` is usually used for public addresses.
+Public IP addresses are not allocate and release frequently.
+Thus, we don't care this situation.
 
 ### How `coild` manages IP address assignments
 
