@@ -62,7 +62,6 @@ func (a allocator) register(ipv4, ipv6 net.IP) (uint, bool) {
 		}
 		a.usage.Set(uint(offset))
 		*a.lastAllocIdx = int64(offset)
-		fmt.Println("register: last allocated index = ", *a.lastAllocIdx)
 		return uint(offset), true
 	}
 	if a.ipv6 != nil && a.ipv6.Contains(ipv6) {
@@ -72,7 +71,6 @@ func (a allocator) register(ipv4, ipv6 net.IP) (uint, bool) {
 		}
 		a.usage.Set(uint(offset))
 		*a.lastAllocIdx = int64(offset)
-		fmt.Println("register: last allocated index = ", *a.lastAllocIdx)
 		return uint(offset), true
 	}
 	return 0, false
