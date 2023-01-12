@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.1.4] - 2023-01-12
+
+### Changed
+
+- Add ipam document (#233)
+- Fix IPAM logic not to reuse the same addresses immediately (#234)
+
 ## [2.1.3] - 2022-10-25
 
 ### Changed
@@ -170,7 +177,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.1.3...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.1.4...HEAD
+[2.1.4]: https://github.com/cybozu-go/coil/compare/v2.1.3...v2.1.4
 [2.1.3]: https://github.com/cybozu-go/coil/compare/v2.1.2...v2.1.3
 [2.1.2]: https://github.com/cybozu-go/coil/compare/v2.1.1...v2.1.2
 [2.1.1]: https://github.com/cybozu-go/coil/compare/v2.1.0...v2.1.1
