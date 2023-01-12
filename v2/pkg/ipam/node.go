@@ -261,7 +261,7 @@ func (n *nodeIPAM) getPool(ctx context.Context, name string) (*nodePool, error) 
 			apiReader:           n.apiReader,
 			scheme:              n.scheme,
 			requestCompletionCh: make(chan *coilv2.BlockRequest),
-			blockAlloc:          make(map[string]allocator),
+			blockAlloc:          make(map[string]*allocator),
 		}
 		if err := p.syncBlock(ctx); err != nil {
 			return nil, err
@@ -324,7 +324,7 @@ type nodePool struct {
 	requestCompletionCh chan *coilv2.BlockRequest
 
 	mu         sync.Mutex
-	blockAlloc map[string]allocator
+	blockAlloc map[string]*allocator
 }
 
 // syncBlock synchronizes address block information.
@@ -442,7 +442,7 @@ func (p *nodePool) register(containerID, iface string, ipv4, ipv6 net.IP) *alloc
 	return nil
 }
 
-func (p *nodePool) allocateFrom(alloc allocator, block string, toSync bool) (*allocInfo, bool, error) {
+func (p *nodePool) allocateFrom(alloc *allocator, block string, toSync bool) (*allocInfo, bool, error) {
 	ipv4, ipv6, idx, ok := alloc.allocate()
 	if !ok {
 		panic("bug")

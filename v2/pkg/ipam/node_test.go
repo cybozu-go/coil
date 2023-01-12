@@ -60,8 +60,8 @@ func testController(ctx context.Context, npMap map[string]NodeIPAM) {
 					},
 					Finalizers: []string{constants.FinCoil},
 				},
-				Index: 0,
-				IPv4:  strPtr("10.4.0.0/32"),
+				Index: 2,
+				IPv4:  strPtr("10.4.0.0/30"),
 			},
 		},
 	}
@@ -230,14 +230,19 @@ var _ = Describe("NodeIPAM", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(ipv4).To(EqualIP(net.ParseIP("10.4.0.0")))
 		Expect(ipv6).To(BeNil())
-		Expect(e2.Equal([]string{"10.4.0.0/32"})).To(BeTrue())
+		Expect(e2.Equal([]string{"10.4.0.0/30"})).To(BeTrue())
+
+		ipv4, ipv6, err = nodeIPAM2.Allocate(ctx, "v4", "d2", "eth0")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ipv4).To(EqualIP(net.ParseIP("10.4.0.1")))
+		Expect(ipv6).To(BeNil())
 
 		err = nodeIPAM2.Free(ctx, "d1", "eth0")
 		Expect(err).NotTo(HaveOccurred())
 
-		ipv4, ipv6, err = nodeIPAM.Allocate(ctx, "v4", "c101", "eth0")
+		ipv4, ipv6, err = nodeIPAM2.Allocate(ctx, "v4", "c101", "eth0")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(ipv4).To(EqualIP(net.ParseIP("10.4.0.0")))
+		Expect(ipv4).To(EqualIP(net.ParseIP("10.4.0.2")))
 		Expect(ipv6).To(BeNil())
 	})
 
