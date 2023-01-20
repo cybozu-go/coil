@@ -15,10 +15,6 @@ resources:
 # nodes are in a flat L2 network.
 #- config/pod/coil-router.yaml
 
-# If your cluster has enabled PodSecurityPolicy, uncomment the
-# following line.
-#- config/default/pod_security_policy.yaml
-
 patchesStrategicMerge:
 # Uncomment the following if you want to run Coil with Calico network policy.
 #- config/pod/compat_calico.yaml

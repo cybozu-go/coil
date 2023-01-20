@@ -178,8 +178,8 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	)
 	egressContainer.VolumeMounts = r.addVolumeMounts(egressContainer.VolumeMounts)
 	egressContainer.SecurityContext = &corev1.SecurityContext{
-		Privileged:             pointer.BoolPtr(true),
-		ReadOnlyRootFilesystem: pointer.BoolPtr(true),
+		Privileged:             pointer.Bool(true),
+		ReadOnlyRootFilesystem: pointer.Bool(true),
 		Capabilities:           &corev1.Capabilities{Add: []corev1.Capability{"NET_ADMIN"}},
 	}
 	if egressContainer.Resources.Requests == nil {
