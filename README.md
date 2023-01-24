@@ -23,7 +23,7 @@ Version 2 is generally available (GA).  It conforms to [CNI spec 0.4.0](https://
 
 ## Dependencies
 
-- Kubernetes Version: 1.22, 1.23, 1.24
+- Kubernetes Version: 1.23, 1.24, 1.25
     - Other versions are likely to work, but not tested.
 
 - (Optional) Routing software

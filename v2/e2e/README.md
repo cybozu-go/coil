@@ -111,7 +111,7 @@ $ make test
 You may change the default Kubernetes image for kind with `IMAGE` option.
 
 ```console
-$ make start KUBERNETES_VERSION=1.22.2
+$ make start KUBERNETES_VERSION=1.25.3
 ```
 
 To stop the cluster, run `make stop`.
