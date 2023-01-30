@@ -34,11 +34,19 @@ jobs:
           key: cache-${{ env.cache-version }}-go-${{ env.go-version }}-${{ hashFiles('v2/Makefile') }}
       - run: make setup
         if: steps.cache-tools.outputs.cache-hit != 'true'
-      - name: Login to ghcr.io
-        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
-      - name: Build & Push to ghcr.io
-        run: |
-          make push IMAGE_TAG=${GITHUB_REF#refs/tags/v} # Remove "v" prefix.
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64/v8
+          push: true
+          tags: ghcr.io/cybozu-go/coil:${GITHUB_REF#refs/tags/v} # Remove "v" prefix.
   release:
     name: Release on GitHub
     needs: image
