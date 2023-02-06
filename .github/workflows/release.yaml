@@ -40,13 +40,16 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set Tag
+        id: set-tag
+        run: echo "RELEASE_TAG=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT # Remove "v" prefix.
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
-          context: .
+          context: ./v2
           platforms: linux/amd64,linux/arm64/v8
           push: true
-          tags: ghcr.io/cybozu-go/coil:${GITHUB_REF#refs/tags/v} # Remove "v" prefix.
+          tags: ghcr.io/cybozu-go/coil:${{ steps.set-tag.outputs.RELEASE_TAG }}
   release:
     name: Release on GitHub
     needs: image
