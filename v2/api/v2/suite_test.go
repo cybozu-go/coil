@@ -60,6 +60,7 @@ var _ = BeforeSuite(func() {
 
 	scheme := runtime.NewScheme()
 	err = AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
 	err = clientgoscheme.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = admissionv1.AddToScheme(scheme)
