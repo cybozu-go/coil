@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.18-buster as build-env
+FROM --platform=$BUILDPLATFORM quay.io/cybozu/golang:1.19-focal as build-env
 
 ARG TARGETARCH
 
