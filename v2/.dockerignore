@@ -1,2 +1,6 @@
-*
-!work
+/bin
+/.vscode
+/config
+/dashboard
+/e2e
+/hack

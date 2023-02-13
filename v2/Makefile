@@ -1,5 +1,6 @@
 # Makefile for Coil
 
+IMAGE_TAG := latest
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
 CONTROLLER_TOOLS_VERSION=0.10.0
 PROTOC_VERSION=21.6
@@ -154,13 +155,26 @@ pkg/cnirpc/cni_grpc.pb.go: pkg/cnirpc/cni.proto
 ../docs/cni-grpc.md: pkg/cnirpc/cni.proto
 	$(PROTOC) --doc_out=../docs --doc_opt=markdown,$@ $<
 
-.PHONY: image
-image:
-	-rm -rf work
-	GOBIN=$(PWD)/work CGO_ENABLED=0 go install -ldflags="-s -w" ./cmd/coil*
+.PHONY: build
+build:
+	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil -ldflags="-s -w" cmd/coil/*.go
+	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil-controller -ldflags="-s -w" cmd/coil-controller/*.go
+	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil-egress -ldflags="-s -w" cmd/coil-egress/*.go
+	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil-installer -ldflags="-s -w" cmd/coil-installer/*.go
+	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil-router -ldflags="-s -w" cmd/coil-router/*.go
+	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coild -ldflags="-s -w" cmd/coild/*.go
+
+work/LICENSE:
+	mkdir -p work
 	cp ../LICENSE work
-	docker build --no-cache -t coil:dev .
-	rm -rf work
+
+.PHONY: image
+image: work/LICENSE
+	docker buildx build --no-cache --load -t coil:dev .
+
+.PHONY: push
+push: work/LICENSE
+	docker buildx build --no-cache --platform linux/amd64,linux/arm64/v8 --push -t ghcr.io/cybozu-go/coil:$(IMAGE_TAG) .
 
 .PHONY: setup
 setup:
