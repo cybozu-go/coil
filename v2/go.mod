@@ -2,8 +2,6 @@ module github.com/cybozu-go/coil/v2
 
 go 1.19
 
-replace github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
-
 require (
 	github.com/bits-and-blooms/bitset v1.3.3
 	github.com/containernetworking/cni v1.1.2
