@@ -15,6 +15,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Remove replace directive (#241)
 
+## [2.2.0] - 2023-01-24
+
+### Added
+
+- Support Kubernetes 1.25 (#237)
+
 ## [2.1.4] - 2023-01-12
 
 ### Changed
