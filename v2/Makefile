@@ -2,10 +2,10 @@
 
 IMAGE_TAG := latest
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
-CONTROLLER_TOOLS_VERSION=0.10.0
-PROTOC_VERSION=21.6
+CONTROLLER_TOOLS_VERSION=0.11.4
+PROTOC_VERSION=22.3
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
-PROTOC_GEN_GO_GRPC_VERSON=1.2.0
+PROTOC_GEN_GO_GRPC_VERSON=1.3.0
 PROTOC_GEN_DOC_VERSION=1.5.1
 
 ## DON'T EDIT BELOW THIS LINE
