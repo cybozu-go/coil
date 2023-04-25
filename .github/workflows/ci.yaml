@@ -8,12 +8,12 @@ defaults:
   run:
     working-directory: v2
 env:
-  go-version: 1.19
+  go-version: "1.20"
   cache-version: 1
 jobs:
   test:
     name: Small test
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-go@v3
@@ -39,9 +39,9 @@ jobs:
     name: End-to-end Test
     strategy:
       matrix:
-        kindest-node: ["1.23.13", "1.24.7", "1.25.3"]
+        kindest-node: ["1.24.12", "1.25.8", "1.26.3"]
         ip-version: ["ipv4", "ipv6"]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-go@v3
