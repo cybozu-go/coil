@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.4.0] - 2023-07-10
+
+### Added
+
+- Support k8s 1.26 and update dependencies (#246)
+
 ## [2.3.0] - 2023-02-17
 
 ### Added
