@@ -41,6 +41,7 @@ jobs:
       matrix:
         kindest-node: ["1.24.12", "1.25.8", "1.26.3"]
         ip-version: ["ipv4", "ipv6"]
+        egress-sport-auto: ["true", "false"]
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
@@ -60,7 +61,7 @@ jobs:
         echo TEST_IPV6=true >> $GITHUB_ENV
     - run: make start KUBERNETES_VERSION=${{ matrix.kindest-node }}
       working-directory: v2/e2e
-    - run: make install-coil
+    - run: make install-coil EGRESS_SPORT_AUTO=${{ matrix.egress-sport-auto }}
       working-directory: v2/e2e
     - run: make test
       working-directory: v2/e2e

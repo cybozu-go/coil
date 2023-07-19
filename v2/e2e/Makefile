@@ -13,6 +13,11 @@ ifeq ($(TEST_IPV6),true)
 KIND_CONFIG = kind-config_v6.yaml
 endif
 
+KUSTOMIZE_DIRECTORY = base
+ifeq ($(EGRESS_SPORT_AUTO),true)
+KUSTOMIZE_DIRECTORY = egress-sport-auto
+endif
+
 .PHONY: start
 start: $(KIND) $(KUBECTL) $(KUSTOMIZE)
 	$(KIND) create cluster --image kindest/node:v$(KUBERNETES_VERSION) --name coil --config $(KIND_CONFIG)
@@ -28,7 +33,7 @@ install-coil:
 	$(KUBECTL) label nodes coil-worker test=coil
 	$(KUBECTL) label nodes coil-worker2 test=coil
 	$(KIND) load docker-image --name coil coil:dev
-	$(KUSTOMIZE) build --load-restrictor=LoadRestrictionsNone . | $(KUBECTL) apply -f -
+	$(KUSTOMIZE) build --load-restrictor=LoadRestrictionsNone $(KUSTOMIZE_DIRECTORY) | $(KUBECTL) apply -f -
 	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-controller
 
 .PHONY: test

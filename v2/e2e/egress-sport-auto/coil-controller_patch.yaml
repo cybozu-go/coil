@@ -1,0 +1,11 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coil-controller
+  namespace: system
+spec:
+  template:
+    spec:
+      containers:
+      - name: coil-controller
+        args: ["--gc-interval=10s", "--enable-sport-auto=true"]

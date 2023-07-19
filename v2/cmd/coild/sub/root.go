@@ -22,6 +22,8 @@ var config struct {
 	socketPath       string
 	compatCalico     bool
 	egressPort       int
+	egressSportAuto  bool
+	needIPIP         bool
 	registerFromMain bool
 	zapOpts          zap.Options
 }
@@ -60,6 +62,8 @@ func init() {
 	pf.StringVar(&config.socketPath, "socket", constants.DefaultSocketPath, "UNIX domain socket path")
 	pf.BoolVar(&config.compatCalico, "compat-calico", false, "make veth name compatible with Calico")
 	pf.IntVar(&config.egressPort, "egress-port", 5555, "UDP port number for egress NAT")
+	pf.BoolVar(&config.egressSportAuto, "egress-sport-auto", false, "enable encap sport auto")
+	pf.BoolVar(&config.needIPIP, "need-ipip", false, "setup an ipip device")
 	pf.BoolVar(&config.registerFromMain, "register-from-main", false, "help migration from Coil 2.0.1")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)

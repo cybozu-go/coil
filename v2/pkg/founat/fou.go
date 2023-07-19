@@ -55,10 +55,10 @@ type FoUTunnel interface {
 }
 
 // NewFoUTunnel creates a new FoUTunnel.
-// port is the UDP port to receive FoU packets.
+// sport/dport is the UDP port to receive FoU packets.
 // localIPv4 is the local IPv4 address of the IPIP tunnel.  This can be nil.
 // localIPv6 is the same as localIPv4 for IPv6.
-func NewFoUTunnel(port int, localIPv4, localIPv6 net.IP) FoUTunnel {
+func NewFoUTunnel(sport, dport int, localIPv4, localIPv6 net.IP, needIPIP bool) FoUTunnel {
 	if localIPv4 != nil && localIPv4.To4() == nil {
 		panic("invalid IPv4 address")
 	}
@@ -66,16 +66,20 @@ func NewFoUTunnel(port int, localIPv4, localIPv6 net.IP) FoUTunnel {
 		panic("invalid IPv6 address")
 	}
 	return &fouTunnel{
-		port:   port,
-		local4: localIPv4,
-		local6: localIPv6,
+		sport:    sport,
+		dport:    dport,
+		needIPIP: needIPIP,
+		local4:   localIPv4,
+		local6:   localIPv6,
 	}
 }
 
 type fouTunnel struct {
-	port   int
-	local4 net.IP
-	local6 net.IP
+	sport    int
+	dport    int
+	needIPIP bool
+	local4   net.IP
+	local6   net.IP
 
 	mu sync.Mutex
 }
@@ -97,7 +101,7 @@ func (t *fouTunnel) Init() error {
 		err := netlink.FouAdd(netlink.Fou{
 			Family:    netlink.FAMILY_V4,
 			Protocol:  4, // IPv4 over IPv4 (so-called IPIP)
-			Port:      t.port,
+			Port:      t.dport,
 			EncapType: netlink.FOU_ENCAP_DIRECT,
 		})
 		if err != nil {
@@ -119,7 +123,7 @@ func (t *fouTunnel) Init() error {
 		}
 		// workaround for kube-proxy's double NAT problem
 		rulespec := []string{
-			"-p", "udp", "--dport", strconv.Itoa(t.port), "-j", "CHECKSUM", "--checksum-fill",
+			"-p", "udp", "--dport", strconv.Itoa(t.dport), "-j", "CHECKSUM", "--checksum-fill",
 		}
 		if err := ipt.Insert("mangle", "POSTROUTING", 1, rulespec...); err != nil {
 			return fmt.Errorf("failed to setup mangle table: %w", err)
@@ -132,7 +136,7 @@ func (t *fouTunnel) Init() error {
 		err := netlink.FouAdd(netlink.Fou{
 			Family:    netlink.FAMILY_V6,
 			Protocol:  41, // IPv6 over IPv6 (so-called SIT)
-			Port:      t.port,
+			Port:      t.dport,
 			EncapType: netlink.FOU_ENCAP_DIRECT,
 		})
 		if err != nil {
@@ -148,7 +152,7 @@ func (t *fouTunnel) Init() error {
 		}
 		// workaround for kube-proxy's double NAT problem
 		rulespec := []string{
-			"-p", "udp", "--dport", strconv.Itoa(t.port), "-j", "CHECKSUM", "--checksum-fill",
+			"-p", "udp", "--dport", strconv.Itoa(t.dport), "-j", "CHECKSUM", "--checksum-fill",
 		}
 		if err := ipt.Insert("mangle", "POSTROUTING", 1, rulespec...); err != nil {
 			return fmt.Errorf("failed to setup mangle table: %w", err)
@@ -198,8 +202,8 @@ func (t *fouTunnel) addPeer4(addr net.IP) (netlink.Link, error) {
 		LinkAttrs:  attrs,
 		Ttl:        225,
 		EncapType:  netlink.FOU_ENCAP_DIRECT,
-		EncapDport: uint16(t.port),
-		EncapSport: uint16(t.port),
+		EncapDport: uint16(t.dport),
+		EncapSport: uint16(t.sport),
 		Remote:     addr,
 		Local:      t.local4,
 	}
@@ -207,9 +211,59 @@ func (t *fouTunnel) addPeer4(addr net.IP) (netlink.Link, error) {
 		return nil, fmt.Errorf("netlink: failed to add fou link: %w", err)
 	}
 
+	if t.needIPIP {
+		if err := addIPIP4(); err != nil {
+			return nil, fmt.Errorf("netlink: failed to add ipip4 collect_md link: %w", err)
+		}
+	}
+
 	return netlink.LinkByName(linkName)
 }
 
+func addIPIP4() error {
+	name := "coil_ipip4"
+	_, err := netlink.LinkByName(name)
+	if err == nil {
+		return nil
+	}
+	if _, ok := err.(netlink.LinkNotFoundError); !ok {
+		return fmt.Errorf("netlink: failed to get link: %w", err)
+	}
+
+	// Upon module load, the kernel creates a non-removal tunl0 device. Rename it, otherwise we will get the File exists error.
+	// ref: https://github.com/cilium/cilium/blob/db88056cf2960795198d2b66f910b63806b912dc/bpf/init.sh#L197-L201
+	tunl0, err := netlink.LinkByName("tunl0")
+	if err == nil {
+		if err := netlink.LinkSetName(tunl0, name); err != nil {
+			return fmt.Errorf("netlink: failed to set link name to %s: %w", name, err)
+		}
+		if err := netlink.LinkSetUp(tunl0); err != nil {
+			return fmt.Errorf("netlink: failed to set link %s up: %w", name, err)
+		}
+		rpFilter := fmt.Sprintf("net.ipv4.conf.%s.rp_filter", name)
+		if _, err := sysctl.Sysctl(rpFilter, "0"); err != nil {
+			return fmt.Errorf("setting %s=0 failed: %w", rpFilter, err)
+		}
+		return nil
+	}
+
+	if _, ok := err.(netlink.LinkNotFoundError); !ok {
+		return fmt.Errorf("netlink: failed to get link tunl0: %w", err)
+	}
+
+	attrs := netlink.NewLinkAttrs()
+	attrs.Name = name
+	attrs.Flags = net.FlagUp
+	link := &netlink.Iptun{
+		LinkAttrs: attrs,
+		FlowBased: true,
+	}
+	if err := netlink.LinkAdd(link); err != nil {
+		return fmt.Errorf("netlink: failed to add %s link: %w", name, err)
+	}
+
+	return nil
+}
 func (t *fouTunnel) addPeer6(addr net.IP) (netlink.Link, error) {
 	if t.local6 == nil {
 		return nil, ErrIPFamilyMismatch
@@ -232,8 +286,8 @@ func (t *fouTunnel) addPeer6(addr net.IP) (netlink.Link, error) {
 		LinkAttrs:  attrs,
 		Ttl:        225,
 		EncapType:  netlink.FOU_ENCAP_DIRECT,
-		EncapDport: uint16(t.port),
-		EncapSport: uint16(t.port),
+		EncapDport: uint16(t.dport),
+		EncapSport: uint16(t.sport),
 		Remote:     addr,
 		Local:      t.local6,
 	}
@@ -241,9 +295,57 @@ func (t *fouTunnel) addPeer6(addr net.IP) (netlink.Link, error) {
 		return nil, fmt.Errorf("netlink: failed to add fou6 link: %w", err)
 	}
 
+	if t.needIPIP {
+		if err := addIPIP6(); err != nil {
+			return nil, fmt.Errorf("netlink: failed to add ipip6 collect_md link: %w", err)
+		}
+	}
+
 	return netlink.LinkByName(linkName)
 }
 
+func addIPIP6() error {
+	name := "coil_ipip6"
+	_, err := netlink.LinkByName(name)
+	if err == nil {
+		return nil
+	}
+	if _, ok := err.(netlink.LinkNotFoundError); !ok {
+		return fmt.Errorf("netlink: failed to get link: %w", err)
+	}
+
+	// See addIPIP4
+	ip6tnl0, err := netlink.LinkByName("ip6tnl0")
+	if err == nil {
+		if err := netlink.LinkSetName(ip6tnl0, name); err != nil {
+			return fmt.Errorf("netlink: failed to set link name to %s: %w", name, err)
+		}
+		if err := netlink.LinkSetUp(ip6tnl0); err != nil {
+			return fmt.Errorf("netlink: failed to set link %s up: %w", name, err)
+		}
+		return nil
+	}
+
+	if _, ok := err.(netlink.LinkNotFoundError); !ok {
+		return fmt.Errorf("netlink: failed to get link ip6tnl0: %w", err)
+	}
+
+	out, err := exec.Command("ip", "link", "add", "name", name, "type", "ip6tnl", "external").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("netlink: failed to add %s link: %w: %s", name, err, string(out))
+	}
+
+	ipip6, err := netlink.LinkByName(name)
+	if err != nil {
+		return fmt.Errorf("netlink: failed to get link %s: %w", name, err)
+	}
+
+	if err := netlink.LinkSetUp(ipip6); err != nil {
+		return fmt.Errorf("netlink: failed to set link %s up: %w", name, err)
+	}
+
+	return nil
+}
 func (t *fouTunnel) DelPeer(addr net.IP) error {
 	linkName := fouName(addr)
 

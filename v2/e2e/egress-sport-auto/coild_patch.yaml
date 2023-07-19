@@ -1,0 +1,11 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: coild
+  namespace: system
+spec:
+  template:
+    spec:
+      containers:
+      - name: coild
+        args: ["--zap-stacktrace-level=panic", "--need-ipip=true", "--egress-sport-auto=true"]

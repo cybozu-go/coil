@@ -23,9 +23,10 @@ import (
 // EgressReconciler reconciles a Egress object
 type EgressReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	Image  string
-	Port   int32
+	Scheme          *runtime.Scheme
+	Image           string
+	Port            int32
+	EnableSportAuto bool
 }
 
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses,verbs=get;list;watch
@@ -157,6 +158,9 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	}
 	if len(egressContainer.Args) == 0 {
 		egressContainer.Args = []string{"--zap-stacktrace-level=panic"}
+		if r.EnableSportAuto {
+			egressContainer.Args = append(egressContainer.Args, "--enable-sport-auto=true")
+		}
 	}
 	egressContainer.Env = append(egressContainer.Env,
 		corev1.EnvVar{

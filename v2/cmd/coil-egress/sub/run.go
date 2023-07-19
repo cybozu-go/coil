@@ -84,7 +84,11 @@ func subMain() error {
 		return err
 	}
 
-	ft := founat.NewFoUTunnel(config.port, ipv4, ipv6)
+	sport := config.port
+	if config.enableSportAuto {
+		sport = 0
+	}
+	ft := founat.NewFoUTunnel(sport, config.port, ipv4, ipv6, false)
 	if err := ft.Init(); err != nil {
 		return err
 	}

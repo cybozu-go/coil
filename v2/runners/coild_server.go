@@ -47,17 +47,23 @@ type NATSetup interface {
 
 // NewNATSetup creates a NATSetup using founat package.
 // `port` is the UDP port number to accept Foo-over-UDP packets.
-func NewNATSetup(port int) NATSetup {
-	return natSetup{port: port}
+func NewNATSetup(port int, enableSportAuto, needIPIP bool) NATSetup {
+	return natSetup{port: port, enableSportAuto: enableSportAuto, needIPIP: needIPIP}
 }
 
 type natSetup struct {
-	port int
+	port            int
+	enableSportAuto bool
+	needIPIP        bool
 }
 
 func (n natSetup) Hook(l []GWNets, log *zap.Logger) func(ipv4, ipv6 net.IP) error {
 	return func(ipv4, ipv6 net.IP) error {
-		ft := founat.NewFoUTunnel(n.port, ipv4, ipv6)
+		sport := n.port
+		if n.enableSportAuto {
+			sport = 0
+		}
+		ft := founat.NewFoUTunnel(sport, n.port, ipv4, ipv6, n.needIPIP)
 		if err := ft.Init(); err != nil {
 			return err
 		}

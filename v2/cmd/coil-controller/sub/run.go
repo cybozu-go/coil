@@ -107,10 +107,11 @@ func subMain() error {
 		return err
 	}
 	egressctrl := controllers.EgressReconciler{
-		Client: mgr.GetClient(),
-		Scheme: scheme,
-		Image:  img,
-		Port:   config.egressPort,
+		Client:          mgr.GetClient(),
+		Scheme:          scheme,
+		Image:           img,
+		Port:            config.egressPort,
+		EnableSportAuto: config.enableSportAuto,
 	}
 	if err := egressctrl.SetupWithManager(mgr); err != nil {
 		return err

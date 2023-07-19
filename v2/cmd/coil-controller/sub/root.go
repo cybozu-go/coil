@@ -13,13 +13,14 @@ import (
 )
 
 var config struct {
-	metricsAddr string
-	healthAddr  string
-	webhookAddr string
-	certDir     string
-	gcInterval  time.Duration
-	egressPort  int32
-	zapOpts     zap.Options
+	metricsAddr     string
+	healthAddr      string
+	webhookAddr     string
+	certDir         string
+	gcInterval      time.Duration
+	egressPort      int32
+	enableSportAuto bool
+	zapOpts         zap.Options
 }
 
 var rootCmd = &cobra.Command{
@@ -50,6 +51,7 @@ func init() {
 	pf.StringVar(&config.certDir, "cert-dir", "/certs", "directory to locate TLS certs for webhook")
 	pf.DurationVar(&config.gcInterval, "gc-interval", 1*time.Hour, "garbage collection interval")
 	pf.Int32Var(&config.egressPort, "egress-port", 5555, "UDP port number used by coil-egress")
+	pf.BoolVar(&config.enableSportAuto, "enable-sport-auto", false, "enable automatic source port assignment")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)
