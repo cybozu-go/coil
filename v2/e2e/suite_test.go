@@ -24,6 +24,17 @@ func TestE2e(t *testing.T) {
 
 var kubectlCmd = os.Getenv("KUBECTL")
 
+func execSafe(input []byte, command string, args ...string) []byte {
+	cmd := exec.Command(command, args...)
+	if input != nil {
+		cmd.Stdin = bytes.NewReader(input)
+	}
+	cmd.Stderr = os.Stderr
+	stdout, err := cmd.Output()
+	ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
+	return stdout
+}
+
 func kubectl(input []byte, args ...string) (stdout []byte, err error) {
 	if kubectlCmd == "" {
 		panic("KUBECTL environment variable must be set")

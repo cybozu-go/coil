@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 	"time"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
@@ -307,6 +309,39 @@ var _ = Describe("Coil", func() {
 		By("running HTTP server on coil-control-plane")
 		go runOnNode("coil-control-plane", "/usr/local/bin/echotest")
 		time.Sleep(100 * time.Millisecond)
+
+		By("debug 1")
+		stdout := execSafe(nil, "sudo", "ip", "netns", "list-id")
+		fmt.Println(string(stdout))
+
+		By("debug 2")
+		stdout = execSafe(nil, "docker", "inspect", "--format={{.State.Pid}}", "coil-control-plane")
+		fmt.Println(string(stdout))
+
+		By("debug 3")
+		stdout = execSafe(nil, "sudo", "ip", "netns", "attach", "coil-control-plane", strings.TrimSpace(string(stdout)))
+		fmt.Println(string(stdout))
+
+		By("debug 4")
+		stdout = execSafe(nil, "sudo", "ip", "netns", "list")
+		fmt.Println(string(stdout))
+
+		By("debug 5")
+		stdout = execSafe(nil, "sudo", "ip", "netns", "exec", "coil-control-plane", "netstat", "-tln")
+
+		By("debug 6")
+		stdout = execSafe(stdout, "grep", "-w", "80")
+		fmt.Println(string(stdout))
+
+		By("debug 7")
+		stdout = execSafe(nil, "sudo", "ip", "netns", "exec", "coil-control-plane", "ip", "a", "show", "dummy-fake")
+		fmt.Println(string(stdout))
+
+		By("debug 100")
+		cmd := exec.Command(kubectlCmd, "exec", "nat-client", "--", "curl", "-svvv", fakeURL)
+		cmd.Stderr = os.Stderr
+		_, err = cmd.Output()
+		Expect(err).NotTo(HaveOccurred())
 
 		By("sending and receiving HTTP request from nat-client")
 		data := make([]byte, 1<<20) // 1 MiB
