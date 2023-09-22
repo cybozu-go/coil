@@ -40,6 +40,12 @@ spec:
                   type: string
                 minItems: 1
                 type: array
+              fouSourcePortAuto:
+                description: FouSourcePortAuto indicates that the source port number
+                  in foo-over-udp encapsulation should be chosen automatically. If
+                  set to true, the kernel picks a flow based on the flow hash of the
+                  encapsulated packet. The default is false.
+                type: boolean
               replicas:
                 default: 1
                 description: Replicas is the desired number of egress (SNAT) pods.

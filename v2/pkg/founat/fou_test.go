@@ -1,6 +1,7 @@
 package founat
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -75,7 +76,7 @@ func testFoUDual(t *testing.T) {
 			}
 		}
 
-		if link, err := fou.AddPeer(net.ParseIP("10.1.1.1")); err != nil {
+		if link, err := fou.AddPeer(net.ParseIP("10.1.1.1"), true); err != nil {
 			return fmt.Errorf("failed to call AddPeer with 10.1.1.1: %w", err)
 		} else {
 			iptun, ok := link.(*netlink.Iptun)
@@ -91,12 +92,24 @@ func testFoUDual(t *testing.T) {
 			if iptun.EncapDport != 5555 {
 				return fmt.Errorf("iptun.EncapDport is not 5555: %d", iptun.EncapDport)
 			}
-			if iptun.EncapSport != 5555 {
-				return fmt.Errorf("iptun.EncapSport is not 5555: %d", iptun.EncapSport)
+			if iptun.EncapSport != 0 {
+				return fmt.Errorf("iptun.EncapSport is not 0: %d", iptun.EncapSport)
+			}
+
+			ipip4, err := netlink.LinkByName("coil_ipip4")
+			if err != nil {
+				return fmt.Errorf("failed to get coil_ipip4: %w", err)
+			}
+			iptun, ok = ipip4.(*netlink.Iptun)
+			if !ok {
+				return fmt.Errorf("link is not Iptun: %T", link)
+			}
+			if !iptun.FlowBased {
+				return errors.New("coil_ipip4 is not flow based")
 			}
 		}
 
-		if link, err := fou.AddPeer(net.ParseIP("fd02::101")); err != nil {
+		if link, err := fou.AddPeer(net.ParseIP("fd02::101"), true); err != nil {
 			return fmt.Errorf("failed to call AddPeer with fd02::101: %w", err)
 		} else {
 			ip6tnl, ok := link.(*netlink.Ip6tnl)
@@ -112,8 +125,20 @@ func testFoUDual(t *testing.T) {
 			if ip6tnl.EncapDport != 5555 {
 				return fmt.Errorf("ip6tnl.EncapDport is not 5555: %d", ip6tnl.EncapDport)
 			}
-			if ip6tnl.EncapSport != 5555 {
-				return fmt.Errorf("ip6tnl.EncapSport is not 5555: %d", ip6tnl.EncapSport)
+			if ip6tnl.EncapSport != 0 {
+				return fmt.Errorf("ip6tnl.EncapSport is not 0: %d", ip6tnl.EncapSport)
+			}
+
+			ipip6, err := netlink.LinkByName("coil_ipip6")
+			if err != nil {
+				return fmt.Errorf("failed to get coil_ipip6: %w", err)
+			}
+			ip6tnl, ok = ipip6.(*netlink.Ip6tnl)
+			if !ok {
+				return fmt.Errorf("link is not Iptun: %T", link)
+			}
+			if !ip6tnl.FlowBased {
+				return errors.New("coil_ipip6 is not flow based")
 			}
 		}
 
@@ -186,7 +211,7 @@ func testFoUV4(t *testing.T) {
 			}
 		}
 
-		if link, err := fou.AddPeer(net.ParseIP("10.1.1.1")); err != nil {
+		if link, err := fou.AddPeer(net.ParseIP("10.1.1.1"), true); err != nil {
 			return fmt.Errorf("failed to call AddPeer with 10.1.1.1: %w", err)
 		} else {
 			iptun, ok := link.(*netlink.Iptun)
@@ -202,12 +227,24 @@ func testFoUV4(t *testing.T) {
 			if iptun.EncapDport != 5555 {
 				return fmt.Errorf("iptun.EncapDport is not 5555: %d", iptun.EncapDport)
 			}
-			if iptun.EncapSport != 5555 {
-				return fmt.Errorf("iptun.EncapSport is not 5555: %d", iptun.EncapSport)
+			if iptun.EncapSport != 0 {
+				return fmt.Errorf("iptun.EncapSport is not 0: %d", iptun.EncapSport)
+			}
+
+			ipip4, err := netlink.LinkByName("coil_ipip4")
+			if err != nil {
+				return fmt.Errorf("failed to get coil_ipip4: %w", err)
+			}
+			iptun, ok = ipip4.(*netlink.Iptun)
+			if !ok {
+				return fmt.Errorf("link is not Iptun: %T", link)
+			}
+			if !iptun.FlowBased {
+				return errors.New("coil_ipip4 is not flow based")
 			}
 		}
 
-		if _, err := fou.AddPeer(net.ParseIP("fd02::101")); err != ErrIPFamilyMismatch {
+		if _, err := fou.AddPeer(net.ParseIP("fd02::101"), true); err != ErrIPFamilyMismatch {
 			return fmt.Errorf("error is not ErrIPFamilyMismatch: %w", err)
 		}
 
@@ -267,11 +304,11 @@ func testFoUV6(t *testing.T) {
 			}
 		}
 
-		if _, err := fou.AddPeer(net.ParseIP("10.1.1.1")); err != ErrIPFamilyMismatch {
+		if _, err := fou.AddPeer(net.ParseIP("10.1.1.1"), true); err != ErrIPFamilyMismatch {
 			return fmt.Errorf("error is not ErrIPFamilyMismatch: %w", err)
 		}
 
-		if link, err := fou.AddPeer(net.ParseIP("fd02::101")); err != nil {
+		if link, err := fou.AddPeer(net.ParseIP("fd02::101"), true); err != nil {
 			return fmt.Errorf("failed to call AddPeer with fd02::101: %w", err)
 		} else {
 			ip6tnl, ok := link.(*netlink.Ip6tnl)
@@ -287,8 +324,20 @@ func testFoUV6(t *testing.T) {
 			if ip6tnl.EncapDport != 5555 {
 				return fmt.Errorf("ip6tnl.EncapDport is not 5555: %d", ip6tnl.EncapDport)
 			}
-			if ip6tnl.EncapSport != 5555 {
-				return fmt.Errorf("ip6tnl.EncapSport is not 5555: %d", ip6tnl.EncapSport)
+			if ip6tnl.EncapSport != 0 {
+				return fmt.Errorf("ip6tnl.EncapSport is not 0: %d", ip6tnl.EncapSport)
+			}
+
+			ipip6, err := netlink.LinkByName("coil_ipip6")
+			if err != nil {
+				return fmt.Errorf("failed to get coil_ipip6: %w", err)
+			}
+			ip6tnl, ok = ipip6.(*netlink.Ip6tnl)
+			if !ok {
+				return fmt.Errorf("link is not Iptun: %T", link)
+			}
+			if !ip6tnl.FlowBased {
+				return errors.New("coil_ipip6 is not flow based")
 			}
 		}
 

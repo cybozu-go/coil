@@ -36,8 +36,9 @@ import (
 
 // GWNets represents networks for a destination.
 type GWNets struct {
-	Gateway  net.IP
-	Networks []*net.IPNet
+	Gateway   net.IP
+	Networks  []*net.IPNet
+	SportAuto bool
 }
 
 // NATSetup represents a NAT setup function for Pods.
@@ -68,7 +69,7 @@ func (n natSetup) Hook(l []GWNets, log *zap.Logger) func(ipv4, ipv6 net.IP) erro
 		}
 
 		for _, gwn := range l {
-			link, err := ft.AddPeer(gwn.Gateway)
+			link, err := ft.AddPeer(gwn.Gateway, gwn.SportAuto)
 			if errors.Is(err, founat.ErrIPFamilyMismatch) {
 				// ignore unsupported IP family link
 				log.Sugar().Infow("ignored unsupported gateway", "gw", gwn.Gateway)
@@ -369,7 +370,7 @@ func (s *coildServer) getHook(ctx context.Context, pod *corev1.Pod) (nodenet.Set
 		}
 
 		if len(subnets) > 0 {
-			gwlist = append(gwlist, GWNets{Gateway: svcIP, Networks: subnets})
+			gwlist = append(gwlist, GWNets{Gateway: svcIP, Networks: subnets, SportAuto: eg.Spec.FouSourcePortAuto})
 		}
 	}
 

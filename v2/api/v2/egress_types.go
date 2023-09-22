@@ -53,6 +53,13 @@ type EgressSpec struct {
 	// Ref. https://pkg.go.dev/k8s.io/api/core/v1?tab=doc#ServiceSpec
 	// +optional
 	SessionAffinityConfig *corev1.SessionAffinityConfig `json:"sessionAffinityConfig,omitempty"`
+
+	// FouSourcePortAuto indicates that the source port number in foo-over-udp encapsulation
+	// should be chosen automatically.
+	// If set to true, the kernel picks a flow based on the flow hash of the encapsulated packet.
+	// The default is false.
+	// +optional
+	FouSourcePortAuto bool `json:"fouSourcePortAuto,omitempty"`
 }
 
 // EgressPodTemplate defines pod template for Egress
