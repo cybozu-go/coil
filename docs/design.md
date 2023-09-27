@@ -203,7 +203,7 @@ This can be configured by 1) creating IPIP tunnel device with FoU encapsulation 
 ```console
 $ sudo ip link add name tun1 type ipip ttl 225 \
     remote 1.2.3.4 local 5.6.7.8 \
-    encap fou encap-sport 5555 encap-dport 5555
+    encap fou encap-sport auto encap-dport 5555
 
 $ sudo ip fou add port 5555 ipproto 4    # 4 means IPIP protocol
 ```
@@ -225,13 +225,27 @@ The transmission between client pods and the SNAT router needs to be bidirection
 
 If the SNAT routers are behind Kubernetes Service, the IPIP tunnel on the client pod is configured to send packets to the Service's ClusterIP.  Therefore, the FoU encapsulated packet will have the ClusterIP as the destination address.
 
-Remember we need bidirectional tunneling.  If the returning packet has the SNAT router's IP address as the source address, the packet does not match the IPIP tunnel configured for the Service's ClusterIP.  So, the returning packet *must* have the ClusterIP as the source address.
+Remember we need bidirectional tunneling.  If the returning packet has the SNAT router's IP address as the source address, the packet does not match the IPIP tunnel configured for the Service's ClusterIP.
+We setup a flow based IPIP tunnel device to receive such the returning packet as well as the IPIP tunnel device with FoU encapsulation option. Otherwise, clients will return ICMP destination unreachable packets.
+This flow based IPIP tunnel devices work as catch-all fallback interfaces for the IPIP decapsulation stack.
 
-To resolve this, we need to understand how `kube-proxy` works for ClusterIP.  `kube-proxy` rewrites outgoing packets' destination addresses if they are ClusterIP.  So, it works as a destination NAT (DNAT) service.
+For example, a NAT client(`10.64.0.65:49944`) sends an encapsulated packet from CLusterIP `10.68.114.217:5555`, and a return packet comes from a router Pod(`10.72.49.1.59203`) to the client.
+The outgoing packet will be encapsulated by the IPIP tunnel device with FoU encapsulation option, and the incoming packet will be received and decapsulated by the flow based IPIP tunnel device.
 
-Moreover, it rewrites the incoming packet's source addresses if the packet seems like a response returned from one of the destination servers of Service.  To be more precise, the incoming packet will be handled by `kube-proxy` if and only if its destination address/port was the source address/port of the outgoing packet and its source address/port was the destination address/port.
+```
+10.64.0.65.49944 > 10.68.114.217.5555: UDP, length 60
+10.72.49.1.59203 > 10.64.0.65.5555: UDP, length 60
+```
 
-To satisfy this condition, we use the port number 5555 for FoU on both client pods and SNAT router pods.
+Before coil v2.4.0, we configured a fixed source port 5555 for FoU encapsulation devices so that `kube-proxy` or `Cilium kube-proxy replacement` can do the reverse SNAT handling.
+The transmit and receive sides have been separated and the communication can be asymmetric as the example above shows. We were relying on the fixed source port to handle the reverse SNAT.
+
+This fixed source port approach causes the following problems:
+
+- Traffic from NAT clients to router Pods can't be distributed when users use Coil with a proxier that selects a backend based on the flow hash such as `Cilium`
+- When a router Pod is terminating, traffic from NAT clients to the route Pod cant' be switched until the Pod is finally removed. This problem happens with the Graceful termination of `Cilium kube-proxy replacement`.
+
+We encourage users to use `fouSourcePortAuto: true` setting to avoid these problems.
 
 ### Session persistence
 
@@ -239,6 +253,10 @@ To tunnel TCP packets, we need to keep sending the packets to the same SNAT rout
 This can be achieved by setting Service's [`spec.sessionAffinity`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#servicespec-v1-core) to `ClientIP`.
 
 Therefore, Coil creates a Service with `spec.sessionAffinity=ClientIP` for each NAT gateway.
+
+It's also notable that the session persistence is not required if you use this feature in conjunction with `Cilium kube-proxy replacement`.
+`Cilium` selects a backend for the service based on the flow hash, and the kernel picks source ports based on the flow hash of the encapsulated packet.
+It means that the traffic belonging to the same TCP connection from a NAT client to a router service is always sent to the same Pod.
 
 ### Auto-scaling with HPA
 
