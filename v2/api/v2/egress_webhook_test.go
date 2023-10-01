@@ -145,14 +145,14 @@ var _ = Describe("Egress Webhook", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	It("should deny updating destinations", func() {
+	It("should allow updating destinations", func() {
 		r := makeEgress()
 		err := k8sClient.Create(ctx, r)
 		Expect(err).NotTo(HaveOccurred())
 
 		r.Spec.Destinations = append(r.Spec.Destinations, "10.10.0.0/24")
 		err = k8sClient.Update(ctx, r)
-		Expect(err).To(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	It("should deny invalid fields on update", func() {

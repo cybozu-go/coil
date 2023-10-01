@@ -54,7 +54,7 @@ func (r *Egress) ValidateCreate() error {
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Egress) ValidateUpdate(old runtime.Object) error {
-	errs := r.Spec.validateUpdate(old.(*Egress).Spec)
+	errs := r.Spec.validateUpdate()
 	if len(errs) == 0 {
 		return nil
 	}
