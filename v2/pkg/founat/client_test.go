@@ -171,6 +171,77 @@ func testClientDual(t *testing.T) {
 			return errors.New("failed to add ipv6 dst to table 118")
 		}
 
+		// Update the destinations
+		err = nc.AddEgress(link, []*net.IPNet{
+			{IP: net.ParseIP("10.1.2.0"), Mask: net.CIDRMask(24, 32)},
+			{IP: net.ParseIP("10.1.3.0"), Mask: net.CIDRMask(24, 32)},
+			{IP: net.ParseIP("9.9.9.9"), Mask: net.CIDRMask(32, 32)},
+			{IP: net.ParseIP("fd03::"), Mask: net.CIDRMask(64, 128)},
+			{IP: net.ParseIP("fd04::"), Mask: net.CIDRMask(64, 128)},
+			{IP: net.ParseIP("fd05::"), Mask: net.CIDRMask(64, 128)},
+			{IP: net.ParseIP("::"), Mask: net.CIDRMask(0, 128)},
+		})
+
+		if err != nil {
+			return fmt.Errorf("failed to add egress: %w", err)
+		}
+
+		routes, err = netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Table: 117}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return err
+		}
+		if len(routes) != 2 {
+			return errors.New("failed to update ipv4 dst in table 117")
+		}
+		expectedIPs := make(map[string]struct{})
+		for _, route := range routes {
+			expectedIPs[route.Dst.IP.String()] = struct{}{}
+		}
+		if _, ok := expectedIPs["10.1.2.0"]; !ok {
+			return fmt.Errorf("wrong dst in table 117: 10.1.2.0 not included")
+		}
+		if _, ok := expectedIPs["10.1.3.0"]; !ok {
+			return fmt.Errorf("wrong dst in table 117: 10.1.3.0 not included")
+		}
+
+		routes, err = netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Table: 118}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return err
+		}
+		if len(routes) != 1 {
+			return errors.New("failed to add ipv4 dst to table 118")
+		}
+		if !routes[0].Dst.IP.Equal(net.ParseIP("9.9.9.9")) {
+			return fmt.Errorf("wrong dst in table 118: %s", routes[0].Dst.String())
+		}
+		routes, err = netlink.RouteListFiltered(netlink.FAMILY_V6, &netlink.Route{Table: 117}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return err
+		}
+
+		if len(routes) != 3 {
+			return errors.New("failed to update ipv6 dst in table 117")
+		}
+		expectedIPs = make(map[string]struct{})
+		for _, route := range routes {
+			expectedIPs[route.Dst.IP.String()] = struct{}{}
+		}
+		if _, ok := expectedIPs["fd03::"]; !ok {
+			return fmt.Errorf("wrong dst in table 117: fd03:: not included")
+		}
+		if _, ok := expectedIPs["fd04::"]; !ok {
+			return fmt.Errorf("wrong dst in table 117: fd04:: not included")
+		}
+		if _, ok := expectedIPs["fd05::"]; !ok {
+			return fmt.Errorf("wrong dst in table 117: fd05:: not included")
+		}
+		routes, err = netlink.RouteListFiltered(netlink.FAMILY_V6, &netlink.Route{Table: 118}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return err
+		}
+		if len(routes) != 1 {
+			return errors.New("failed to add ipv6 dst to table 118")
+		}
 		// NATClient can be re-initialized
 		if err := nc.Init(); err != nil {
 			return fmt.Errorf("failed to re-initialize NATClient: %w", err)

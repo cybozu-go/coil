@@ -227,12 +227,84 @@ func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	for _, n := range subnets {
+	currentSubnets, err := collectRoutes(link.Attrs().Index)
+	if err != nil {
+		return err
+	}
+
+	var adds []*net.IPNet
+	var deletes []netlink.Route
+	for _, subnet := range subnets {
+		if _, ok := currentSubnets[subnet.String()]; !ok {
+			adds = append(adds, subnet)
+		}
+	}
+
+	subnetsSet := subnetsSet(subnets)
+	for currenSubnet, route := range currentSubnets {
+		if _, ok := subnetsSet[currenSubnet]; !ok {
+			deletes = append(deletes, route)
+		}
+	}
+
+	for _, n := range adds {
 		if err := c.addEgress1(link, n); err != nil {
 			return err
 		}
 	}
+
+	for _, r := range deletes {
+		if err := netlink.RouteDel(&r); err != nil {
+			return fmt.Errorf("netlink: failed to delete a route  %+v, %w", r, err)
+		}
+	}
+
 	return nil
+}
+
+func collectRoutes(linkIndex int) (map[string]netlink.Route, error) {
+	subnets := make(map[string]netlink.Route)
+
+	err := collectRoute1(netlink.FAMILY_V4, ncNarrowTableID, linkIndex, subnets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to collect route %d %d %d: %w", netlink.FAMILY_V4, ncNarrowTableID, linkIndex, err)
+	}
+	err = collectRoute1(netlink.FAMILY_V4, ncWideTableID, linkIndex, subnets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to collect route %d %d %d: %w", netlink.FAMILY_V4, ncWideTableID, linkIndex, err)
+	}
+
+	err = collectRoute1(netlink.FAMILY_V6, ncNarrowTableID, linkIndex, subnets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to collect route %d %d %d: %w", netlink.FAMILY_V6, ncNarrowTableID, linkIndex, err)
+	}
+	err = collectRoute1(netlink.FAMILY_V6, ncWideTableID, linkIndex, subnets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to collect route %d %d %d: %w", netlink.FAMILY_V6, ncWideTableID, linkIndex, err)
+	}
+
+	return subnets, nil
+}
+
+func collectRoute1(family, tableID, linkIndex int, subnets map[string]netlink.Route) error {
+	routes, err := netlink.RouteListFiltered(family, &netlink.Route{Table: tableID}, netlink.RT_FILTER_TABLE)
+	if err != nil {
+		return fmt.Errorf("netlink: route list failed: %w", err)
+	}
+	for _, r := range routes {
+		if r.LinkIndex == linkIndex && r.Dst != nil {
+			subnets[r.Dst.String()] = r
+		}
+	}
+	return nil
+}
+
+func subnetsSet(subnets []*net.IPNet) map[string]struct{} {
+	subnetsSet := make(map[string]struct{})
+	for _, subnet := range subnets {
+		subnetsSet[subnet.String()] = struct{}{}
+	}
+	return subnetsSet
 }
 
 func (c *natClient) addEgress1(link netlink.Link, n *net.IPNet) error {
