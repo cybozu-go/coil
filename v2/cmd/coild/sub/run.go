@@ -10,6 +10,7 @@ import (
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/controllers"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
+	"github.com/cybozu-go/coil/v2/pkg/indexing"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
 	"github.com/cybozu-go/coil/v2/pkg/nodenet"
 	"github.com/cybozu-go/coil/v2/runners"
@@ -123,8 +124,22 @@ func subMain() error {
 		return err
 	}
 
+	egressWatcher := &controllers.EgressWatcher{
+		Client:     mgr.GetClient(),
+		NodeName:   nodeName,
+		PodNet:     podNet,
+		EgressPort: config.egressPort,
+	}
+	if err := egressWatcher.SetupWithManager(mgr); err != nil {
+		return err
+	}
+	ctx2 := ctrl.SetupSignalHandler()
+	if err := indexing.SetupIndexForPodByNodeName(ctx2, mgr); err != nil {
+		return err
+	}
+
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx2); err != nil {
 		setupLog.Error(err, "problem running manager")
 		return err
 	}

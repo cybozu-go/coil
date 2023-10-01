@@ -104,6 +104,7 @@ config/rbac/coild_role.yaml: $(COILD_DEPENDS)
 	-rm -rf work
 	mkdir work
 	sed '0,/^package/s/.*/package work/' controllers/blockrequest_watcher.go > work/blockrequest_watcher.go
+	sed '0,/^package/s/.*/package work/' controllers/egress_watcher.go > work/egress_watcher.go
 	sed '0,/^package/s/.*/package work/' pkg/ipam/node.go > work/node.go
 	sed '0,/^package/s/.*/package work/' runners/coild_server.go > work/coild_server.go
 	$(CONTROLLER_GEN) rbac:roleName=coild paths=./work output:stdout > $@

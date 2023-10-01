@@ -25,6 +25,8 @@ rules:
   - pods
   verbs:
   - get
+  - list
+  - watch
 - apiGroups:
   - coil.cybozu.com
   resources:

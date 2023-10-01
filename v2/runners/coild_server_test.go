@@ -113,6 +113,10 @@ func (p *mockPodNetwork) Setup(nsPath, podName, podNS string, conf *nodenet.PodN
 	return &current.Result{IPs: ips}, nil
 }
 
+func (p *mockPodNetwork) Update(podIPv4, podIPv6 net.IP, hook nodenet.SetupHook) error {
+	panic("not implemented")
+}
+
 func (p *mockPodNetwork) Check(containerId, iface string) error {
 	p.nCheck++
 	if containerId == "pod1" || containerId == "dns1" {

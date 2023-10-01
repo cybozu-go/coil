@@ -52,6 +52,7 @@ func makePod(name string, ips []string, egresses map[string]string) {
 	var graceSeconds int64
 	pod.Spec.TerminationGracePeriodSeconds = &graceSeconds
 	pod.Spec.Containers = []corev1.Container{{Name: "c1", Image: "nginx"}}
+	pod.Spec.NodeName = "coil-worker"
 	err := k8sClient.Create(context.Background(), pod)
 	ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
 
