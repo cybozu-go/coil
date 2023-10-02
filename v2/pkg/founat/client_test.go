@@ -40,7 +40,7 @@ func testClientDual(t *testing.T) {
 	defer cNS.Close()
 
 	err = cNS.Do(func(ns.NetNS) error {
-		nc := NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), nil)
+		nc := NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), nil, nil)
 		initialized, err := nc.IsInitialized()
 		if err != nil {
 			return err
@@ -310,7 +310,7 @@ func testClientV4(t *testing.T) {
 	defer cNS.Close()
 
 	err = cNS.Do(func(ns.NetNS) error {
-		nc := NewNatClient(net.ParseIP("10.1.1.1"), nil, nil)
+		nc := NewNatClient(net.ParseIP("10.1.1.1"), nil, nil, nil)
 		initialized, err := nc.IsInitialized()
 		if err != nil {
 			return err
@@ -400,7 +400,7 @@ func testClientV6(t *testing.T) {
 	defer cNS.Close()
 
 	err = cNS.Do(func(ns.NetNS) error {
-		nc := NewNatClient(nil, net.ParseIP("fd02::1"), nil)
+		nc := NewNatClient(nil, net.ParseIP("fd02::1"), nil, nil)
 		initialized, err := nc.IsInitialized()
 		if err != nil {
 			return err
@@ -493,7 +493,7 @@ func testClientCustom(t *testing.T) {
 		nc := NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), []*net.IPNet{
 			{IP: net.ParseIP("192.168.10.0"), Mask: net.CIDRMask(24, 32)},
 			{IP: net.ParseIP("fd02::"), Mask: net.CIDRMask(16, 128)},
-		})
+		}, nil)
 		initialized, err := nc.IsInitialized()
 		if err != nil {
 			return err

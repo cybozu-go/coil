@@ -58,12 +58,16 @@ type natSetup struct {
 
 func (n natSetup) Hook(l []GWNets, log *zap.Logger) func(ipv4, ipv6 net.IP) error {
 	return func(ipv4, ipv6 net.IP) error {
-		ft := founat.NewFoUTunnel(n.port, ipv4, ipv6)
+		ft := founat.NewFoUTunnel(n.port, ipv4, ipv6, func(message string) {
+			log.Sugar().Info(message)
+		})
 		if err := ft.Init(); err != nil {
 			return err
 		}
 
-		cl := founat.NewNatClient(ipv4, ipv6, nil)
+		cl := founat.NewNatClient(ipv4, ipv6, nil, func(message string) {
+			log.Sugar().Info(message)
+		})
 		if err := cl.Init(); err != nil {
 			return err
 		}

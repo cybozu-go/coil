@@ -62,7 +62,7 @@ type FoUTunnel interface {
 // port is the UDP port to receive FoU packets.
 // localIPv4 is the local IPv4 address of the IPIP tunnel.  This can be nil.
 // localIPv6 is the same as localIPv4 for IPv6.
-func NewFoUTunnel(port int, localIPv4, localIPv6 net.IP) FoUTunnel {
+func NewFoUTunnel(port int, localIPv4, localIPv6 net.IP, logFunc func(string)) FoUTunnel {
 	if localIPv4 != nil && localIPv4.To4() == nil {
 		panic("invalid IPv4 address")
 	}
@@ -70,16 +70,18 @@ func NewFoUTunnel(port int, localIPv4, localIPv6 net.IP) FoUTunnel {
 		panic("invalid IPv6 address")
 	}
 	return &fouTunnel{
-		port:   port,
-		local4: localIPv4,
-		local6: localIPv6,
+		port:    port,
+		local4:  localIPv4,
+		local6:  localIPv6,
+		logFunc: logFunc,
 	}
 }
 
 type fouTunnel struct {
-	port   int
-	local4 net.IP
-	local6 net.IP
+	port    int
+	local4  net.IP
+	local6  net.IP
+	logFunc func(string)
 
 	mu sync.Mutex
 }
@@ -224,6 +226,9 @@ func (t *fouTunnel) addOrRecreatePeer4(addr net.IP, sportAuto bool) (string, err
 		if encapSport != iptun.EncapSport {
 			// netlink.LinkModify doesn't support updating the encap sport setting (operation not supported),
 			// So we recreate the fou link.
+			if t.logFunc != nil {
+				t.logFunc(fmt.Sprintf("removing a fou tunnel device link: %s", linkName))
+			}
 			if err := netlink.LinkDel(link); err != nil {
 				return "", fmt.Errorf("netlink: failed to delete fou link: %w", err)
 			}

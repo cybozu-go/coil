@@ -50,7 +50,7 @@ func testFoUDual(t *testing.T) {
 			return fmt.Errorf("netlink: failed to add an IPv6 address: %w", err)
 		}
 
-		fou := NewFoUTunnel(5555, net.ParseIP("127.0.0.1"), net.ParseIP("::1"))
+		fou := NewFoUTunnel(5555, net.ParseIP("127.0.0.1"), net.ParseIP("::1"), nil)
 		if fou.IsInitialized() {
 			return errors.New("expect not to be initialized, but it's already been done")
 		}
@@ -265,7 +265,7 @@ func testFoUV4(t *testing.T) {
 			return err
 		}
 
-		fou := NewFoUTunnel(5555, net.ParseIP("127.0.0.1"), nil)
+		fou := NewFoUTunnel(5555, net.ParseIP("127.0.0.1"), nil, nil)
 		if fou.IsInitialized() {
 			return errors.New("expect not to be initialized, but it's already been done")
 		}
@@ -366,7 +366,7 @@ func testFoUV6(t *testing.T) {
 			return err
 		}
 
-		fou := NewFoUTunnel(5555, nil, net.ParseIP("::1"))
+		fou := NewFoUTunnel(5555, nil, net.ParseIP("::1"), nil)
 		if fou.IsInitialized() {
 			return errors.New("expect not to be initialized, but it's already been done")
 		}

@@ -58,7 +58,7 @@ type NatClient interface {
 // `podNodeNet` is, if given, are networks for Pod and Node addresses.
 // If all the addresses of Pods and Nodes are within IPv4/v6 private addresses,
 // `podNodeNet` can be left nil.
-func NewNatClient(ipv4, ipv6 net.IP, podNodeNet []*net.IPNet) NatClient {
+func NewNatClient(ipv4, ipv6 net.IP, podNodeNet []*net.IPNet, logFunc func(string)) NatClient {
 	if ipv4 != nil && ipv4.To4() == nil {
 		panic("invalid IPv4 address")
 	}
@@ -81,10 +81,11 @@ func NewNatClient(ipv4, ipv6 net.IP, podNodeNet []*net.IPNet) NatClient {
 	}
 
 	return &natClient{
-		ipv4:   ipv4 != nil,
-		ipv6:   ipv6 != nil,
-		v4priv: v4priv,
-		v6priv: v6priv,
+		ipv4:    ipv4 != nil,
+		ipv6:    ipv6 != nil,
+		v4priv:  v4priv,
+		v6priv:  v6priv,
+		logFunc: logFunc,
 	}
 }
 
@@ -94,6 +95,8 @@ type natClient struct {
 
 	v4priv []*net.IPNet
 	v6priv []*net.IPNet
+
+	logFunc func(string)
 
 	mu sync.Mutex
 }
@@ -313,6 +316,9 @@ func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet) error {
 	}
 
 	for _, r := range deletes {
+		if c.logFunc != nil {
+			c.logFunc(fmt.Sprintf("removing a destination %s", r.Dst.String()))
+		}
 		if err := netlink.RouteDel(&r); err != nil {
 			return fmt.Errorf("netlink: failed to delete a route  %+v, %w", r, err)
 		}

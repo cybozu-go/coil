@@ -21,12 +21,12 @@ func TestNAT(t *testing.T) {
 	defer targetNS.Close()
 
 	err := cNS.Do(func(ns.NetNS) error {
-		ft := NewFoUTunnel(5555, net.ParseIP("10.1.1.2"), net.ParseIP("fd01::102"))
+		ft := NewFoUTunnel(5555, net.ParseIP("10.1.1.2"), net.ParseIP("fd01::102"), nil)
 		if err := ft.Init(); err != nil {
 			return fmt.Errorf("ft.Init on client failed: %w", err)
 		}
 
-		nc := NewNatClient(net.ParseIP("10.1.1.2"), net.ParseIP("fd01::102"), nil)
+		nc := NewNatClient(net.ParseIP("10.1.1.2"), net.ParseIP("fd01::102"), nil, nil)
 		if err := nc.Init(); err != nil {
 			return fmt.Errorf("nc.Init failed: %w", err)
 		}
@@ -56,7 +56,7 @@ func TestNAT(t *testing.T) {
 	}
 
 	err = eNS.Do(func(ns.NetNS) error {
-		ft := NewFoUTunnel(5555, net.ParseIP("10.1.2.2"), net.ParseIP("fd01::202"))
+		ft := NewFoUTunnel(5555, net.ParseIP("10.1.2.2"), net.ParseIP("fd01::202"), nil)
 		if err := ft.Init(); err != nil {
 			return fmt.Errorf("ft.Init on egress failed: %w", err)
 		}
