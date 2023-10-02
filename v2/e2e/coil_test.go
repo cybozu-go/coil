@@ -258,6 +258,19 @@ var _ = Describe("Coil", func() {
 			}
 			return int(depl.Status.ReadyReplicas)
 		}).Should(Equal(2))
+
+		By("defining Egress with fouSourcePortAuto in the internet namespace")
+		kubectlSafe(nil, "apply", "-f", "manifests/egress-sport-auto.yaml")
+
+		By("checking pod deployments for fouSourcePortAuto")
+		Eventually(func() int {
+			depl := &appsv1.Deployment{}
+			err := getResource("internet", "deployments", "egress-sport-auto", "", depl)
+			if err != nil {
+				return 0
+			}
+			return int(depl.Status.ReadyReplicas)
+		}).Should(Equal(2))
 	})
 
 	It("should be able to run NAT client pods", func() {
@@ -268,6 +281,26 @@ var _ = Describe("Coil", func() {
 		Eventually(func() error {
 			pod := &corev1.Pod{}
 			err := getResource("default", "pods", "nat-client", "", pod)
+			if err != nil {
+				return err
+			}
+			if len(pod.Status.ContainerStatuses) == 0 {
+				return errors.New("no container status")
+			}
+			cst := pod.Status.ContainerStatuses[0]
+			if !cst.Ready {
+				return errors.New("container is not ready")
+			}
+			return nil
+		}).Should(Succeed())
+
+		By("creating a NAT client pod for fouSourcePortAuto")
+		kubectlSafe(nil, "apply", "-f", "manifests/nat-client-sport-auto.yaml")
+
+		By("checking the pod status for fouSourcePortAuto")
+		Eventually(func() error {
+			pod := &corev1.Pod{}
+			err := getResource("default", "pods", "nat-client-sport-auto", "", pod)
 			if err != nil {
 				return err
 			}
@@ -317,6 +350,18 @@ var _ = Describe("Coil", func() {
 		for i := 0; i < 100; i++ {
 			time.Sleep(1 * time.Millisecond)
 			resp := kubectlSafe(data, "exec", "-i", "nat-client", "--", "curl", "-sf", "-T", "-", fakeURL)
+			Expect(resp).To(HaveLen(1 << 20))
+		}
+
+		By("sending and receiving HTTP request from nat-client-sport-auto")
+		data = make([]byte, 1<<20) // 1 MiB
+		resp = kubectlSafe(data, "exec", "-i", "nat-client-sport-auto", "--", "curl", "-sf", "-T", "-", fakeURL)
+		Expect(resp).To(HaveLen(1 << 20))
+
+		By("running the same test 100 times with nat-client-sport-auto")
+		for i := 0; i < 100; i++ {
+			time.Sleep(1 * time.Millisecond)
+			resp := kubectlSafe(data, "exec", "-i", "nat-client-sport-auto", "--", "curl", "-sf", "-T", "-", fakeURL)
 			Expect(resp).To(HaveLen(1 << 20))
 		}
 	})

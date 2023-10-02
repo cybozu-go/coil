@@ -2,6 +2,7 @@ package founat
 
 import (
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"net"
 	"os/exec"
@@ -48,7 +49,7 @@ type FoUTunnel interface {
 	// AddPeer setups tunnel devices to the given peer and returns them.
 	// If FoUTunnel does not setup for the IP family of the given address,
 	// this returns ErrIPFamilyMismatch error.
-	AddPeer(net.IP) (netlink.Link, error)
+	AddPeer(net.IP, bool) (netlink.Link, error)
 
 	// DelPeer deletes tunnel for the peer, if any.
 	DelPeer(net.IP) error
@@ -166,17 +167,17 @@ func (t *fouTunnel) Init() error {
 	return netlink.LinkAdd(&netlink.Dummy{LinkAttrs: attrs})
 }
 
-func (t *fouTunnel) AddPeer(addr net.IP) (netlink.Link, error) {
+func (t *fouTunnel) AddPeer(addr net.IP, sportAuto bool) (netlink.Link, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	if v4 := addr.To4(); v4 != nil {
-		return t.addPeer4(v4)
+		return t.addPeer4(v4, sportAuto)
 	}
-	return t.addPeer6(addr)
+	return t.addPeer6(addr, sportAuto)
 }
 
-func (t *fouTunnel) addPeer4(addr net.IP) (netlink.Link, error) {
+func (t *fouTunnel) addPeer4(addr net.IP, sportAuto bool) (netlink.Link, error) {
 	if t.local4 == nil {
 		return nil, ErrIPFamilyMismatch
 	}
@@ -194,12 +195,16 @@ func (t *fouTunnel) addPeer4(addr net.IP) (netlink.Link, error) {
 	attrs := netlink.NewLinkAttrs()
 	attrs.Name = linkName
 	attrs.Flags = net.FlagUp
+	encapSport := uint16(t.port)
+	if sportAuto {
+		encapSport = 0
+	}
 	link = &netlink.Iptun{
 		LinkAttrs:  attrs,
 		Ttl:        225,
 		EncapType:  netlink.FOU_ENCAP_DIRECT,
 		EncapDport: uint16(t.port),
-		EncapSport: uint16(t.port),
+		EncapSport: encapSport,
 		Remote:     addr,
 		Local:      t.local4,
 	}
@@ -207,10 +212,14 @@ func (t *fouTunnel) addPeer4(addr net.IP) (netlink.Link, error) {
 		return nil, fmt.Errorf("netlink: failed to add fou link: %w", err)
 	}
 
+	if err := setupFlowBasedIP4TunDevice(); err != nil {
+		return nil, fmt.Errorf("netlink: failed to setup ipip device: %w", err)
+	}
+
 	return netlink.LinkByName(linkName)
 }
 
-func (t *fouTunnel) addPeer6(addr net.IP) (netlink.Link, error) {
+func (t *fouTunnel) addPeer6(addr net.IP, sportAuto bool) (netlink.Link, error) {
 	if t.local6 == nil {
 		return nil, ErrIPFamilyMismatch
 	}
@@ -228,12 +237,16 @@ func (t *fouTunnel) addPeer6(addr net.IP) (netlink.Link, error) {
 	attrs := netlink.NewLinkAttrs()
 	attrs.Name = linkName
 	attrs.Flags = net.FlagUp
+	encapSport := uint16(t.port)
+	if sportAuto {
+		encapSport = 0
+	}
 	link = &netlink.Ip6tnl{
 		LinkAttrs:  attrs,
 		Ttl:        225,
 		EncapType:  netlink.FOU_ENCAP_DIRECT,
 		EncapDport: uint16(t.port),
-		EncapSport: uint16(t.port),
+		EncapSport: encapSport,
 		Remote:     addr,
 		Local:      t.local6,
 	}
@@ -241,7 +254,124 @@ func (t *fouTunnel) addPeer6(addr net.IP) (netlink.Link, error) {
 		return nil, fmt.Errorf("netlink: failed to add fou6 link: %w", err)
 	}
 
+	if err := setupFlowBasedIP6TunDevice(); err != nil {
+		return nil, fmt.Errorf("netlink: failed to setup ipip device: %w", err)
+	}
+
 	return netlink.LinkByName(linkName)
+}
+
+// setupFlowBasedIP[4,6]TunDevice creates an IPv4 or IPv6 tunnel device
+//
+// This flow based IPIP tunnel device is used to decapsulate packets from
+// the router Pods.
+//
+// Calling this function may result in tunl0 (v4) or ip6tnl0 (v6)
+// fallback interface being renamed to coil_tunl or coil_ip6tnl.
+// This is to communicate to the user that this plugin has taken
+// control of the encapsulation stack on the netns, as it currently
+// doesn't explicitly support sharing it with other tools/CNIs.
+// Fallback devices are left unused for production traffic.
+// Only devices that were explicitly created are used.
+//
+// This fallback interface is present as a result of loading the
+// ipip and ip6_tunnel kernel modules by fou tunnel interfaces.
+// These are catch-all interfaces for the ipip decapsulation stack.
+// By default, these interfaces will be created in new network namespaces,
+// but this behavior can be disabled by setting net.core.fb_tunnels_only_for_init_net = 2.
+func setupFlowBasedIP4TunDevice() error {
+	ipip4Device := "coil_ipip4"
+	// Set up IPv4 tunnel device if requested.
+	if err := setupDevice(&netlink.Iptun{
+		LinkAttrs: netlink.LinkAttrs{Name: ipip4Device},
+		FlowBased: true,
+	}); err != nil {
+		return fmt.Errorf("creating %s: %w", ipip4Device, err)
+	}
+
+	// Rename fallback device created by potential kernel module load after
+	// creating tunnel interface.
+	if err := renameDevice("tunl0", "coil_tunl"); err != nil {
+		return fmt.Errorf("renaming fallback device %s: %w", "tunl0", err)
+	}
+
+	return nil
+}
+
+// See setupFlowBasedIP4TunDevice
+func setupFlowBasedIP6TunDevice() error {
+	ipip6Device := "coil_ipip6"
+
+	// Set up IPv6 tunnel device if requested.
+	if err := setupDevice(&netlink.Ip6tnl{
+		LinkAttrs: netlink.LinkAttrs{Name: ipip6Device},
+		FlowBased: true,
+	}); err != nil {
+		return fmt.Errorf("creating %s: %w", ipip6Device, err)
+	}
+
+	// Rename fallback device created by potential kernel module load after
+	// creating tunnel interface.
+	if err := renameDevice("ip6tnl0", "coil_ip6tnl"); err != nil {
+		return fmt.Errorf("renaming fallback device %s: %w", "tunl0", err)
+	}
+
+	return nil
+}
+
+// setupDevice creates and configures a device based on the given netlink attrs.
+func setupDevice(link netlink.Link) error {
+	name := link.Attrs().Name
+
+	// Reuse existing tunnel interface created by previous runs.
+	l, err := netlink.LinkByName(name)
+	if err != nil {
+		var linkNotFoundError netlink.LinkNotFoundError
+		if !errors.As(err, &linkNotFoundError) {
+			return err
+		}
+
+		if err := netlink.LinkAdd(link); err != nil {
+			return fmt.Errorf("netlink: failed to create device %s: %w", name, err)
+		}
+
+		// Fetch the link we've just created.
+		l, err = netlink.LinkByName(name)
+		if err != nil {
+			return fmt.Errorf("netlink: failed to retrieve created device %s: %w", name, err)
+		}
+	}
+
+	if err := configureDevice(l); err != nil {
+		return fmt.Errorf("failed to set up device %s: %w", l.Attrs().Name, err)
+	}
+
+	return nil
+}
+
+// configureDevice puts the given link into the up state
+func configureDevice(link netlink.Link) error {
+	ifName := link.Attrs().Name
+
+	if err := netlink.LinkSetUp(link); err != nil {
+		return fmt.Errorf("netlink: failed to set link %s up: %w", ifName, err)
+	}
+	return nil
+}
+
+// renameDevice renames a network device from and to a given value. Returns nil
+// if the device does not exist.
+func renameDevice(from, to string) error {
+	link, err := netlink.LinkByName(from)
+	if err != nil {
+		return nil
+	}
+
+	if err := netlink.LinkSetName(link, to); err != nil {
+		return fmt.Errorf("netlink: failed to rename device %s to %s: %w", from, to, err)
+	}
+
+	return nil
 }
 
 func (t *fouTunnel) DelPeer(addr net.IP) error {

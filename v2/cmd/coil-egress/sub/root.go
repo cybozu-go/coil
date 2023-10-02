@@ -12,10 +12,11 @@ import (
 )
 
 var config struct {
-	metricsAddr string
-	healthAddr  string
-	port        int
-	zapOpts     zap.Options
+	metricsAddr     string
+	healthAddr      string
+	port            int
+	enableSportAuto bool
+	zapOpts         zap.Options
 }
 
 var rootCmd = &cobra.Command{
@@ -43,6 +44,7 @@ func init() {
 	pf.StringVar(&config.metricsAddr, "metrics-addr", ":8080", "bind address of metrics endpoint")
 	pf.StringVar(&config.healthAddr, "health-addr", ":8081", "bind address of health/readiness probes")
 	pf.IntVar(&config.port, "fou-port", 5555, "port number for foo-over-udp tunnels")
+	pf.BoolVar(&config.enableSportAuto, "enable-sport-auto", false, "enable automatic source port assignment")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)

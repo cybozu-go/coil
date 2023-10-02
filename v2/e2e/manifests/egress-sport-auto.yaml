@@ -1,0 +1,20 @@
+apiVersion: coil.cybozu.com/v2
+kind: Egress
+metadata:
+  name: egress-sport-auto
+  namespace: internet
+spec:
+  replicas: 2
+  destinations:
+  - 0.0.0.0/0
+  - ::/0
+  fouSourcePortAuto: true
+  template:
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: coil-control-plane
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      containers:
+      - name: egress

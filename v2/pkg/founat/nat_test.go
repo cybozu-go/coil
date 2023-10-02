@@ -31,11 +31,11 @@ func TestNAT(t *testing.T) {
 			return fmt.Errorf("nc.Init failed: %w", err)
 		}
 
-		link4, err := ft.AddPeer(net.ParseIP("10.1.2.2"))
+		link4, err := ft.AddPeer(net.ParseIP("10.1.2.2"), true)
 		if err != nil {
 			return fmt.Errorf("ft.AddPeer failed for 10.1.2.2: %w", err)
 		}
-		link6, err := ft.AddPeer(net.ParseIP("fd01::202"))
+		link6, err := ft.AddPeer(net.ParseIP("fd01::202"), true)
 		if err != nil {
 			return fmt.Errorf("ft.AddPeer failed for fd01::202: %w", err)
 		}
@@ -66,11 +66,11 @@ func TestNAT(t *testing.T) {
 			return fmt.Errorf("egress.Init failed: %w", err)
 		}
 
-		link4, err := ft.AddPeer(net.ParseIP("10.1.1.2"))
+		link4, err := ft.AddPeer(net.ParseIP("10.1.1.2"), true)
 		if err != nil {
 			return fmt.Errorf("ft.AddPeer failed for 10.1.1.2: %w", err)
 		}
-		link6, err := ft.AddPeer(net.ParseIP("fd01::102"))
+		link6, err := ft.AddPeer(net.ParseIP("fd01::102"), true)
 		if err != nil {
 			return fmt.Errorf("ft.AddPeer failed for fd01::102: %w", err)
 		}

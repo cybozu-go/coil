@@ -94,7 +94,7 @@ func subMain() error {
 		return err
 	}
 
-	if err := controllers.SetupPodWatcher(mgr, myNS, myName, ft, eg); err != nil {
+	if err := controllers.SetupPodWatcher(mgr, myNS, myName, ft, config.enableSportAuto, eg); err != nil {
 		return err
 	}
 

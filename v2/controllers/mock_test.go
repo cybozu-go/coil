@@ -149,11 +149,11 @@ func (t *mockFoUTunnel) Init() error {
 	panic("not implemented")
 }
 
-func (t *mockFoUTunnel) AddPeer(ip net.IP) (netlink.Link, error) {
+func (t *mockFoUTunnel) AddPeer(ip net.IP, sportAuto bool) (netlink.Link, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.peers[ip.String()] = true
+	t.peers[ip.String()] = sportAuto
 	return nil, nil
 }
 
@@ -172,7 +172,7 @@ func (t *mockFoUTunnel) GetPeers() map[string]bool {
 	defer t.mu.Unlock()
 
 	for k := range t.peers {
-		m[k] = true
+		m[k] = t.peers[k]
 	}
 	return m
 }

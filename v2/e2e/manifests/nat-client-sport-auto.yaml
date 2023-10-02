@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nat-client-sport-auto
+  namespace: default
+  annotations:
+    egress.coil.cybozu.com/internet: egress-sport-auto
+spec:
+  tolerations:
+  - key: test
+    operator: Exists
+  nodeSelector:
+    test: coil
+  containers:
+  - name: ubuntu
+    image: quay.io/cybozu/ubuntu:22.04
+    command: ["pause"]

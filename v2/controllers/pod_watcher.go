@@ -40,18 +40,19 @@ func init() {
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 // SetupPodWatcher registers pod watching reconciler to mgr.
-func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, eg founat.Egress) error {
+func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, encapSportAuto bool, eg founat.Egress) error {
 	clientPods.Reset()
 
 	r := &podWatcher{
-		client:   mgr.GetClient(),
-		myNS:     ns,
-		myName:   name,
-		ft:       ft,
-		eg:       eg,
-		metric:   clientPods.WithLabelValues(ns, name),
-		podAddrs: make(map[string][]net.IP),
-		peers:    make(map[string]map[string]struct{}),
+		client:         mgr.GetClient(),
+		myNS:           ns,
+		myName:         name,
+		ft:             ft,
+		encapSportAuto: encapSportAuto,
+		eg:             eg,
+		metric:         clientPods.WithLabelValues(ns, name),
+		podAddrs:       make(map[string][]net.IP),
+		peers:          make(map[string]map[string]struct{}),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -65,12 +66,13 @@ func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, eg 
 // this implementation can leave some tunnels as garbage.  Such garbage tunnels
 // do no harm, though.
 type podWatcher struct {
-	client client.Client
-	myNS   string
-	myName string
-	ft     founat.FoUTunnel
-	eg     founat.Egress
-	metric prometheus.Gauge
+	client         client.Client
+	myNS           string
+	myName         string
+	ft             founat.FoUTunnel
+	encapSportAuto bool
+	eg             founat.Egress
+	metric         prometheus.Gauge
 
 	mu       sync.Mutex
 	podAddrs map[string][]net.IP
@@ -166,7 +168,7 @@ OUTER:
 			}
 		}
 
-		link, err := r.ft.AddPeer(ip)
+		link, err := r.ft.AddPeer(ip, r.encapSportAuto)
 		if errors.Is(err, founat.ErrIPFamilyMismatch) {
 			logger.Info("skipping unsupported pod IP", "pod", pod.Namespace+"/"+pod.Name, "ip", ip.String())
 			continue

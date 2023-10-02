@@ -157,6 +157,9 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	}
 	if len(egressContainer.Args) == 0 {
 		egressContainer.Args = []string{"--zap-stacktrace-level=panic"}
+		if eg.Spec.FouSourcePortAuto {
+			egressContainer.Args = append(egressContainer.Args, "--enable-sport-auto=true")
+		}
 	}
 	egressContainer.Env = append(egressContainer.Env,
 		corev1.EnvVar{
