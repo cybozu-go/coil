@@ -234,6 +234,19 @@ var _ = Describe("Pod watcher", func() {
 	})
 
 	It("should check Pod deletion", func() {
+		// Ensure the pod watcher calls AddPeer and AddClient
+		Eventually(func() bool {
+			return reflect.DeepEqual(ft.GetPeers(), map[string]bool{
+				"10.1.1.2": true,
+				"fd01::2":  true,
+				"fd01::3":  true,
+			}) && reflect.DeepEqual(eg.GetClients(), map[string]bool{
+				"10.1.1.2": true,
+				"fd01::2":  true,
+				"fd01::3":  true,
+			})
+		}).Should(BeTrue())
+
 		pod2 := &corev1.Pod{}
 		err := k8sClient.Get(ctx, client.ObjectKey{Namespace: "default", Name: "pod2"}, pod2)
 		Expect(err).NotTo(HaveOccurred())
