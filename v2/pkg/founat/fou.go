@@ -46,6 +46,9 @@ type FoUTunnel interface {
 	// Init starts FoU listening socket.
 	Init() error
 
+	// IsInitialized checks if this FoUTunnel has been initialized
+	IsInitialized() bool
+
 	// AddPeer setups tunnel devices to the given peer and returns them.
 	// If FoUTunnel does not setup for the IP family of the given address,
 	// this returns ErrIPFamilyMismatch error.
@@ -165,6 +168,15 @@ func (t *fouTunnel) Init() error {
 	attrs := netlink.NewLinkAttrs()
 	attrs.Name = fouDummy
 	return netlink.LinkAdd(&netlink.Dummy{LinkAttrs: attrs})
+}
+
+func (t *fouTunnel) IsInitialized() bool {
+	initialized := false
+	_, err := netlink.LinkByName(fouDummy)
+	if err == nil {
+		initialized = true
+	}
+	return initialized
 }
 
 func (t *fouTunnel) AddPeer(addr net.IP, sportAuto bool) (netlink.Link, error) {

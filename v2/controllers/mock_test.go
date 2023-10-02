@@ -149,6 +149,10 @@ func (t *mockFoUTunnel) Init() error {
 	panic("not implemented")
 }
 
+func (t *mockFoUTunnel) IsInitialized() bool {
+	panic("not implemented")
+}
+
 func (t *mockFoUTunnel) AddPeer(ip net.IP, sportAuto bool) (netlink.Link, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()

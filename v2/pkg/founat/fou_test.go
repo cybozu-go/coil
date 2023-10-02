@@ -51,8 +51,16 @@ func testFoUDual(t *testing.T) {
 		}
 
 		fou := NewFoUTunnel(5555, net.ParseIP("127.0.0.1"), net.ParseIP("::1"))
+		if fou.IsInitialized() {
+			return errors.New("expect not to be initialized, but it's already been done")
+		}
+
 		if err := fou.Init(); err != nil {
 			return fmt.Errorf("fou.Init failed: %w", err)
+		}
+
+		if !fou.IsInitialized() {
+			return errors.New("expect to be initialized, but it's not been done")
 		}
 
 		// test initialization twice
@@ -258,8 +266,16 @@ func testFoUV4(t *testing.T) {
 		}
 
 		fou := NewFoUTunnel(5555, net.ParseIP("127.0.0.1"), nil)
+		if fou.IsInitialized() {
+			return errors.New("expect not to be initialized, but it's already been done")
+		}
+
 		if err := fou.Init(); err != nil {
 			return fmt.Errorf("fou.Init failed: %w", err)
+		}
+
+		if !fou.IsInitialized() {
+			return errors.New("expect to be initialized, but it's not been done")
 		}
 
 		fous, err := netlink.FouList(0)
@@ -351,8 +367,16 @@ func testFoUV6(t *testing.T) {
 		}
 
 		fou := NewFoUTunnel(5555, nil, net.ParseIP("::1"))
+		if fou.IsInitialized() {
+			return errors.New("expect not to be initialized, but it's already been done")
+		}
+
 		if err := fou.Init(); err != nil {
 			return fmt.Errorf("fou.Init failed: %w", err)
+		}
+
+		if !fou.IsInitialized() {
+			return errors.New("expect to be initialized, but it's not been done")
 		}
 
 		fous, err := netlink.FouList(0)

@@ -46,6 +46,7 @@ var (
 // This can be re-initialized by calling `Init` again.
 type NatClient interface {
 	Init() error
+	IsInitialized() (bool, error)
 	AddEgress(link netlink.Link, subnets []*net.IPNet) error
 }
 
@@ -221,6 +222,64 @@ func (c *natClient) Init() error {
 	}
 
 	return nil
+}
+
+func (c *natClient) IsInitialized() (bool, error) {
+	if c.ipv4 {
+		rules, err := netlink.RuleListFiltered(netlink.FAMILY_V4, &netlink.Rule{Table: mainTableID}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return false, fmt.Errorf("netlink: failed to list v4 main rules: %w", err)
+		}
+		// Expect link local and private rules
+		if len(rules) < (len(c.v4priv) + 1) {
+			return false, nil
+		}
+
+		rules, err = netlink.RuleListFiltered(netlink.FAMILY_V4, &netlink.Rule{Table: ncNarrowTableID}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return false, fmt.Errorf("netlink: failed to list v4 narrow rules: %w", err)
+		}
+		if len(rules) != 1 {
+			return false, nil
+		}
+
+		rules, err = netlink.RuleListFiltered(netlink.FAMILY_V4, &netlink.Rule{Table: ncWideTableID}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return false, fmt.Errorf("netlink: failed to list v4 wide rules: %w", err)
+		}
+		if len(rules) != 1 {
+			return false, nil
+		}
+	}
+
+	if c.ipv6 {
+		rules, err := netlink.RuleListFiltered(netlink.FAMILY_V6, &netlink.Rule{Table: mainTableID}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return false, fmt.Errorf("netlink: failed to list v6 main rules: %w", err)
+		}
+		// Expect link local and private rules
+		if len(rules) < (len(c.v6priv) + 1) {
+			return false, nil
+		}
+
+		rules, err = netlink.RuleListFiltered(netlink.FAMILY_V6, &netlink.Rule{Table: ncNarrowTableID}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return false, fmt.Errorf("netlink: failed to list v6 narrow rules: %w", err)
+		}
+		if len(rules) != 1 {
+			return false, nil
+		}
+
+		rules, err = netlink.RuleListFiltered(netlink.FAMILY_V6, &netlink.Rule{Table: ncWideTableID}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return false, fmt.Errorf("netlink: failed to list v6 wide rules: %w", err)
+		}
+		if len(rules) != 1 {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet) error {

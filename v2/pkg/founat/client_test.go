@@ -41,6 +41,14 @@ func testClientDual(t *testing.T) {
 
 	err = cNS.Do(func(ns.NetNS) error {
 		nc := NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), nil)
+		initialized, err := nc.IsInitialized()
+		if err != nil {
+			return err
+		}
+		if initialized {
+			return errors.New("expect not to be initialized, but it's already been done")
+		}
+
 		if err := nc.Init(); err != nil {
 			return err
 		}
@@ -112,6 +120,14 @@ func testClientDual(t *testing.T) {
 			if r.Table != 118 {
 				return errors.New("wide rule should point routing table 118")
 			}
+		}
+
+		initialized, err = nc.IsInitialized()
+		if err != nil {
+			return err
+		}
+		if !initialized {
+			return errors.New("expect to be initialized, but it's not been done")
 		}
 
 		attrs := netlink.NewLinkAttrs()
@@ -295,6 +311,14 @@ func testClientV4(t *testing.T) {
 
 	err = cNS.Do(func(ns.NetNS) error {
 		nc := NewNatClient(net.ParseIP("10.1.1.1"), nil, nil)
+		initialized, err := nc.IsInitialized()
+		if err != nil {
+			return err
+		}
+		if initialized {
+			return errors.New("expect not to be initialized, but it's already been done")
+		}
+
 		if err := nc.Init(); err != nil {
 			return err
 		}
@@ -313,6 +337,14 @@ func testClientV4(t *testing.T) {
 		}
 		if _, ok := rm[1800]; ok {
 			return errors.New("ipv6 link local rule exists")
+		}
+
+		initialized, err = nc.IsInitialized()
+		if err != nil {
+			return err
+		}
+		if !initialized {
+			return errors.New("expect to be initialized, but it's not been done")
 		}
 
 		attrs := netlink.NewLinkAttrs()
@@ -369,6 +401,14 @@ func testClientV6(t *testing.T) {
 
 	err = cNS.Do(func(ns.NetNS) error {
 		nc := NewNatClient(nil, net.ParseIP("fd02::1"), nil)
+		initialized, err := nc.IsInitialized()
+		if err != nil {
+			return err
+		}
+		if initialized {
+			return errors.New("expect not to be initialized, but it's already been done")
+		}
+
 		if err := nc.Init(); err != nil {
 			return err
 		}
@@ -387,6 +427,14 @@ func testClientV6(t *testing.T) {
 		}
 		if _, ok := rm[1800]; !ok {
 			return errors.New("no ipv6 link local rule")
+		}
+
+		initialized, err = nc.IsInitialized()
+		if err != nil {
+			return err
+		}
+		if !initialized {
+			return errors.New("expect to be initialized, but it's not been done")
 		}
 
 		attrs := netlink.NewLinkAttrs()
@@ -446,8 +494,24 @@ func testClientCustom(t *testing.T) {
 			{IP: net.ParseIP("192.168.10.0"), Mask: net.CIDRMask(24, 32)},
 			{IP: net.ParseIP("fd02::"), Mask: net.CIDRMask(16, 128)},
 		})
+		initialized, err := nc.IsInitialized()
+		if err != nil {
+			return err
+		}
+		if initialized {
+			return errors.New("expect not to be initialized, but it's already been done")
+		}
+
 		if err := nc.Init(); err != nil {
 			return err
+		}
+
+		initialized, err = nc.IsInitialized()
+		if err != nil {
+			return err
+		}
+		if !initialized {
+			return errors.New("expect to be initialized, but it's not been done")
 		}
 
 		attrs := netlink.NewLinkAttrs()
