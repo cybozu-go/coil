@@ -128,8 +128,7 @@ func (r *EgressWatcher) getHook(ctx context.Context, eg *coilv2.Egress, logger *
 		return nil, err
 	}
 
-	// as of k8s 1.19, dual stack Service is alpha and will be re-written
-	// in 1.20.  So, we cannot use dual stack services.
+	// See getHook in coild_server.go
 	svcIP := net.ParseIP(svc.Spec.ClusterIP)
 	if svcIP == nil {
 		return nil, fmt.Errorf("invalid ClusterIP in Service %s %s", eg.Name, svc.Spec.ClusterIP)
