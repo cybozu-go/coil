@@ -46,6 +46,9 @@ type FoUTunnel interface {
 	// Init starts FoU listening socket.
 	Init() error
 
+	// IsInitialized checks if this FoUTunnel has been initialized
+	IsInitialized() bool
+
 	// AddPeer setups tunnel devices to the given peer and returns them.
 	// If FoUTunnel does not setup for the IP family of the given address,
 	// this returns ErrIPFamilyMismatch error.
@@ -59,7 +62,7 @@ type FoUTunnel interface {
 // port is the UDP port to receive FoU packets.
 // localIPv4 is the local IPv4 address of the IPIP tunnel.  This can be nil.
 // localIPv6 is the same as localIPv4 for IPv6.
-func NewFoUTunnel(port int, localIPv4, localIPv6 net.IP) FoUTunnel {
+func NewFoUTunnel(port int, localIPv4, localIPv6 net.IP, logFunc func(string)) FoUTunnel {
 	if localIPv4 != nil && localIPv4.To4() == nil {
 		panic("invalid IPv4 address")
 	}
@@ -67,16 +70,18 @@ func NewFoUTunnel(port int, localIPv4, localIPv6 net.IP) FoUTunnel {
 		panic("invalid IPv6 address")
 	}
 	return &fouTunnel{
-		port:   port,
-		local4: localIPv4,
-		local6: localIPv6,
+		port:    port,
+		local4:  localIPv4,
+		local6:  localIPv6,
+		logFunc: logFunc,
 	}
 }
 
 type fouTunnel struct {
-	port   int
-	local4 net.IP
-	local6 net.IP
+	port    int
+	local4  net.IP
+	local6  net.IP
+	logFunc func(string)
 
 	mu sync.Mutex
 }
@@ -167,6 +172,15 @@ func (t *fouTunnel) Init() error {
 	return netlink.LinkAdd(&netlink.Dummy{LinkAttrs: attrs})
 }
 
+func (t *fouTunnel) IsInitialized() bool {
+	initialized := false
+	_, err := netlink.LinkByName(fouDummy)
+	if err == nil {
+		initialized = true
+	}
+	return initialized
+}
+
 func (t *fouTunnel) AddPeer(addr net.IP, sportAuto bool) (netlink.Link, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -182,14 +196,47 @@ func (t *fouTunnel) addPeer4(addr net.IP, sportAuto bool) (netlink.Link, error) 
 		return nil, ErrIPFamilyMismatch
 	}
 
+	linkName, err := t.addOrRecreatePeer4(addr, sportAuto)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := setupFlowBasedIP4TunDevice(); err != nil {
+		return nil, fmt.Errorf("netlink: failed to setup ipip device: %w", err)
+	}
+
+	return netlink.LinkByName(linkName)
+}
+
+func (t *fouTunnel) addOrRecreatePeer4(addr net.IP, sportAuto bool) (string, error) {
 	linkName := fouName(addr)
 
 	link, err := netlink.LinkByName(linkName)
 	if err == nil {
-		return link, nil
-	}
-	if _, ok := err.(netlink.LinkNotFoundError); !ok {
-		return nil, fmt.Errorf("netlink: failed to get link: %w", err)
+		iptun, ok := link.(*netlink.Iptun)
+		if !ok {
+			return "", fmt.Errorf("link is not IPTun: %T", link)
+		}
+
+		encapSport := uint16(t.port)
+		if sportAuto {
+			encapSport = 0
+		}
+
+		if encapSport != iptun.EncapSport {
+			// netlink.LinkModify doesn't support updating the encap sport setting (operation not supported),
+			// So we recreate the fou link.
+			if t.logFunc != nil {
+				t.logFunc(fmt.Sprintf("removing a fou tunnel device link: %s", linkName))
+			}
+			if err := netlink.LinkDel(link); err != nil {
+				return "", fmt.Errorf("netlink: failed to delete fou link: %w", err)
+			}
+		} else {
+			return linkName, nil
+		}
+	} else if _, ok := err.(netlink.LinkNotFoundError); !ok {
+		return "", fmt.Errorf("netlink: failed to get link: %w", err)
 	}
 
 	attrs := netlink.NewLinkAttrs()
@@ -208,15 +255,12 @@ func (t *fouTunnel) addPeer4(addr net.IP, sportAuto bool) (netlink.Link, error) 
 		Remote:     addr,
 		Local:      t.local4,
 	}
+
 	if err := netlink.LinkAdd(link); err != nil {
-		return nil, fmt.Errorf("netlink: failed to add fou link: %w", err)
+		return "", fmt.Errorf("netlink: failed to add fou link: %w", err)
 	}
 
-	if err := setupFlowBasedIP4TunDevice(); err != nil {
-		return nil, fmt.Errorf("netlink: failed to setup ipip device: %w", err)
-	}
-
-	return netlink.LinkByName(linkName)
+	return linkName, nil
 }
 
 func (t *fouTunnel) addPeer6(addr net.IP, sportAuto bool) (netlink.Link, error) {
@@ -224,14 +268,42 @@ func (t *fouTunnel) addPeer6(addr net.IP, sportAuto bool) (netlink.Link, error) 
 		return nil, ErrIPFamilyMismatch
 	}
 
+	linkName, err := t.addOrRecreatePeer6(addr, sportAuto)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := setupFlowBasedIP6TunDevice(); err != nil {
+		return nil, fmt.Errorf("netlink: failed to setup ipip device: %w", err)
+	}
+
+	return netlink.LinkByName(linkName)
+}
+
+func (t *fouTunnel) addOrRecreatePeer6(addr net.IP, sportAuto bool) (string, error) {
 	linkName := fouName(addr)
 
 	link, err := netlink.LinkByName(linkName)
 	if err == nil {
-		return link, nil
-	}
-	if _, ok := err.(netlink.LinkNotFoundError); !ok {
-		return nil, fmt.Errorf("netlink: failed to get link: %w", err)
+		ip6tnl, ok := link.(*netlink.Ip6tnl)
+		if !ok {
+			return "", fmt.Errorf("link is not Ip6tnl: %T", link)
+		}
+
+		encapSport := uint16(t.port)
+		if sportAuto {
+			encapSport = 0
+		}
+
+		if encapSport != ip6tnl.EncapSport {
+			if err := netlink.LinkDel(link); err != nil {
+				return "", fmt.Errorf("netlink: failed to delete fou6 link: %w", err)
+			}
+		} else {
+			return linkName, nil
+		}
+	} else if _, ok := err.(netlink.LinkNotFoundError); !ok {
+		return "", fmt.Errorf("netlink: failed to get link: %w", err)
 	}
 
 	attrs := netlink.NewLinkAttrs()
@@ -251,14 +323,10 @@ func (t *fouTunnel) addPeer6(addr net.IP, sportAuto bool) (netlink.Link, error) 
 		Local:      t.local6,
 	}
 	if err := netlink.LinkAdd(link); err != nil {
-		return nil, fmt.Errorf("netlink: failed to add fou6 link: %w", err)
+		return "", fmt.Errorf("netlink: failed to add fou6 link: %w", err)
 	}
 
-	if err := setupFlowBasedIP6TunDevice(); err != nil {
-		return nil, fmt.Errorf("netlink: failed to setup ipip device: %w", err)
-	}
-
-	return netlink.LinkByName(linkName)
+	return linkName, nil
 }
 
 // setupFlowBasedIP[4,6]TunDevice creates an IPv4 or IPv6 tunnel device

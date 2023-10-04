@@ -121,6 +121,21 @@ func TestPodNetwork(t *testing.T) {
 		t.Error("curl to host over IPv6 failed")
 	}
 
+	err = pn.Update(podConf1.IPv4, podConf1.IPv6, func(ipv4, ipv6 net.IP) error {
+		givenIPv4 = ipv4
+		givenIPv6 = ipv6
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !givenIPv4.Equal(net.ParseIP("10.1.2.3")) {
+		t.Error("hook could not catch IPv4", givenIPv4)
+	}
+	if !givenIPv6.Equal(net.ParseIP("fd02::1")) {
+		t.Error("hook could not catch IPv6", givenIPv6)
+	}
+
 	err = pn.Check(podConf1.ContainerId, podConf1.IFace)
 	if err != nil {
 		t.Error(err)
@@ -175,6 +190,15 @@ func TestPodNetwork(t *testing.T) {
 		t.Error("ping to pod1 over IPv4 failed")
 	}
 
+	err = pn.Update(podConf2.IPv4, podConf2.IPv6, func(ipv4, ipv6 net.IP) error {
+		givenIPv4 = ipv4
+		givenIPv6 = ipv6
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	err = pn.Check(podConf2.ContainerId, podConf2.IFace)
 	if err != nil {
 		t.Error(err)
@@ -227,6 +251,15 @@ func TestPodNetwork(t *testing.T) {
 	err = exec.Command("ip", "netns", "exec", "pod3", "ping", "-c", "3", "-i", "0.2", "fd02::1").Run()
 	if err != nil {
 		t.Error("ping to pod1 over IPv6 failed")
+	}
+
+	err = pn.Update(podConf3.IPv4, podConf3.IPv6, func(ipv4, ipv6 net.IP) error {
+		givenIPv4 = ipv4
+		givenIPv6 = ipv6
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	err = pn.Check(podConf3.ContainerId, podConf3.IFace)

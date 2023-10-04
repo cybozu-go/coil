@@ -21,6 +21,7 @@ const (
 // Index keys
 const (
 	AddressBlockRequestKey = "address-block.request"
+	PodNodeNameKey         = "pod.node-name"
 )
 
 // Finalizers

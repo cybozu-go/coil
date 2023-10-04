@@ -50,9 +50,17 @@ func testFoUDual(t *testing.T) {
 			return fmt.Errorf("netlink: failed to add an IPv6 address: %w", err)
 		}
 
-		fou := NewFoUTunnel(5555, net.ParseIP("127.0.0.1"), net.ParseIP("::1"))
+		fou := NewFoUTunnel(5555, net.ParseIP("127.0.0.1"), net.ParseIP("::1"), nil)
+		if fou.IsInitialized() {
+			return errors.New("expect not to be initialized, but it's already been done")
+		}
+
 		if err := fou.Init(); err != nil {
 			return fmt.Errorf("fou.Init failed: %w", err)
+		}
+
+		if !fou.IsInitialized() {
+			return errors.New("expect to be initialized, but it's not been done")
 		}
 
 		// test initialization twice
@@ -76,6 +84,40 @@ func testFoUDual(t *testing.T) {
 			}
 		}
 
+		if link, err := fou.AddPeer(net.ParseIP("10.1.1.1"), false); err != nil {
+			return fmt.Errorf("failed to call AddPeer with 10.1.1.1: %w", err)
+		} else {
+			iptun, ok := link.(*netlink.Iptun)
+			if !ok {
+				return fmt.Errorf("link is not Iptun: %T", link)
+			}
+			if !iptun.Remote.Equal(net.ParseIP("10.1.1.1")) {
+				return fmt.Errorf("remote is not 10.1.1.1: %s", iptun.Remote.String())
+			}
+			if !iptun.Local.Equal(net.ParseIP("127.0.0.1")) {
+				return fmt.Errorf("local is not 127.0.0.1: %s", iptun.Local.String())
+			}
+			if iptun.EncapDport != 5555 {
+				return fmt.Errorf("iptun.EncapDport is not 5555: %d", iptun.EncapDport)
+			}
+			if iptun.EncapSport != 5555 {
+				return fmt.Errorf("iptun.EncapSport is not 5555: %d", iptun.EncapSport)
+			}
+
+			ipip4, err := netlink.LinkByName("coil_ipip4")
+			if err != nil {
+				return fmt.Errorf("failed to get coil_ipip4: %w", err)
+			}
+			iptun, ok = ipip4.(*netlink.Iptun)
+			if !ok {
+				return fmt.Errorf("link is not Iptun: %T", link)
+			}
+			if !iptun.FlowBased {
+				return errors.New("coil_ipip4 is not flow based")
+			}
+		}
+
+		// Update the encap sport setting
 		if link, err := fou.AddPeer(net.ParseIP("10.1.1.1"), true); err != nil {
 			return fmt.Errorf("failed to call AddPeer with 10.1.1.1: %w", err)
 		} else {
@@ -109,6 +151,40 @@ func testFoUDual(t *testing.T) {
 			}
 		}
 
+		if link, err := fou.AddPeer(net.ParseIP("fd02::101"), false); err != nil {
+			return fmt.Errorf("failed to call AddPeer with fd02::101: %w", err)
+		} else {
+			ip6tnl, ok := link.(*netlink.Ip6tnl)
+			if !ok {
+				return fmt.Errorf("link is not Iptun: %T", link)
+			}
+			if !ip6tnl.Remote.Equal(net.ParseIP("fd02::101")) {
+				return fmt.Errorf("remote is not fd02::101: %s", ip6tnl.Remote.String())
+			}
+			if !ip6tnl.Local.Equal(net.ParseIP("::1")) {
+				return fmt.Errorf("local is not ::1: %s", ip6tnl.Local.String())
+			}
+			if ip6tnl.EncapDport != 5555 {
+				return fmt.Errorf("ip6tnl.EncapDport is not 5555: %d", ip6tnl.EncapDport)
+			}
+			if ip6tnl.EncapSport != 5555 {
+				return fmt.Errorf("ip6tnl.EncapSport is not 5555: %d", ip6tnl.EncapSport)
+			}
+
+			ipip6, err := netlink.LinkByName("coil_ipip6")
+			if err != nil {
+				return fmt.Errorf("failed to get coil_ipip6: %w", err)
+			}
+			ip6tnl, ok = ipip6.(*netlink.Ip6tnl)
+			if !ok {
+				return fmt.Errorf("link is not Iptun: %T", link)
+			}
+			if !ip6tnl.FlowBased {
+				return errors.New("coil_ipip6 is not flow based")
+			}
+		}
+
+		// Update the encap sport setting
 		if link, err := fou.AddPeer(net.ParseIP("fd02::101"), true); err != nil {
 			return fmt.Errorf("failed to call AddPeer with fd02::101: %w", err)
 		} else {
@@ -141,7 +217,6 @@ func testFoUDual(t *testing.T) {
 				return errors.New("coil_ipip6 is not flow based")
 			}
 		}
-
 		if err := fou.DelPeer(net.ParseIP("10.1.1.1")); err != nil {
 			return fmt.Errorf("failed to call DelPeer with 10.1.1.1: %w", err)
 		}
@@ -190,9 +265,17 @@ func testFoUV4(t *testing.T) {
 			return err
 		}
 
-		fou := NewFoUTunnel(5555, net.ParseIP("127.0.0.1"), nil)
+		fou := NewFoUTunnel(5555, net.ParseIP("127.0.0.1"), nil, nil)
+		if fou.IsInitialized() {
+			return errors.New("expect not to be initialized, but it's already been done")
+		}
+
 		if err := fou.Init(); err != nil {
 			return fmt.Errorf("fou.Init failed: %w", err)
+		}
+
+		if !fou.IsInitialized() {
+			return errors.New("expect to be initialized, but it's not been done")
 		}
 
 		fous, err := netlink.FouList(0)
@@ -283,9 +366,17 @@ func testFoUV6(t *testing.T) {
 			return err
 		}
 
-		fou := NewFoUTunnel(5555, nil, net.ParseIP("::1"))
+		fou := NewFoUTunnel(5555, nil, net.ParseIP("::1"), nil)
+		if fou.IsInitialized() {
+			return errors.New("expect not to be initialized, but it's already been done")
+		}
+
 		if err := fou.Init(); err != nil {
 			return fmt.Errorf("fou.Init failed: %w", err)
+		}
+
+		if !fou.IsInitialized() {
+			return errors.New("expect to be initialized, but it's not been done")
 		}
 
 		fous, err := netlink.FouList(0)

@@ -306,6 +306,17 @@ ip rule add pref 2100 table 118
 ip route add default dev tun1 table 118
 ```
 
+### NAT configuration updates
+
+Users can update the existing NAT setup by editing the `spec.destinations` and `spec.fouSourcePortAuto` in the Egress resource.
+`coild` watches the Egress resources, and if it catches the updates then updates the NAT setup in the pods running on the same node following the updated Egress.
+
+Currently, coil doesn't support updating the NAT configuration which Egress CRD does not include, such as FoU destination port, FoU peer(service ClusterIP).
+Users need to restart NAT client Pods in the cases as follows.
+
+- Change the FoU tunnel port using the flags of `coild` and `coil-egress`
+- Remove services for router Pods and k8s assigns different ClusterIPs. (NAT clients have to send encapsulated packets to the new peer)
+
 ## Garbage Collection
 
 To understand this section, you need to know the Kubernetes garbage collection and finalizers.

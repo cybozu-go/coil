@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
@@ -316,13 +317,15 @@ var _ = Describe("Coil", func() {
 	})
 
 	It("should allow NAT traffic over foo-over-udp tunnel", func() {
-		var fakeIP, fakeURL string
+		var fakeIP, fakeURL, ipOpt string
 		if testIPv6 {
 			fakeIP = "2606:4700:4700::9999"
 			fakeURL = fmt.Sprintf("http://[%s]", fakeIP)
+			ipOpt = "-6"
 		} else {
 			fakeIP = "9.9.9.9"
 			fakeURL = "http://" + fakeIP
+			ipOpt = "-4"
 		}
 
 		By("setting a fake global address to coil-control-plane")
@@ -362,6 +365,96 @@ var _ = Describe("Coil", func() {
 		for i := 0; i < 100; i++ {
 			time.Sleep(1 * time.Millisecond)
 			resp := kubectlSafe(data, "exec", "-i", "nat-client-sport-auto", "--", "curl", "-sf", "-T", "-", fakeURL)
+			Expect(resp).To(HaveLen(1 << 20))
+		}
+
+		By("updating Egress in the internet namespace")
+		kubectlSafe(nil, "apply", "-f", "manifests/egress-updated.yaml")
+
+		By("waiting for the Egress rollout restart")
+		kubectlSafe(nil, "-n", "internet", "rollout", "status", "deploy", "egress")
+
+		By("checking the NAT setup in the nat-client Pod")
+		type link struct {
+			Ifname   string `json:"ifname"`
+			Linkinfo struct {
+				InfoKind string `json:"info_kind"`
+				InfoData struct {
+					Proto    string `json:"proto"`
+					Remote   string `json:"remote"`
+					Local    string `json:"local"`
+					TTL      int    `json:"ttl"`
+					Pmtudisc bool   `json:"pmtudisc"`
+					Encap    struct {
+						Type    string `json:"type"`
+						Sport   int    `json:"sport"`
+						Dport   int    `json:"dport"`
+						Csum    bool   `json:"csum"`
+						Csum6   bool   `json:"csum6"`
+						Remcsum bool   `json:"remcsum"`
+					} `json:"encap"`
+				} `json:"info_data"`
+			} `json:"linkinfo"`
+		}
+
+		type route struct {
+			Dst      string `json:"dst"`
+			Dev      string `json:"dev"`
+			Protocol string `json:"protocol"`
+		}
+
+		Eventually(func() error {
+			out, err := kubectl(nil, "exec", "nat-client", "--", "ip", ipOpt, "-d", "-j", "link", "show")
+			if err != nil {
+				return err
+			}
+			var links []link
+			err = json.Unmarshal(out, &links)
+			if err != nil {
+				return err
+			}
+			var found bool
+			for _, l := range links {
+				if strings.HasPrefix(l.Ifname, "fou") && l.Ifname != "fou-dummy" {
+					if l.Linkinfo.InfoData.Encap.Sport != 0 {
+						return fmt.Errorf("encap sport is not auto actual: %d", l.Linkinfo.InfoData.Encap.Sport)
+					}
+					found = true
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("fou tunnel device not found")
+			}
+
+			out, err = kubectl(nil, "exec", "nat-client", "--", "ip", ipOpt, "-j", "route", "show", "table", "118")
+			if err != nil {
+				return err
+			}
+			var routes []route
+			err = json.Unmarshal(out, &routes)
+			if err != nil {
+				return err
+			}
+			if len(routes) != 1 {
+				return fmt.Errorf("routes length is not 1 actual: %d", len(routes))
+			}
+			if routes[0].Dst != fakeIP {
+				return fmt.Errorf("route Dst is not %s actual: %s", fakeIP, routes[0].Dst)
+			}
+
+			return nil
+		}).Should(Succeed())
+
+		By("sending and receiving HTTP request from nat-client")
+		data = make([]byte, 1<<20) // 1 MiB
+		resp = kubectlSafe(data, "exec", "-i", "nat-client", "--", "curl", "-sf", "-T", "-", fakeURL)
+		Expect(resp).To(HaveLen(1 << 20))
+
+		By("running the same test 100 times")
+		for i := 0; i < 100; i++ {
+			time.Sleep(1 * time.Millisecond)
+			resp := kubectlSafe(data, "exec", "-i", "nat-client", "--", "curl", "-sf", "-T", "-", fakeURL)
 			Expect(resp).To(HaveLen(1 << 20))
 		}
 	})

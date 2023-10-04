@@ -2,7 +2,6 @@ package v2
 
 import (
 	"net"
-	"reflect"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -123,15 +122,8 @@ func (es EgressSpec) validate() field.ErrorList {
 	return allErrs
 }
 
-func (es EgressSpec) validateUpdate(old EgressSpec) field.ErrorList {
-	allErrs := es.validate()
-	p := field.NewPath("spec")
-
-	if !reflect.DeepEqual(es.Destinations, old.Destinations) {
-		allErrs = append(allErrs, field.Forbidden(p.Child("destinations"), "unchangeable"))
-	}
-
-	return allErrs
+func (es EgressSpec) validateUpdate() field.ErrorList {
+	return es.validate()
 }
 
 // EgressStatus defines the observed state of Egress

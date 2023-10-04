@@ -84,7 +84,7 @@ func subMain() error {
 		return err
 	}
 
-	ft := founat.NewFoUTunnel(config.port, ipv4, ipv6)
+	ft := founat.NewFoUTunnel(config.port, ipv4, ipv6, nil)
 	if err := ft.Init(); err != nil {
 		return err
 	}

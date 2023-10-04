@@ -46,6 +46,7 @@ var (
 // This can be re-initialized by calling `Init` again.
 type NatClient interface {
 	Init() error
+	IsInitialized() (bool, error)
 	AddEgress(link netlink.Link, subnets []*net.IPNet) error
 }
 
@@ -57,7 +58,7 @@ type NatClient interface {
 // `podNodeNet` is, if given, are networks for Pod and Node addresses.
 // If all the addresses of Pods and Nodes are within IPv4/v6 private addresses,
 // `podNodeNet` can be left nil.
-func NewNatClient(ipv4, ipv6 net.IP, podNodeNet []*net.IPNet) NatClient {
+func NewNatClient(ipv4, ipv6 net.IP, podNodeNet []*net.IPNet, logFunc func(string)) NatClient {
 	if ipv4 != nil && ipv4.To4() == nil {
 		panic("invalid IPv4 address")
 	}
@@ -80,10 +81,11 @@ func NewNatClient(ipv4, ipv6 net.IP, podNodeNet []*net.IPNet) NatClient {
 	}
 
 	return &natClient{
-		ipv4:   ipv4 != nil,
-		ipv6:   ipv6 != nil,
-		v4priv: v4priv,
-		v6priv: v6priv,
+		ipv4:    ipv4 != nil,
+		ipv6:    ipv6 != nil,
+		v4priv:  v4priv,
+		v6priv:  v6priv,
+		logFunc: logFunc,
 	}
 }
 
@@ -93,6 +95,8 @@ type natClient struct {
 
 	v4priv []*net.IPNet
 	v6priv []*net.IPNet
+
+	logFunc func(string)
 
 	mu sync.Mutex
 }
@@ -223,16 +227,149 @@ func (c *natClient) Init() error {
 	return nil
 }
 
+func (c *natClient) IsInitialized() (bool, error) {
+	if c.ipv4 {
+		rules, err := netlink.RuleListFiltered(netlink.FAMILY_V4, &netlink.Rule{Table: mainTableID}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return false, fmt.Errorf("netlink: failed to list v4 main rules: %w", err)
+		}
+		// Expect link local and private rules
+		if len(rules) < (len(c.v4priv) + 1) {
+			return false, nil
+		}
+
+		rules, err = netlink.RuleListFiltered(netlink.FAMILY_V4, &netlink.Rule{Table: ncNarrowTableID}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return false, fmt.Errorf("netlink: failed to list v4 narrow rules: %w", err)
+		}
+		if len(rules) != 1 {
+			return false, nil
+		}
+
+		rules, err = netlink.RuleListFiltered(netlink.FAMILY_V4, &netlink.Rule{Table: ncWideTableID}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return false, fmt.Errorf("netlink: failed to list v4 wide rules: %w", err)
+		}
+		if len(rules) != 1 {
+			return false, nil
+		}
+	}
+
+	if c.ipv6 {
+		rules, err := netlink.RuleListFiltered(netlink.FAMILY_V6, &netlink.Rule{Table: mainTableID}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return false, fmt.Errorf("netlink: failed to list v6 main rules: %w", err)
+		}
+		// Expect link local and private rules
+		if len(rules) < (len(c.v6priv) + 1) {
+			return false, nil
+		}
+
+		rules, err = netlink.RuleListFiltered(netlink.FAMILY_V6, &netlink.Rule{Table: ncNarrowTableID}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return false, fmt.Errorf("netlink: failed to list v6 narrow rules: %w", err)
+		}
+		if len(rules) != 1 {
+			return false, nil
+		}
+
+		rules, err = netlink.RuleListFiltered(netlink.FAMILY_V6, &netlink.Rule{Table: ncWideTableID}, netlink.RT_FILTER_TABLE)
+		if err != nil {
+			return false, fmt.Errorf("netlink: failed to list v6 wide rules: %w", err)
+		}
+		if len(rules) != 1 {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
 func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	for _, n := range subnets {
+	currentSubnets, err := collectRoutes(link.Attrs().Index)
+	if err != nil {
+		return err
+	}
+
+	var adds []*net.IPNet
+	var deletes []netlink.Route
+	for _, subnet := range subnets {
+		if _, ok := currentSubnets[subnet.String()]; !ok {
+			adds = append(adds, subnet)
+		}
+	}
+
+	subnetsSet := subnetsSet(subnets)
+	for currenSubnet, route := range currentSubnets {
+		if _, ok := subnetsSet[currenSubnet]; !ok {
+			deletes = append(deletes, route)
+		}
+	}
+
+	for _, n := range adds {
 		if err := c.addEgress1(link, n); err != nil {
 			return err
 		}
 	}
+
+	for _, r := range deletes {
+		if c.logFunc != nil {
+			c.logFunc(fmt.Sprintf("removing a destination %s", r.Dst.String()))
+		}
+		if err := netlink.RouteDel(&r); err != nil {
+			return fmt.Errorf("netlink: failed to delete a route  %+v, %w", r, err)
+		}
+	}
+
 	return nil
+}
+
+func collectRoutes(linkIndex int) (map[string]netlink.Route, error) {
+	subnets := make(map[string]netlink.Route)
+
+	err := collectRoute1(netlink.FAMILY_V4, ncNarrowTableID, linkIndex, subnets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to collect route %d %d %d: %w", netlink.FAMILY_V4, ncNarrowTableID, linkIndex, err)
+	}
+	err = collectRoute1(netlink.FAMILY_V4, ncWideTableID, linkIndex, subnets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to collect route %d %d %d: %w", netlink.FAMILY_V4, ncWideTableID, linkIndex, err)
+	}
+
+	err = collectRoute1(netlink.FAMILY_V6, ncNarrowTableID, linkIndex, subnets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to collect route %d %d %d: %w", netlink.FAMILY_V6, ncNarrowTableID, linkIndex, err)
+	}
+	err = collectRoute1(netlink.FAMILY_V6, ncWideTableID, linkIndex, subnets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to collect route %d %d %d: %w", netlink.FAMILY_V6, ncWideTableID, linkIndex, err)
+	}
+
+	return subnets, nil
+}
+
+func collectRoute1(family, tableID, linkIndex int, subnets map[string]netlink.Route) error {
+	routes, err := netlink.RouteListFiltered(family, &netlink.Route{Table: tableID}, netlink.RT_FILTER_TABLE)
+	if err != nil {
+		return fmt.Errorf("netlink: route list failed: %w", err)
+	}
+	for _, r := range routes {
+		if r.LinkIndex == linkIndex && r.Dst != nil {
+			subnets[r.Dst.String()] = r
+		}
+	}
+	return nil
+}
+
+func subnetsSet(subnets []*net.IPNet) map[string]struct{} {
+	subnetsSet := make(map[string]struct{})
+	for _, subnet := range subnets {
+		subnetsSet[subnet.String()] = struct{}{}
+	}
+	return subnetsSet
 }
 
 func (c *natClient) addEgress1(link netlink.Link, n *net.IPNet) error {

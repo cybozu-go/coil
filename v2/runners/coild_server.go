@@ -58,12 +58,16 @@ type natSetup struct {
 
 func (n natSetup) Hook(l []GWNets, log *zap.Logger) func(ipv4, ipv6 net.IP) error {
 	return func(ipv4, ipv6 net.IP) error {
-		ft := founat.NewFoUTunnel(n.port, ipv4, ipv6)
+		ft := founat.NewFoUTunnel(n.port, ipv4, ipv6, func(message string) {
+			log.Sugar().Info(message)
+		})
 		if err := ft.Init(); err != nil {
 			return err
 		}
 
-		cl := founat.NewNatClient(ipv4, ipv6, nil)
+		cl := founat.NewNatClient(ipv4, ipv6, nil, func(message string) {
+			log.Sugar().Info(message)
+		})
 		if err := cl.Init(); err != nil {
 			return err
 		}
@@ -338,8 +342,8 @@ func (s *coildServer) getHook(ctx context.Context, pod *corev1.Pod) (nodenet.Set
 				"failed to get Service "+n.String(), err.Error())
 		}
 
-		// as of k8s 1.19, dual stack Service is alpha and will be re-written
-		// in 1.20.  So, we cannot use dual stack services.
+		// coil doesn't support dual stack services for now, although it's stable from k8s 1.23
+		// https://kubernetes.io/docs/concepts/services-networking/dual-stack/
 		svcIP := net.ParseIP(svc.Spec.ClusterIP)
 		if svcIP == nil {
 			return nil, newError(codes.Internal, cnirpc.ErrorCode_INTERNAL,

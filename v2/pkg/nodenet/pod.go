@@ -3,11 +3,16 @@ package nodenet
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"os/exec"
+	"path"
 	"strings"
 	"sync"
+	"syscall"
 
 	current "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/containernetworking/plugins/pkg/ip"
@@ -30,11 +35,12 @@ type SetupHook func(ipv4, ipv6 net.IP) error
 
 // PodNetConf holds configuration parameters for a Pod network
 type PodNetConf struct {
-	PoolName    string
-	ContainerId string
-	IFace       string
-	IPv4        net.IP
-	IPv6        net.IP
+	PoolName     string
+	ContainerId  string
+	IFace        string
+	IPv4         net.IP
+	IPv6         net.IP
+	HostVethName string
 }
 
 // PodNetwork represents an interface to configure container networking.
@@ -46,6 +52,10 @@ type PodNetwork interface {
 	// `nsPath` is the container network namespace's (possibly bind-mounted) file.
 	// If `hook` is non-nil, it is called in the Pod network.
 	Setup(nsPath, podName, podNS string, conf *PodNetConf, hook SetupHook) (*current.Result, error)
+
+	// Update updates the container network configuration
+	// Currently, it only updates configuration using a SetupHook, e.g. NAT setting
+	Update(podIPv4, podIPv6 net.IP, hook SetupHook) error
 
 	// Check checks the pod network's status.
 	Check(containerId, iface string) error
@@ -401,6 +411,112 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 	return result, nil
 }
 
+func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook) error {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+
+	podConfigs, err := pn.list()
+	if err != nil {
+		return err
+	}
+
+	var netNsPath string
+	for _, c := range podConfigs {
+		if c.IPv4.Equal(podIPv4) || c.IPv6.Equal(podIPv6) {
+			netNsPath, err = getNetNsPath(c.HostVethName)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(netNsPath) == 0 {
+		return fmt.Errorf("failed to find netNsPath")
+	}
+
+	containerNS, err := ns.GetNS(netNsPath)
+	if err != nil {
+		return fmt.Errorf("failed to open netns path %s: %w", netNsPath, err)
+	}
+	defer containerNS.Close()
+
+	err = containerNS.Do(func(ns.NetNS) error {
+		if hook != nil {
+			return hook(podIPv4, podIPv6)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type linkData struct {
+	LinkNetnsid int `json:"link_netnsid"`
+}
+
+type netNsData struct {
+	Nsid int    `json:"nsid"`
+	Name string `json:"name"`
+}
+
+func getNetNsPath(hostVethName string) (string, error) {
+	command := exec.Command("ip", "-j", "link", "show", hostVethName)
+	out, err := command.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("failed to run %s: %w: %s", command.String(), err, string(out))
+	}
+
+	var linkData []linkData
+	if err := json.Unmarshal(out, &linkData); err != nil {
+		return "", fmt.Errorf("failed to unMarshal linkData %w", err)
+	}
+
+	if len(linkData) == 0 {
+		return "", fmt.Errorf("failed to get link data for %s", hostVethName)
+	}
+
+	command = exec.Command("ip", "-j", "netns", "list-id")
+	out, err = command.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("failed to run %s: %w: %s", command.String(), err, string(out))
+	}
+
+	var netNsData []netNsData
+	if err := json.Unmarshal(out, &netNsData); err != nil {
+		return "", fmt.Errorf("failed to unMarshal netNsData %w", err)
+	}
+
+	for _, netNs := range netNsData {
+		if netNs.Nsid == linkData[0].LinkNetnsid {
+			return fmt.Sprintf("%s/%s", getNsRunDir(), netNs.Name), nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to get peer NetNS path for %s", hostVethName)
+}
+
+// Reference https://github.com/containernetworking/plugins/blob/509d645ee9ccfee0ad90fe29de3133d0598b7305/pkg/testutils/netns_linux.go#L31-L47
+func getNsRunDir() string {
+	xdgRuntimeDir := os.Getenv("XDG_RUNTIME_DIR")
+
+	/// If XDG_RUNTIME_DIR is set, check if the current user owns /var/run.  If
+	// the owner is different, we are most likely running in a user namespace.
+	// In that case use $XDG_RUNTIME_DIR/netns as runtime dir.
+	if xdgRuntimeDir != "" {
+		if s, err := os.Stat("/var/run"); err == nil {
+			st, ok := s.Sys().(*syscall.Stat_t)
+			if ok && int(st.Uid) != os.Geteuid() {
+				return path.Join(xdgRuntimeDir, "netns")
+			}
+		}
+	}
+
+	return "/var/run/netns"
+}
+
 func (pn *podNetwork) Check(containerId, iface string) error {
 	pn.mu.Lock()
 	defer pn.mu.Unlock()
@@ -437,6 +553,10 @@ func (pn *podNetwork) List() ([]*PodNetConf, error) {
 	pn.mu.Lock()
 	defer pn.mu.Unlock()
 
+	return pn.list()
+}
+
+func (pn *podNetwork) list() ([]*PodNetConf, error) {
 	links, err := netlink.LinkList()
 	if err != nil {
 		return nil, fmt.Errorf("netlink: failed to list links: %w", err)
@@ -502,6 +622,7 @@ func (pn *podNetwork) List() ([]*PodNetConf, error) {
 			idx := l.Attrs().Index
 			conf.IPv4 = v4Map[idx]
 			conf.IPv6 = v6Map[idx]
+			conf.HostVethName = l.Attrs().Name
 			confs = append(confs, conf)
 		}
 	}
