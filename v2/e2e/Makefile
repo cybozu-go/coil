@@ -33,7 +33,7 @@ install-coil:
 
 .PHONY: test
 test:
-	go build -o echotest ./echo-server
+	CGO_ENABLED=0 go build -o echotest ./echo-server
 	docker cp echotest coil-control-plane:/usr/local/bin
 	rm echotest
 	go test -count 1 -v . -args -ginkgo.progress -ginkgo.v
