@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // SetupWebhookWithManager setups the webhook for Egress
@@ -43,26 +44,26 @@ func (r *Egress) Default() {
 var _ webhook.Validator = &Egress{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Egress) ValidateCreate() error {
+func (r *Egress) ValidateCreate() (warnings admission.Warnings, err error) {
 	errs := r.Spec.validate()
 	if len(errs) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	return apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Egress"}, r.Name, errs)
+	return nil, apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Egress"}, r.Name, errs)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Egress) ValidateUpdate(old runtime.Object) error {
+func (r *Egress) ValidateUpdate(old runtime.Object) (warnings admission.Warnings, err error) {
 	errs := r.Spec.validateUpdate()
 	if len(errs) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	return apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Egress"}, r.Name, errs)
+	return nil, apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Egress"}, r.Name, errs)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Egress) ValidateDelete() error {
-	return nil
+func (r *Egress) ValidateDelete() (warnings admission.Warnings, err error) {
+	return nil, nil
 }
