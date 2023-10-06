@@ -16,10 +16,8 @@ import (
 	"github.com/cybozu-go/coil/v2/pkg/founat"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
 	"github.com/cybozu-go/coil/v2/pkg/nodenet"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
-	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -132,32 +130,13 @@ func (s *coildServer) NeedLeaderElection() bool {
 	return false
 }
 
-func fieldExtractor(fullMethod string, req interface{}) map[string]interface{} {
-	args, ok := req.(*cnirpc.CNIArgs)
-	if !ok {
-		return nil
-	}
-
-	ret := make(map[string]interface{})
-	if name, ok := args.Args[constants.PodNameKey]; ok {
-		ret["pod.name"] = name
-	}
-	if namespace, ok := args.Args[constants.PodNamespaceKey]; ok {
-		ret["pod.namespace"] = namespace
-	}
-	ret["netns"] = args.Netns
-	ret["ifname"] = args.Ifname
-	ret["container_id"] = args.ContainerId
-	return ret
-}
-
 func (s *coildServer) Start(ctx context.Context) error {
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(
-		grpc_middleware.ChainUnaryServer(
-			grpc_ctxtags.UnaryServerInterceptor(grpc_ctxtags.WithFieldExtractor(fieldExtractor)),
-			grpcMetrics.UnaryServerInterceptor(),
-			grpc_zap.UnaryServerInterceptor(s.logger),
-		),
+	grpcServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
+		logging.UnaryServerInterceptor(
+			InterceptorLogger(s.logger),
+			logging.WithFieldsFromContextAndCallMeta(loggingFields),
+			logging.WithLogOnEvents(logging.FinishCall)),
+		grpcMetrics.UnaryServerInterceptor(),
 	))
 	cnirpc.RegisterCNIServer(grpcServer, s)
 
@@ -191,7 +170,7 @@ func newInternalError(err error, msg string) error {
 }
 
 func (s *coildServer) Add(ctx context.Context, args *cnirpc.CNIArgs) (*cnirpc.AddResponse, error) {
-	logger := ctxzap.Extract(ctx)
+	logger := withCtxFields(ctx, s.logger)
 
 	podName := args.Args[constants.PodNameKey]
 	podNS := args.Args[constants.PodNamespaceKey]
@@ -268,7 +247,7 @@ func (s *coildServer) Add(ctx context.Context, args *cnirpc.CNIArgs) (*cnirpc.Ad
 }
 
 func (s *coildServer) Del(ctx context.Context, args *cnirpc.CNIArgs) (*emptypb.Empty, error) {
-	logger := ctxzap.Extract(ctx)
+	logger := withCtxFields(ctx, s.logger)
 
 	if err := s.podNet.Destroy(args.ContainerId, args.Ifname); err != nil {
 		logger.Sugar().Errorw("failed to destroy pod network", "error", err)
@@ -294,7 +273,7 @@ func (s *coildServer) Del(ctx context.Context, args *cnirpc.CNIArgs) (*emptypb.E
 }
 
 func (s *coildServer) Check(ctx context.Context, args *cnirpc.CNIArgs) (*emptypb.Empty, error) {
-	logger := ctxzap.Extract(ctx)
+	logger := withCtxFields(ctx, s.logger)
 
 	if err := s.podNet.Check(args.ContainerId, args.Ifname); err != nil {
 		logger.Sugar().Errorw("check failed", "error", err)
@@ -304,7 +283,7 @@ func (s *coildServer) Check(ctx context.Context, args *cnirpc.CNIArgs) (*emptypb
 }
 
 func (s *coildServer) getHook(ctx context.Context, pod *corev1.Pod) (nodenet.SetupHook, error) {
-	logger := ctxzap.Extract(ctx)
+	logger := withCtxFields(ctx, s.logger)
 
 	if pod.Spec.HostNetwork {
 		// pods running in the host network cannot use egress NAT.
@@ -382,4 +361,72 @@ func (s *coildServer) getHook(ctx context.Context, pod *corev1.Pod) (nodenet.Set
 		return s.natSetup.Hook(gwlist, logger), nil
 	}
 	return nil, nil
+}
+
+// ref: https://github.com/grpc-ecosystem/go-grpc-middleware/blob/71d7422112b1d7fadd4b8bf12a6f33ba6d22e98e/interceptors/logging/examples/zap/example_test.go#L17
+func InterceptorLogger(l *zap.Logger) logging.Logger {
+	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
+		logger := l.WithOptions(zap.AddCallerSkip(1)).With(toZapFields(fields)...)
+
+		switch lvl {
+		case logging.LevelDebug:
+			logger.Debug(msg)
+		case logging.LevelInfo:
+			logger.Info(msg)
+		case logging.LevelWarn:
+			logger.Warn(msg)
+		case logging.LevelError:
+			logger.Error(msg)
+		default:
+			logger.Warn(fmt.Sprintf("unknown level %v, msg: %s", lvl, msg))
+		}
+	})
+}
+
+func toZapFields(fs []any) []zap.Field {
+	zfs := make([]zap.Field, 0, len(fs)/2)
+
+	for i := 0; i < len(fs); i += 2 {
+		key := fs[i]
+		value := fs[i+1]
+
+		switch v := value.(type) {
+		case string:
+			zfs = append(zfs, zap.String(key.(string), v))
+		case int:
+			zfs = append(zfs, zap.Int(key.(string), v))
+		case bool:
+			zfs = append(zfs, zap.Bool(key.(string), v))
+		default:
+			zfs = append(zfs, zap.Any(key.(string), v))
+		}
+	}
+	return zfs
+}
+
+func loggingFields(_ context.Context, c interceptors.CallMeta) logging.Fields {
+	req := c.ReqOrNil
+	if req == nil {
+		return nil
+	}
+	args, ok := req.(*cnirpc.CNIArgs)
+	if !ok {
+		return nil
+	}
+
+	ret := make([]any, 0, 10)
+	if name, ok := args.Args[constants.PodNameKey]; ok {
+		ret = append(ret, []any{"grpc.request.pod.name", name}...)
+	}
+	if namespace, ok := args.Args[constants.PodNamespaceKey]; ok {
+		ret = append(ret, []any{"grpc.request.pod.namespace", namespace}...)
+	}
+	ret = append(ret, []any{"grpc.request.netns", args.Netns}...)
+	ret = append(ret, []any{"grpc.request.ifname", args.Ifname}...)
+	ret = append(ret, []any{"grpc.request.container_id", args.ContainerId}...)
+	return ret
+}
+
+func withCtxFields(ctx context.Context, l *zap.Logger) *zap.Logger {
+	return l.With(toZapFields(logging.ExtractFields(ctx))...)
 }
