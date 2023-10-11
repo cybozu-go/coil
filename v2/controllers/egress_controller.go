@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -181,8 +181,8 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	)
 	egressContainer.VolumeMounts = r.addVolumeMounts(egressContainer.VolumeMounts)
 	egressContainer.SecurityContext = &corev1.SecurityContext{
-		Privileged:             pointer.Bool(true),
-		ReadOnlyRootFilesystem: pointer.Bool(true),
+		Privileged:             ptr.To(true),
+		ReadOnlyRootFilesystem: ptr.To(true),
 		Capabilities:           &corev1.Capabilities{Add: []corev1.Capability{"NET_ADMIN"}},
 	}
 	if egressContainer.Resources.Requests == nil {

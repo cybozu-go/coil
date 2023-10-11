@@ -1,6 +1,6 @@
-KIND_VERSION=0.18.0
-KUBERNETES_VERSION=1.26.3
-KUSTOMIZE_VERSION = 5.0.1
+KIND_VERSION=0.20.0
+KUBERNETES_VERSION=1.27.3
+KUSTOMIZE_VERSION = 5.1.1
 BINDIR := $(abspath $(PWD)/../bin)
 
 KIND := $(BINDIR)/kind
@@ -33,7 +33,7 @@ install-coil:
 
 .PHONY: test
 test:
-	go build -o echotest ./echo-server
+	CGO_ENABLED=0 go build -o echotest ./echo-server
 	docker cp echotest coil-control-plane:/usr/local/bin
 	rm echotest
 	go test -count 1 -v . -args -ginkgo.progress -ginkgo.v
