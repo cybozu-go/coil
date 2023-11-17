@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM quay.io/cybozu/golang:1.20-jammy as build-env
+FROM --platform=$BUILDPLATFORM quay.io/cybozu/golang:1.21-jammy as build-env
 
 ARG TARGETARCH
 
