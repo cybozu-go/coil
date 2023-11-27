@@ -441,6 +441,7 @@ func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook) error {
 	defer containerNS.Close()
 
 	err = containerNS.Do(func(ns.NetNS) error {
+		pn.log.Info("do the hook function", "netns", netNsPath, "pod_address", podIPv4)
 		if hook != nil {
 			return hook(podIPv4, podIPv6)
 		}

@@ -100,6 +100,9 @@ func (t *fouTunnel) Init() error {
 		if err := modProbe("fou"); err != nil {
 			return fmt.Errorf("failed to load fou module: %w", err)
 		}
+		if t.logFunc != nil {
+			t.logFunc("add FoU devide for IPv4")
+		}
 		err := netlink.FouAdd(netlink.Fou{
 			Family:    netlink.FAMILY_V4,
 			Protocol:  4, // IPv4 over IPv4 (so-called IPIP)

@@ -358,6 +358,7 @@ func (s *coildServer) getHook(ctx context.Context, pod *corev1.Pod) (nodenet.Set
 	}
 
 	if len(gwlist) > 0 {
+		logger = logger.With(zap.String("pod_name", pod.Name), zap.String("pod_namespace", pod.Namespace))
 		return s.natSetup.Hook(gwlist, logger), nil
 	}
 	return nil, nil
