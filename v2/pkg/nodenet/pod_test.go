@@ -1,6 +1,7 @@
 package nodenet
 
 import (
+	"encoding/json"
 	"net"
 	"net/http"
 	"os"
@@ -288,6 +289,47 @@ func TestPodNetwork(t *testing.T) {
 	}
 	if !found {
 		t.Error("config for pod3 not found")
+	}
+
+	// confirm to select the expected pod
+	type addrInfo struct {
+		Family string `json:"family"`
+		Local  string `json:"local"`
+	}
+	type devInfo struct {
+		IfName    string     `json:"ifname"`
+		AddrInfos []addrInfo `json:"addr_info"`
+	}
+	info := make([]devInfo, 0, 1)
+	err = pn.Update(podConf1.IPv4, nil, func(ipv4, ipv6 net.IP) error {
+		out, err := exec.Command("ip", "-j", "addr", "show", podConf1.IFace).Output()
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(out, &info); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(info) != 1 {
+		t.Fatal("len(info) != 1")
+	}
+
+	if info[0].IfName != podConf1.IFace {
+		t.Fatalf("expected iface is %s", podConf1.IFace)
+	}
+
+	for _, addr := range info[0].AddrInfos {
+		if addr.Family != "inet" {
+			continue
+		}
+		if addr.Local != podConf1.IPv4.String() {
+			t.Fatal("address don't match")
+		}
 	}
 
 	// destroy pod2 network
