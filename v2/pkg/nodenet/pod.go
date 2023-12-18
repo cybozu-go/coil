@@ -423,7 +423,7 @@ func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook) error {
 	var netNsPath string
 	for _, c := range podConfigs {
 		// When both c.IPvX and podIPvX are nil, net.IP.Equal() returns always true.
-		// Avoiding comparing nil and nil, confirm c.IPvX is not nil.
+		// Avoiding comparing nil to nil, confirm c.IPvX is not nil.
 		if (c.IPv4 != nil && c.IPv4.Equal(podIPv4)) || (c.IPv6 != nil && c.IPv6.Equal(podIPv6)) {
 			netNsPath, err = getNetNsPath(c.HostVethName)
 			if err != nil {

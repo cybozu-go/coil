@@ -369,7 +369,7 @@ var _ = Describe("Coil", func() {
 		}
 
 		By("creating a dummy pod don't use egress")
-		// dummy_pod must be created after creating a net-client pod
+		// dummy pod must be created after creating a net-client pod
 		kubectlSafe(nil, "apply", "-f", "manifests/dummy_pod.yaml")
 
 		By("updating Egress in the internet namespace")
