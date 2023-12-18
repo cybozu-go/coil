@@ -8,8 +8,6 @@ import (
 	"net"
 	"strings"
 
-	"github.com/containernetworking/plugins/pkg/ip"
-	"github.com/containernetworking/plugins/pkg/ns"
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
@@ -252,17 +250,6 @@ func (s *coildServer) Del(ctx context.Context, args *cnirpc.CNIArgs) (*emptypb.E
 	if err := s.podNet.Destroy(args.ContainerId, args.Ifname); err != nil {
 		logger.Sugar().Errorw("failed to destroy pod network", "error", err)
 		return nil, newInternalError(err, "failed to destroy pod network")
-	}
-
-	// This is for migration from Coil v1.
-	// TODO: eventually this block should be removed.
-	if args.Netns != "" {
-		err := ns.WithNetNSPath(args.Netns, func(_ ns.NetNS) error {
-			return ip.DelLinkByName(args.Ifname)
-		})
-		if err != nil {
-			logger.Sugar().Errorw("intentionally ignoring error for v1 migration", "error", err)
-		}
 	}
 
 	if err := s.nodeIPAM.Free(ctx, args.ContainerId, args.Ifname); err != nil {
