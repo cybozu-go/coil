@@ -291,7 +291,10 @@ func TestPodNetwork(t *testing.T) {
 		t.Error("config for pod3 not found")
 	}
 
-	// confirm to select the expected pod
+	// This test is for https://github.com/cybozu-go/coil/pull/265.
+	// Confirm to select the expected pod.
+	// In this test, the address in podConf is equal to the address in the hook function.
+	// The hook function is executed inside the pod's network namespace.
 	type addrInfo struct {
 		Family string `json:"family"`
 		Local  string `json:"local"`
