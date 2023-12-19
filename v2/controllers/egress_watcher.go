@@ -34,7 +34,6 @@ type EgressWatcher struct {
 func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	logger.Info("start reconciling egress")
 	eg := &coilv2.Egress{}
 	if err := r.Get(ctx, req.NamespacedName, eg); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -90,10 +89,8 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	return ctrl.Result{}, nil
 }
 
-func (r *EgressWatcher) reconcileEgressClient(ctx context.Context, eg *coilv2.Egress, pod *corev1.Pod, l *logr.Logger) error {
-	logger := l.WithValues("pod_name", pod.Name, "pod_namespace", pod.Namespace)
-	logger.Info("reconcile egress client")
-	hook, err := r.getHook(ctx, eg, &logger)
+func (r *EgressWatcher) reconcileEgressClient(ctx context.Context, eg *coilv2.Egress, pod *corev1.Pod, logger *logr.Logger) error {
+	hook, err := r.getHook(ctx, eg, logger)
 	if err != nil {
 		return fmt.Errorf("failed to setup NAT hook: %w", err)
 	}
@@ -185,7 +182,6 @@ func (r *EgressWatcher) hook(gwn gwNets, log *logr.Logger) func(ipv4, ipv6 net.I
 			return fmt.Errorf("natClient hasn't been initialized: %w", err)
 		}
 
-		log.Info("add a fou device by EgressWatcher", "gateway", gwn.gateway.String())
 		link, err := ft.AddPeer(gwn.gateway, gwn.sportAuto)
 		if errors.Is(err, founat.ErrIPFamilyMismatch) {
 			// ignore unsupported IP family link
