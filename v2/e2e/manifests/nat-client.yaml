@@ -11,6 +11,7 @@ spec:
     operator: Exists
   nodeSelector:
     test: coil
+    kubernetes.io/hostname: coil-worker
   containers:
   - name: ubuntu
     image: ghcr.io/cybozu/ubuntu-debug:22.04

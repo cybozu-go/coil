@@ -21,7 +21,7 @@ PROTOC_OUTPUTS = pkg/cnirpc/cni.pb.go pkg/cnirpc/cni_grpc.pb.go ../docs/cni-grpc
 GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
 PROTOC := PATH=$(PWD)/bin:'$(PATH)' $(PWD)/bin/protoc -I=$(PWD)/include:.
-PODNSLIST = pod1 pod2 pod3
+PODNSLIST = pod1 pod2 pod3 pod4 pod5 pod6
 NATNSLIST = nat-client nat-router nat-egress nat-target
 OTHERNSLIST = test-egress-dual test-egress-v4 test-egress-v6 \
 	test-client-dual test-client-v4 test-client-v6 test-client-custom \

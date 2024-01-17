@@ -368,6 +368,10 @@ var _ = Describe("Coil", func() {
 			Expect(resp).To(HaveLen(1 << 20))
 		}
 
+		By("creating a dummy pod don't use egress")
+		// dummy pod must be created after creating a net-client pod
+		kubectlSafe(nil, "apply", "-f", "manifests/dummy_pod.yaml")
+
 		By("updating Egress in the internet namespace")
 		kubectlSafe(nil, "apply", "-f", "manifests/egress-updated.yaml")
 
@@ -445,6 +449,20 @@ var _ = Describe("Coil", func() {
 
 			return nil
 		}).Should(Succeed())
+
+		By("confirming that the fou device must be one in dummy_pod")
+		out, err := kubectl(nil, "exec", "dummy", "--", "ip", "-j", "link", "show")
+		Expect(err).NotTo(HaveOccurred())
+		var dummyPodLinks []link
+		err = json.Unmarshal(out, &dummyPodLinks)
+		Expect(err).NotTo(HaveOccurred())
+		fouCount := 0
+		for _, l := range dummyPodLinks {
+			if strings.HasPrefix(l.Ifname, "fou") && l.Ifname != "fou-dummy" {
+				fouCount += 1
+			}
+		}
+		Expect(fouCount).To(Equal(1))
 
 		By("sending and receiving HTTP request from nat-client")
 		data = make([]byte, 1<<20) // 1 MiB

@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: nat-client-sport-auto
+  name: dummy 
   namespace: default
   annotations:
     egress.coil.cybozu.com/internet: egress-sport-auto
@@ -11,8 +11,8 @@ spec:
     operator: Exists
   nodeSelector:
     test: coil
-    kubernetes.io/hostname: coil-worker2
+    kubernetes.io/hostname: coil-worker
   containers:
   - name: ubuntu
-    image: ghcr.io/cybozu/ubuntu-debug:22.04
+    image: quay.io/cybozu/ubuntu-debug:22.04
     command: ["pause"]
