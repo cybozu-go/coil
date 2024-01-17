@@ -51,7 +51,7 @@ test-nodenet:
 	for i in $@ $(PODNSLIST); do $(SUDO) ip netns add $$i; done
 	for i in $@ $(PODNSLIST); do $(SUDO) ip netns exec $$i ip link set lo up; done
 	$(SUDO) ip netns exec $@ ./nodenet.test -test.v
-	# for i in $@ $(PODNSLIST); do $(SUDO) ip netns delete $$i; done
+	for i in $@ $(PODNSLIST); do $(SUDO) ip netns delete $$i; done
 	rm -f nodenet.test
 
 .PHONY: test-founat

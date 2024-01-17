@@ -98,6 +98,9 @@ func TestPodNetwork(t *testing.T) {
 			if len(result.Interfaces) != 2 {
 				t.Error(`len(result.Interfaces) != 2`)
 			}
+			if len(result.IPs) != 2 {
+				t.Error(`len(result.IPs) != 2`)
+			}
 			if !result.IPs[0].Address.IP.Equal(conf.IPv4) {
 				t.Errorf(`!result.IPs[0].Address.IP.Equal("%s")`, conf.IPv4)
 			}
@@ -105,28 +108,31 @@ func TestPodNetwork(t *testing.T) {
 				t.Error(`!result.IPs[0] version != "4"`)
 			}
 			if !result.IPs[1].Address.IP.Equal(conf.IPv6) {
-				t.Errorf(`!result.IPs[1].Address.IP.Equal("%s")`, conf.IPv6)
+				t.Errorf(`result.IPs[1].Address.IP.Equal("%s")`, conf.IPv6)
 			}
 			if result.IPs[1].Address.IP.To4() != nil {
-				t.Error(`!result.IPs[1] version != "6"`)
+				t.Error(`result.IPs[1] version != "6"`)
 			}
 		} else {
 			if len(result.Interfaces) != 2 {
 				t.Error(`len(result.Interfaces) != 2`)
 			}
+			if len(result.IPs) != 1 {
+				t.Error(`len(result.IPs) != 1`)
+			}
 			if conf.IPv4 != nil {
 				if !result.IPs[0].Address.IP.Equal(conf.IPv4) {
-					t.Errorf(`!result.IPs[0].Address.IP.Equal("%s")`, conf.IPv4)
+					t.Errorf(`result.IPs[0].Address.IP.Equal("%s")`, conf.IPv4)
 				}
 				if result.IPs[0].Address.IP.To4() == nil {
-					t.Error(`!result.IPs[0] version != "4"`)
+					t.Error(`result.IPs[0] version != "4"`)
 				}
 			} else {
 				if !result.IPs[0].Address.IP.Equal(conf.IPv6) {
 					t.Errorf(`!result.IPs[0].Address.IP.Equal("%s")`, conf.IPv6)
 				}
 				if result.IPs[0].Address.IP.To4() != nil {
-					t.Error(`!result.IPs[1] version != "6"`)
+					t.Error(`result.IPs[1] version != "6"`)
 				}
 			}
 		}
@@ -409,12 +415,8 @@ func TestPodNetwork(t *testing.T) {
 
 	// check pod2 network
 	err = pn.Check(podConfMap["pod2"].ContainerId, podConfMap["pod2"].IFace)
-	if err == nil {
+	if err != errNotFound {
 		t.Fatal("pn.Check must return error because pod2 network doesn't exist")
-	} else {
-		if err != errNotFound {
-			t.Fatal("given error must be errNotFound")
-		}
 	}
 }
 
