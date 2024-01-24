@@ -14,5 +14,5 @@ spec:
     kubernetes.io/hostname: coil-worker
   containers:
   - name: ubuntu
-    image: quay.io/cybozu/ubuntu-debug:22.04
+    image: ghcr.io/cybozu/ubuntu-debug:22.04
     command: ["pause"]
