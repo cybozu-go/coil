@@ -5,6 +5,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.5.2] - 2024-02-02
+
+### Changed
+
+- Fix to avoid adding FoU devices for pods that don't use its egress (#265)
+- Remove a log for v1 migration error (#266)
+- Refactor egress watcher related logs (#267)
+
 ## [2.5.1] - 2023-11-27
 
 ### Changed
@@ -219,7 +227,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.5.1...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.5.2...HEAD
+[2.5.2]: https://github.com/cybozu-go/coil/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/cybozu-go/coil/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/cybozu-go/coil/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/cybozu-go/coil/compare/v2.3.0...v2.4.0
