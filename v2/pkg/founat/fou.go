@@ -100,9 +100,6 @@ func (t *fouTunnel) Init() error {
 		if err := modProbe("fou"); err != nil {
 			return fmt.Errorf("failed to load fou module: %w", err)
 		}
-		if t.logFunc != nil {
-			t.logFunc("add FoU devide for IPv4")
-		}
 		err := netlink.FouAdd(netlink.Fou{
 			Family:    netlink.FAMILY_V4,
 			Protocol:  4, // IPv4 over IPv4 (so-called IPIP)
@@ -259,6 +256,9 @@ func (t *fouTunnel) addOrRecreatePeer4(addr net.IP, sportAuto bool) (string, err
 		Local:      t.local4,
 	}
 
+	if t.logFunc != nil {
+		t.logFunc(fmt.Sprintf("add a new FoU device: %s", linkName))
+	}
 	if err := netlink.LinkAdd(link); err != nil {
 		return "", fmt.Errorf("netlink: failed to add fou link: %w", err)
 	}
@@ -324,6 +324,9 @@ func (t *fouTunnel) addOrRecreatePeer6(addr net.IP, sportAuto bool) (string, err
 		EncapSport: encapSport,
 		Remote:     addr,
 		Local:      t.local6,
+	}
+	if t.logFunc != nil {
+		t.logFunc(fmt.Sprintf("add a new FoU device: %s", linkName))
 	}
 	if err := netlink.LinkAdd(link); err != nil {
 		return "", fmt.Errorf("netlink: failed to add fou6 link: %w", err)
