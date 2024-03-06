@@ -7,6 +7,7 @@ package v2
 import (
 	"k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -367,6 +368,11 @@ func (in *EgressSpec) DeepCopyInto(out *EgressSpec) {
 	if in.SessionAffinityConfig != nil {
 		in, out := &in.SessionAffinityConfig, &out.SessionAffinityConfig
 		*out = new(corev1.SessionAffinityConfig)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.PodDisruptionBudget != nil {
+		in, out := &in.PodDisruptionBudget, &out.PodDisruptionBudget
+		*out = new(policyv1.PodDisruptionBudgetSpec)
 		(*in).DeepCopyInto(*out)
 	}
 }

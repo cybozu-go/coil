@@ -8,6 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +33,7 @@ type EgressReconciler struct {
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=services;serviceaccounts,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch
 
 // coil-controller needs to have access to Pods to grant egress service accounts the same privilege.
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
@@ -78,6 +80,11 @@ func (r *EgressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	if err := r.reconcileService(ctx, logger, eg); err != nil {
 		logger.Error(err, "failed to reconcile service")
+		return ctrl.Result{}, err
+	}
+
+	if err := r.reconcilePDB(ctx, logger, eg); err != nil {
+		logger.Error(err, "failed to reconcile pod disruption budget")
 		return ctrl.Result{}, err
 	}
 
@@ -366,6 +373,54 @@ func (r *EgressReconciler) reconcileService(ctx context.Context, log logr.Logger
 	return nil
 }
 
+func (r *EgressReconciler) reconcilePDB(ctx context.Context, log logr.Logger, eg *coilv2.Egress) error {
+	if eg.Spec.PodDisruptionBudget == nil {
+		return nil
+	}
+
+	pdb := &policyv1.PodDisruptionBudget{}
+	pdb.Namespace = eg.Namespace
+	pdb.Name = eg.Name + "-pdb"
+
+	result, err := ctrl.CreateOrUpdate(ctx, r.Client, pdb, func() error {
+		if pdb.DeletionTimestamp != nil {
+			return nil
+		}
+
+		if pdb.Labels == nil {
+			pdb.Labels = make(map[string]string)
+		}
+		labels := selectorLabels(eg.Name)
+		for k, v := range labels {
+			pdb.Labels[k] = v
+		}
+
+		// set immutable fields only for a new object
+		if pdb.CreationTimestamp.IsZero() {
+			if err := ctrl.SetControllerReference(eg, pdb, r.Scheme); err != nil {
+				return err
+			}
+		}
+
+		eg.Spec.PodDisruptionBudget.DeepCopyInto(&pdb.Spec)
+		pdb.Spec.Selector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				constants.LabelAppName: "coil",
+			},
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if result != controllerutil.OperationResultNone {
+		log.Info(string(result) + " pod disruption budget")
+	}
+	return nil
+}
+
 func (r *EgressReconciler) updateStatus(ctx context.Context, log logr.Logger, eg *coilv2.Egress) error {
 	depl := &appsv1.Deployment{}
 	if err := r.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, depl); err != nil {
@@ -404,6 +459,7 @@ func (r *EgressReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&coilv2.Egress{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
+		Owns(&policyv1.PodDisruptionBudget{}).
 		Complete(r)
 }
 
