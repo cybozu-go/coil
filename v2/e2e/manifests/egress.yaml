@@ -17,3 +17,5 @@ spec:
         operator: Exists
       containers:
       - name: egress
+  podDisruptionBudget:
+    maxUnavailable: 1
