@@ -2,11 +2,18 @@ package v2
 
 import (
 	"net"
+	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
+
+	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/validation"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/sets"
+	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
@@ -59,6 +66,10 @@ type EgressSpec struct {
 	// The default is false.
 	// +optional
 	FouSourcePortAuto bool `json:"fouSourcePortAuto,omitempty"`
+
+	// PodDisruptionBudget is an optional PodDisruptionBudget for Egress NAT pods.
+	// +optional
+	PodDisruptionBudget *policyv1.PodDisruptionBudgetSpec `json:"podDisruptionBudget,omitempty"`
 }
 
 // EgressPodTemplate defines pod template for Egress
@@ -119,11 +130,95 @@ func (es EgressSpec) validate() field.ErrorList {
 		}
 	}
 
+	if es.PodDisruptionBudget != nil {
+		pp := p.Child("podDisruptionBudget")
+		allErrs = append(allErrs, validatePodDisruptionBudgetSpec(*es.PodDisruptionBudget, pp)...)
+	}
+
 	return allErrs
 }
 
 func (es EgressSpec) validateUpdate() field.ErrorList {
 	return es.validate()
+}
+
+// For validating PodDisruptionBudgetSpec.
+// Original code is in https://github.com/kubernetes/kubernetes/blob/master/pkg/apis/policy/validation/validation.go
+
+type UnhealthyPodEvictionPolicyType string
+
+const (
+	IfHealthyBudget UnhealthyPodEvictionPolicyType = "IfHealthyBudget"
+	AlwaysAllow     UnhealthyPodEvictionPolicyType = "AlwaysAllow"
+)
+
+var supportedUnhealthyPodEvictionPolicies = sets.NewString(
+	string(IfHealthyBudget),
+	string(AlwaysAllow),
+)
+
+func validatePodDisruptionBudgetSpec(spec policyv1.PodDisruptionBudgetSpec, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	if spec.MinAvailable != nil && spec.MaxUnavailable != nil {
+		allErrs = append(allErrs, field.Invalid(fldPath, spec, "minAvailable and maxUnavailable cannot be both set"))
+	}
+
+	if spec.MinAvailable != nil {
+		allErrs = append(allErrs, validatePositiveIntOrPercent(*spec.MinAvailable, fldPath.Child("minAvailable"))...)
+		allErrs = append(allErrs, isNotMoreThan100Percent(*spec.MinAvailable, fldPath.Child("minAvailable"))...)
+	}
+
+	if spec.MaxUnavailable != nil {
+		allErrs = append(allErrs, validatePositiveIntOrPercent(*spec.MaxUnavailable, fldPath.Child("maxUnavailable"))...)
+		allErrs = append(allErrs, isNotMoreThan100Percent(*spec.MaxUnavailable, fldPath.Child("maxUnavailable"))...)
+	}
+
+	if spec.Selector != nil {
+		allErrs = append(allErrs, field.Invalid(fldPath, spec, "selector is automatically set by the controller"))
+	}
+
+	if spec.UnhealthyPodEvictionPolicy != nil && !supportedUnhealthyPodEvictionPolicies.Has(string(*spec.UnhealthyPodEvictionPolicy)) {
+		allErrs = append(allErrs, field.NotSupported(fldPath.Child("unhealthyPodEvictionPolicy"), *spec.UnhealthyPodEvictionPolicy, supportedUnhealthyPodEvictionPolicies.List()))
+	}
+
+	return allErrs
+}
+
+func validatePositiveIntOrPercent(intOrPercent intstr.IntOrString, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	switch intOrPercent.Type {
+	case intstr.String:
+		for _, msg := range utilvalidation.IsValidPercent(intOrPercent.StrVal) {
+			allErrs = append(allErrs, field.Invalid(fldPath, intOrPercent, msg))
+		}
+	case intstr.Int:
+		allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(intOrPercent.IntValue()), fldPath)...)
+	default:
+		allErrs = append(allErrs, field.Invalid(fldPath, intOrPercent, "must be an integer or percentage (e.g '5%%')"))
+	}
+	return allErrs
+}
+
+func isNotMoreThan100Percent(intOrStringValue intstr.IntOrString, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	value, isPercent := getPercentValue(intOrStringValue)
+	if !isPercent || value <= 100 {
+		return nil
+	}
+	allErrs = append(allErrs, field.Invalid(fldPath, intOrStringValue, "must not be greater than 100%"))
+	return allErrs
+}
+
+func getPercentValue(intOrStringValue intstr.IntOrString) (int, bool) {
+	if intOrStringValue.Type != intstr.String {
+		return 0, false
+	}
+	if len(utilvalidation.IsValidPercent(intOrStringValue.StrVal)) != 0 {
+		return 0, false
+	}
+	value, _ := strconv.Atoi(intOrStringValue.StrVal[:len(intOrStringValue.StrVal)-1])
+	return value, true
 }
 
 // EgressStatus defines the observed state of Egress
