@@ -16,7 +16,7 @@ import (
 
 // AddressBlock is the Schema for the addressblocks API
 //
-// The ownerReferences field contains the AddressPool where the block is curved from.
+// The ownerReferences field contains the AddressPool where the block is carved from.
 type AddressBlock struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

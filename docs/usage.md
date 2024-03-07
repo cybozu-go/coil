@@ -53,7 +53,7 @@ spec:
       ipv6: fd01:0203:0405:0607::/112
 ```
 
-`blockSizeBits` specifies the size of an address block that is curved from this pool.
+`blockSizeBits` specifies the size of an address block that is carved from this pool.
 The value `n` is interpreted as 2<sup>n</sup> addresses, so if the value is 5,
 each address block of this pool will have 32 IP addresses.
 

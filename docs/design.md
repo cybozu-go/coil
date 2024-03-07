@@ -102,7 +102,7 @@ To make things simple, the default pool is the pool whose name is `default`.
 To reduce the number of advertised routes, addresses in an address pool are divided into fixed-size blocks.
 These blocks are called _address blocks_, and assigned to nodes.  Since all IP addresses in an address block are routed to the same node, only one route per address block need to be advertised.
 
-For example, if an address pool defines that the size of an address block is 2<sup>5</sup>, `coil-controller` will curve an address block for IPv4 with `/27` subnet mask out of the pool, and assigns it to a node.
+For example, if an address pool defines that the size of an address block is 2<sup>5</sup>, `coil-controller` will carve an address block for IPv4 with `/27` subnet mask out of the pool, and assigns it to a node.
 
 
 In general, avoiding immediate reuse of IP addresses is better not to confuse other software or components.

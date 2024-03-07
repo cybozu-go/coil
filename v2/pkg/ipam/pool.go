@@ -33,7 +33,7 @@ type PoolManager interface {
 	// This also updates the metrics of the pool.
 	SyncPool(ctx context.Context, name string) error
 
-	// AllocateBlock curves an AddressBlock out of the pool for a node.
+	// AllocateBlock carves an AddressBlock out of the pool for a node.
 	// If the pool runs out of the free blocks, this returns ErrNoBlock.
 	AllocateBlock(ctx context.Context, poolName, nodeName, requestUID string) (*coilv2.AddressBlock, error)
 
@@ -229,7 +229,7 @@ func (p *pool) AllocateBlock(ctx context.Context, nodeName, requestUID string) (
 		return nil, err
 	}
 	if ap.DeletionTimestamp != nil {
-		p.log.Info("unable to curve out a block because pool is under deletion")
+		p.log.Info("unable to carve out a block because pool is under deletion")
 		return nil, ErrNoBlock
 	}
 
