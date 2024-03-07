@@ -11,7 +11,7 @@ address blocks to allocate address blocks quickly.
 
 ## BlockRequest
 
-`coil-controller` watches newly created block requests and curve out
+`coil-controller` watches newly created block requests and carve out
 address blocks from the requested pool.
 
 ## Egress

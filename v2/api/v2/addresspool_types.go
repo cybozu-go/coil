@@ -110,7 +110,7 @@ func (ss SubnetSet) Equal(x SubnetSet) bool {
 	return true
 }
 
-// GetBlock curves Nth block from the pool
+// GetBlock carves Nth block from the pool
 func (ss SubnetSet) GetBlock(n uint, sizeBits int) (ipv4 *net.IPNet, ipv6 *net.IPNet) {
 	blockOffset := (int64(1) << sizeBits) * int64(n)
 	if ss.IPv4 != nil {
@@ -150,7 +150,7 @@ type AddressPoolSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// BlockSizeBits specifies the size of the address blocks curved from this pool.
+	// BlockSizeBits specifies the size of the address blocks carved from this pool.
 	// If this is 5, a block will have 2^5 = 32 addresses.  Default is 5.
 	// +kubebuilder:default=5
 	// +kubebuilder:validation:Minimum=0

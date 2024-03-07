@@ -41,7 +41,7 @@ spec:
               blockSizeBits:
                 default: 5
                 description: BlockSizeBits specifies the size of the address blocks
-                  curved from this pool. If this is 5, a block will have 2^5 = 32
+                  carved from this pool. If this is 5, a block will have 2^5 = 32
                   addresses.  Default is 5.
                 format: int32
                 minimum: 0

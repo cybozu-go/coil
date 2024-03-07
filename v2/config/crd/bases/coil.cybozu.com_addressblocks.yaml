@@ -31,7 +31,7 @@ spec:
     schema:
       openAPIV3Schema:
         description: "AddressBlock is the Schema for the addressblocks API \n The
-          ownerReferences field contains the AddressPool where the block is curved
+          ownerReferences field contains the AddressPool where the block is carved
           from."
         properties:
           apiVersion:

@@ -123,7 +123,7 @@ spec:
   - ipv4: 10.100.0.0/16
 ```
 
-- `blockSizeBits`: 5 means that blocks of 32 (= 2^5) addresses will be curved out.
+- `blockSizeBits`: 5 means that blocks of 32 (= 2^5) addresses will be carved out.
 - `subnets`: a list of IP subnets in this pool.
 
 ### IPv6 pool
