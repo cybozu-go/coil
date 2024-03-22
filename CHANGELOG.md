@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.5.3] - 2024-03-22
+
+### Changed
+
+- Update dependencies (#278)
+- Bump google.golang.org/protobuf from 1.31.0 to 1.33.0 in /v2 (#277)
+
 ## [2.5.2] - 2024-02-02
 
 ### Changed
@@ -227,7 +234,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.5.2...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.5.3...HEAD
+[2.5.3]: https://github.com/cybozu-go/coil/compare/v2.5.2...v2.5.3
 [2.5.2]: https://github.com/cybozu-go/coil/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/cybozu-go/coil/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/cybozu-go/coil/compare/v2.4.0...v2.5.0
