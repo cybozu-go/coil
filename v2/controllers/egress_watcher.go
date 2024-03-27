@@ -55,8 +55,27 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	for _, pod := range pods.Items {
-		for k, v := range pod.Annotations {
+	targetPods := make(map[string]*corev1.Pod)
+	for i := range pods.Items {
+		pod := &pods.Items[i]
+		if pod.Spec.HostNetwork {
+			// Pods in host network cannot use egress NAT.
+			// So skip it.
+			continue
+		}
+		podIp := pod.Status.PodIP
+		// The reconciliation should be triggered only for running pods.
+		if pod.Status.Phase == corev1.PodRunning {
+			if _, found := targetPods[podIp]; found {
+				// multiple running pods have the same address.
+				return ctrl.Result{}, fmt.Errorf("multiple pods have the same address: %s", podIp)
+			}
+			targetPods[podIp] = pod
+		}
+	}
+
+	for _, targetPod := range targetPods {
+		for k, v := range targetPod.Annotations {
 			if !strings.HasPrefix(k, constants.AnnEgressPrefix) {
 				continue
 			}
@@ -68,7 +87,7 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			// shortcut for the most typical case
 			if v == eg.Name {
 				// Do reconcile
-				if err := r.reconcileEgressClient(ctx, eg, &pod, &logger); err != nil {
+				if err := r.reconcileEgressClient(ctx, eg, targetPod, &logger); err != nil {
 					logger.Error(err, "failed to reconcile Egress client pod")
 					return ctrl.Result{}, err
 				}
@@ -77,7 +96,7 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 			for _, n := range strings.Split(v, ",") {
 				if n == eg.Name {
-					if err := r.reconcileEgressClient(ctx, eg, &pod, &logger); err != nil {
+					if err := r.reconcileEgressClient(ctx, eg, targetPod, &logger); err != nil {
 						logger.Error(err, "failed to reconcile Egress client pod")
 						return ctrl.Result{}, err
 					}

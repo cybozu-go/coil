@@ -2,8 +2,8 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"net"
-	"reflect"
 	"sync"
 	"time"
 
@@ -21,7 +21,7 @@ import (
 
 var _ = Describe("Egress watcher", func() {
 	ctx := context.Background()
-	podNetwork := &mockPodNetwork{ips: make(map[string]bool)}
+	podNetwork := &mockPodNetwork{ips: make(map[string]int)}
 	var cancel context.CancelFunc
 
 	BeforeEach(func() {
@@ -43,13 +43,16 @@ var _ = Describe("Egress watcher", func() {
 
 		makePod("pod1", []string{"10.1.1.2", "fd01::2"}, map[string]string{
 			"default": "egress1",
-		})
+		}, corev1.PodRunning)
 		makePod("pod2", []string{"10.1.1.3", "fd01::3"}, map[string]string{
 			"default": "egress2",
-		})
+		}, corev1.PodRunning)
 		makePod("pod3", []string{"10.1.1.4", "fd01::4"}, map[string]string{
 			"internet": "egress1",
-		})
+		}, corev1.PodRunning)
+		makePod("pod4", []string{"10.1.1.5", "fd01::5"}, map[string]string{
+			"default": "egress1",
+		}, corev1.PodSucceeded)
 
 		ctx, cancel = context.WithCancel(context.TODO())
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -97,26 +100,72 @@ var _ = Describe("Egress watcher", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// pod1 is a client of default/egress1, but pod2 and pod3 are the clients of other egresses
-		Eventually(func() bool {
-			return reflect.DeepEqual(podNetwork.updatedPodIPs(), map[string]bool{
-				"10.1.1.2": true,
-				"fd01::2":  true,
-			})
-		}).Should(BeTrue())
+		// pod4 is not the target of the reconciliation because pod4 is not running.
+		Eventually(func() error {
+			updated := podNetwork.getPodIPCount()
+			updatedIPv4, ok := updated["10.1.1.2"]
+			if !ok || updatedIPv4 != 1 {
+				return fmt.Errorf("pod1's IPv4 address is not updated")
+			}
+			updatedIPv6, ok := updated["fd01::2"]
+			if !ok || updatedIPv6 != 1 {
+				return fmt.Errorf("pod1's IPv4 address is not updated")
+			}
+			return nil
+		}).Should(Succeed())
 
-		Consistently(func() bool {
-			return reflect.DeepEqual(podNetwork.updatedPodIPs(), map[string]bool{
-				"10.1.1.2": true,
-				"fd01::2":  true,
-			})
-		}, 5*time.Second, 1*time.Second).Should(BeTrue())
+		Consistently(func() error {
+			updated := podNetwork.getPodIPCount()
+			updatedIPv4, ok := updated["10.1.1.2"]
+			if !ok || updatedIPv4 != 1 {
+				return fmt.Errorf("pod1's IPv4 address is not updated")
+			}
+			updatedIPv6, ok := updated["fd01::2"]
+			if !ok || updatedIPv6 != 1 {
+				return fmt.Errorf("pod1's IPv4 address is not updated")
+			}
+			return nil
+		}, 5*time.Second, 1*time.Second).Should(Succeed())
+
+		makePod("pod5", []string{"10.1.1.3", "fd01::3"}, map[string]string{
+			"default": "egress2",
+		}, corev1.PodRunning)
+
+		eg2 := makeEgress("egress2")
+		err = k8sClient.Create(ctx, eg2)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		svc2 := &corev1.Service{}
+		svc2.Namespace = "default"
+		svc2.Name = "egress2"
+		svc2.Spec.Type = corev1.ServiceTypeClusterIP
+		svc2.Spec.Ports = []corev1.ServicePort{{
+			Port:       5555,
+			TargetPort: intstr.FromInt(5555),
+			Protocol:   corev1.ProtocolUDP,
+		}}
+		err = k8sClient.Create(ctx, svc2)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		// Reconciliation should fail because of duplicate address
+		Consistently(func() error {
+			updated := podNetwork.getPodIPCount()
+			_, ok := updated["10.1.1.3"]
+			if ok {
+				return fmt.Errorf("pod2 and pod5 should not be updated")
+			}
+			_, ok = updated["fd01::3"]
+			if ok {
+				return fmt.Errorf("pod2 and pod5 should not be updated")
+			}
+			return nil
+		}, 5*time.Second, 1*time.Second).Should(Succeed())
 	})
-
 })
 
 type mockPodNetwork struct {
 	nUpdate int
-	ips     map[string]bool
+	ips     map[string]int
 
 	mu sync.Mutex
 }
@@ -137,20 +186,31 @@ func (p *mockPodNetwork) Update(podIPv4, podIPv6 net.IP, hook nodenet.SetupHook)
 	defer p.mu.Unlock()
 
 	p.nUpdate++
-	p.ips[podIPv4.String()] = true
-	p.ips[podIPv6.String()] = true
+	c4, ok := p.ips[podIPv4.String()]
+	if !ok {
+		p.ips[podIPv4.String()] = 1
+	} else {
+		c4 += 1
+	}
+	c6, ok := p.ips[podIPv6.String()]
+	if !ok {
+		p.ips[podIPv6.String()] = 1
+	} else {
+		c6 += 1
+	}
 	return nil
 }
 
-func (p *mockPodNetwork) updatedPodIPs() map[string]bool {
-	m := make(map[string]bool)
+func (p *mockPodNetwork) getPodIPCount() map[string]int {
+	m := make(map[string]int)
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	for k := range p.ips {
-		m[k] = true
+	for k, v := range p.ips {
+		m[k] = v
 	}
+
 	return m
 }
 
