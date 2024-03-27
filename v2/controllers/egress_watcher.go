@@ -55,7 +55,25 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
+	targetPods := make(map[string]corev1.Pod)
 	for _, pod := range pods.Items {
+		if pod.Spec.HostNetwork {
+			// Pods in host network cannot use egress NAT.
+			// So skip it.
+			continue
+		}
+		podIp := pod.Status.PodIP
+		// The reconciliation should be triggered only for running pods.
+		if pod.Status.Phase == corev1.PodRunning {
+			if _, found := targetPods[podIp]; found {
+				// multiple running pods have the same address.
+				return ctrl.Result{}, fmt.Errorf("multiple pods have the same address: %s", podIp)
+			}
+			targetPods[podIp] = pod
+		}
+	}
+
+	for _, pod := range targetPods {
 		for k, v := range pod.Annotations {
 			if !strings.HasPrefix(k, constants.AnnEgressPrefix) {
 				continue

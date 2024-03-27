@@ -41,7 +41,7 @@ func makePodWithHostNetwork(name string, ips []string, egresses map[string]strin
 	ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
 }
 
-func makePod(name string, ips []string, egresses map[string]string) {
+func makePod(name string, ips []string, egresses map[string]string, phase corev1.PodPhase) {
 	pod := &corev1.Pod{}
 	pod.Name = name
 	pod.Namespace = "default"
@@ -62,6 +62,7 @@ func makePod(name string, ips []string, egresses map[string]string) {
 		podIPs[i] = corev1.PodIP{IP: ip}
 	}
 	pod.Status.PodIPs = podIPs
+	pod.Status.Phase = phase
 	err = k8sClient.Status().Update(context.Background(), pod)
 	ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
 }
@@ -82,17 +83,17 @@ var _ = Describe("Pod watcher", func() {
 	var eg *mockEgress
 
 	BeforeEach(func() {
-		makePod("pod1", []string{"10.1.1.1", "fd01::1"}, nil)
+		makePod("pod1", []string{"10.1.1.1", "fd01::1"}, nil, corev1.PodRunning)
 		makePod("pod2", []string{"10.1.1.2", "fd01::2"}, map[string]string{
 			"internet": "egress2",
 			"external": "egress1,egress2",
-		})
+		}, corev1.PodRunning)
 		makePod("pod3", []string{"fd01::3"}, map[string]string{
 			"internet": "egress1,egress2",
-		})
+		}, corev1.PodRunning)
 		makePod("pod4", []string{"fd01::4"}, map[string]string{
 			"external": "egress1",
-		})
+		}, corev1.PodRunning)
 
 		ctx, cancel = context.WithCancel(context.TODO())
 		ft = &mockFoUTunnel{peers: make(map[string]bool)}
@@ -144,10 +145,10 @@ var _ = Describe("Pod watcher", func() {
 	})
 
 	It("should handle new Pods", func() {
-		makePod("pod5", []string{"10.1.1.5"}, nil)
+		makePod("pod5", []string{"10.1.1.5"}, nil, corev1.PodRunning)
 		makePod("pod6", []string{"10.1.1.6"}, map[string]string{
 			"internet": "egress2",
-		})
+		}, corev1.PodRunning)
 		Eventually(func() bool {
 			return reflect.DeepEqual(ft.GetPeers(), map[string]bool{
 				"10.1.1.2": true,
@@ -295,7 +296,7 @@ var _ = Describe("Pod watcher", func() {
 	It("should not delete a peer that another pod is reusing", func() {
 		makePod("job", []string{"10.1.1.5"}, map[string]string{
 			"internet": "egress2",
-		})
+		}, corev1.PodRunning)
 
 		Eventually(func() bool {
 			return reflect.DeepEqual(ft.GetPeers(), map[string]bool{
@@ -325,7 +326,7 @@ var _ = Describe("Pod watcher", func() {
 		// another pod reuses the same ip
 		makePod("another", []string{"10.1.1.5"}, map[string]string{
 			"internet": "egress2",
-		})
+		}, corev1.PodRunning)
 
 		jobPod = &corev1.Pod{}
 		err = k8sClient.Get(ctx, client.ObjectKey{Namespace: "default", Name: "job"}, jobPod)
@@ -347,7 +348,7 @@ var _ = Describe("Pod watcher", func() {
 	It("should not delete a peer when another pod accidentally hits the same one", func() {
 		makePod("job", []string{"10.1.1.5"}, map[string]string{
 			"internet": "egress2",
-		})
+		}, corev1.PodRunning)
 
 		Eventually(func() bool {
 			return reflect.DeepEqual(ft.GetPeers(), map[string]bool{
@@ -361,7 +362,7 @@ var _ = Describe("Pod watcher", func() {
 		// another pod hits the same ip and trigger the adding pod event
 		makePod("another", []string{"10.1.1.5"}, map[string]string{
 			"internet": "egress2",
-		})
+		}, corev1.PodRunning)
 
 		jobPod := &corev1.Pod{}
 		err := k8sClient.Get(ctx, client.ObjectKey{Namespace: "default", Name: "job"}, jobPod)
