@@ -15,6 +15,7 @@ import (
 	"github.com/prometheus/common/expfmt"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 )
 
 var testIPv6 = os.Getenv("TEST_IPV6") == "true"
@@ -244,9 +245,6 @@ var _ = Describe("Coil", func() {
 	})
 
 	It("should be able to run Egress pods", func() {
-		By("creating internet namespace")
-		kubectlSafe(nil, "create", "ns", "internet")
-
 		By("defining Egress in the internet namespace")
 		kubectlSafe(nil, "apply", "-f", "manifests/egress.yaml")
 
@@ -260,6 +258,16 @@ var _ = Describe("Coil", func() {
 			return int(depl.Status.ReadyReplicas)
 		}).Should(Equal(2))
 
+		By("checking PDB")
+		Eventually(func() error {
+			pdb := &policyv1.PodDisruptionBudget{}
+			err := getResource("internet", "pdb", "egress", "", pdb)
+			if err != nil {
+				return err
+			}
+			return nil
+		}).Should(Succeed())
+
 		By("defining Egress with fouSourcePortAuto in the internet namespace")
 		kubectlSafe(nil, "apply", "-f", "manifests/egress-sport-auto.yaml")
 
@@ -272,9 +280,25 @@ var _ = Describe("Coil", func() {
 			}
 			return int(depl.Status.ReadyReplicas)
 		}).Should(Equal(2))
+
+		By("deleting Egress")
+		kubectlSafe(nil, "delete", "-f", "manifests/egress.yaml")
+
+		By("checking PDB deletion")
+		Eventually(func() error {
+			pdb := &policyv1.PodDisruptionBudget{}
+			err := getResource("internet", "pdb", "egress", "", pdb)
+			if err != nil {
+				return err
+			}
+			return nil
+		}).ShouldNot(Succeed())
 	})
 
 	It("should be able to run NAT client pods", func() {
+		By("defining Egress in the internet namespace")
+		kubectlSafe(nil, "apply", "-f", "manifests/egress.yaml")
+
 		By("creating a NAT client pod")
 		kubectlSafe(nil, "apply", "-f", "manifests/nat-client.yaml")
 
@@ -294,6 +318,9 @@ var _ = Describe("Coil", func() {
 			}
 			return nil
 		}).Should(Succeed())
+
+		By("defining Egress with fouSourcePortAuto in the internet namespace")
+		kubectlSafe(nil, "apply", "-f", "manifests/egress-sport-auto.yaml")
 
 		By("creating a NAT client pod for fouSourcePortAuto")
 		kubectlSafe(nil, "apply", "-f", "manifests/nat-client-sport-auto.yaml")
