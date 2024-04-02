@@ -516,7 +516,7 @@ var _ = Describe("Egress reconciler", func() {
 		By("creating an Egress")
 		eg := makeEgress("eg7")
 		minAvailable := intstr.FromInt(1)
-		eg.Spec.PodDisruptionBudget = &policyv1.PodDisruptionBudgetSpec{
+		eg.Spec.PodDisruptionBudget = &coilv2.EgressPDB{
 			MinAvailable: &minAvailable,
 		}
 		err := k8sClient.Create(ctx, eg)
@@ -526,7 +526,7 @@ var _ = Describe("Egress reconciler", func() {
 		var pdb *policyv1.PodDisruptionBudget
 		Eventually(func() error {
 			pdb = &policyv1.PodDisruptionBudget{}
-			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name + "-pdb"}, pdb)
+			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, pdb)
 		}).Should(Succeed())
 
 		Expect(*pdb.Spec.MinAvailable).To(Equal(intstr.FromInt(1)))

@@ -173,7 +173,7 @@ Step 5 and 6 are automatically done by Coil.
 It defines an egress portal of the cluster for some destinations.
 
 Coil creates a `Deployment` and `Service` for each `Egress`.
-`PodDisruptionBudget` can also be created by specifying `spec.podDisruptionBudget`.
+It also creates `PodDisruptionBudget` when `spec.podDisruptionBudget` is specified.
 
 Here is an example `Egress` resource for the Internet:
 
@@ -247,7 +247,7 @@ You may customize the container of egress Pods as shown in the above example.
 | `template`              | [PodTemplateSpec][]       | Copied to Deployment's `spec.template`.                              |
 | `sessionAffinity`       | `ClusterIP` or `None`     | Copied to Service's `spec.sessionAffinity`.  Default is `ClusterIP`. |
 | `sessionAffinityConfig` | [SessionAffinityConfig][] | Copied to Service's `spec.sessionAffinityConfig`.                    |
-| `podDisruptionBudget`   | [PodDisruptionBudgetSpec] | Copied to PDB's spec. `selector` is not allowed since it is set by the controller. |
+| `podDisruptionBudget`   | `EgressPDB`               | `minAvailable` and `maxUnavailable` are supported.                   |
 
 ### Client Pods
 
@@ -372,4 +372,3 @@ The example of Grafana dashboard is [here](../v2/dashboard/coil.json).
 [PodTemplateSpec]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#podtemplatespec-v1-core 
 [SessionAffinityConfig]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#sessionaffinityconfig-v1-core
 [NetworkPolicy]: https://kubernetes.io/docs/concepts/services-networking/network-policies/
-[PodDisruptionBudgetSpec]: https://kubernetes.io/docs/reference/kubernetes-api/policy-resources/pod-disruption-budget-v1/

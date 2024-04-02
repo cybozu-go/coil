@@ -7,7 +7,6 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	policyv1 "k8s.io/api/policy/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -181,7 +180,7 @@ var _ = Describe("Egress Webhook", func() {
 	It("should allow valid PDB", func() {
 		r := makeEgress()
 		maxUnavailable := intstr.FromInt(1)
-		r.Spec.PodDisruptionBudget = &policyv1.PodDisruptionBudgetSpec{MaxUnavailable: &maxUnavailable}
+		r.Spec.PodDisruptionBudget = &EgressPDB{MaxUnavailable: &maxUnavailable}
 		err := k8sClient.Create(ctx, r)
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -190,26 +189,13 @@ var _ = Describe("Egress Webhook", func() {
 		r := makeEgress()
 		maxUnavailable := intstr.FromInt(1)
 		minAvailable := intstr.FromInt(1)
-		r.Spec.PodDisruptionBudget = &policyv1.PodDisruptionBudgetSpec{MaxUnavailable: &maxUnavailable, MinAvailable: &minAvailable}
+		r.Spec.PodDisruptionBudget = &EgressPDB{MaxUnavailable: &maxUnavailable, MinAvailable: &minAvailable}
 		err := k8sClient.Create(ctx, r)
 		Expect(err).To(HaveOccurred())
 
 		r = makeEgress()
 		maxUnavailable = intstr.FromString("120%")
-		r.Spec.PodDisruptionBudget = &policyv1.PodDisruptionBudgetSpec{MaxUnavailable: &maxUnavailable}
-		err = k8sClient.Create(ctx, r)
-		Expect(err).To(HaveOccurred())
-
-		r = makeEgress()
-		maxUnavailable = intstr.FromInt(1)
-		r.Spec.PodDisruptionBudget = &policyv1.PodDisruptionBudgetSpec{MaxUnavailable: &maxUnavailable, Selector: &metav1.LabelSelector{}}
-		err = k8sClient.Create(ctx, r)
-		Expect(err).To(HaveOccurred())
-
-		r = makeEgress()
-		maxUnavailable = intstr.FromInt(1)
-		policyType := policyv1.UnhealthyPodEvictionPolicyType("Invalid")
-		r.Spec.PodDisruptionBudget = &policyv1.PodDisruptionBudgetSpec{MaxUnavailable: &maxUnavailable, UnhealthyPodEvictionPolicy: &policyType}
+		r.Spec.PodDisruptionBudget = &EgressPDB{MaxUnavailable: &maxUnavailable}
 		err = k8sClient.Create(ctx, r)
 		Expect(err).To(HaveOccurred())
 	})

@@ -33,7 +33,7 @@ type EgressReconciler struct {
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=services;serviceaccounts,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch
-// +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
 
 // coil-controller needs to have access to Pods to grant egress service accounts the same privilege.
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
@@ -380,7 +380,7 @@ func (r *EgressReconciler) reconcilePDB(ctx context.Context, log logr.Logger, eg
 
 	pdb := &policyv1.PodDisruptionBudget{}
 	pdb.Namespace = eg.Namespace
-	pdb.Name = eg.Name + "-pdb"
+	pdb.Name = eg.Name
 
 	result, err := ctrl.CreateOrUpdate(ctx, r.Client, pdb, func() error {
 		if pdb.DeletionTimestamp != nil {
@@ -402,11 +402,14 @@ func (r *EgressReconciler) reconcilePDB(ctx context.Context, log logr.Logger, eg
 			}
 		}
 
-		eg.Spec.PodDisruptionBudget.DeepCopyInto(&pdb.Spec)
+		if eg.Spec.PodDisruptionBudget.MinAvailable != nil {
+			pdb.Spec.MinAvailable = eg.Spec.PodDisruptionBudget.MinAvailable
+		}
+		if eg.Spec.PodDisruptionBudget.MaxUnavailable != nil {
+			pdb.Spec.MaxUnavailable = eg.Spec.PodDisruptionBudget.MaxUnavailable
+		}
 		pdb.Spec.Selector = &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				constants.LabelAppName: "coil",
-			},
+			MatchLabels: selectorLabels(eg.Name),
 		}
 
 		return nil

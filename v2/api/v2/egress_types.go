@@ -6,13 +6,10 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	policyv1 "k8s.io/api/policy/v1"
-
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/util/sets"
 	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
@@ -69,7 +66,7 @@ type EgressSpec struct {
 
 	// PodDisruptionBudget is an optional PodDisruptionBudget for Egress NAT pods.
 	// +optional
-	PodDisruptionBudget *policyv1.PodDisruptionBudgetSpec `json:"podDisruptionBudget,omitempty"`
+	PodDisruptionBudget *EgressPDB `json:"podDisruptionBudget,omitempty"`
 }
 
 // EgressPodTemplate defines pod template for Egress
@@ -84,6 +81,17 @@ type EgressPodTemplate struct {
 	// Spec defines the pod template spec.
 	// +optional
 	Spec corev1.PodSpec `json:"spec,omitempty"`
+}
+
+// EgressPDB defines PDB for Egress
+type EgressPDB struct {
+	// MinAvailable is the minimum number of pods that must be available at any given time.
+	// +optional
+	MinAvailable *intstr.IntOrString `json:"minAvailable,omitempty"`
+
+	// MaxUnavailable is the maximum number of pods that can be unavailable at any given time.
+	// +optional
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 }
 
 // Metadata defines a simplified version of ObjectMeta.
@@ -132,7 +140,7 @@ func (es EgressSpec) validate() field.ErrorList {
 
 	if es.PodDisruptionBudget != nil {
 		pp := p.Child("podDisruptionBudget")
-		allErrs = append(allErrs, validatePodDisruptionBudgetSpec(*es.PodDisruptionBudget, pp)...)
+		allErrs = append(allErrs, validatePodDisruptionBudget(*es.PodDisruptionBudget, pp)...)
 	}
 
 	return allErrs
@@ -142,44 +150,21 @@ func (es EgressSpec) validateUpdate() field.ErrorList {
 	return es.validate()
 }
 
-// For validating PodDisruptionBudgetSpec.
-// Original code is in https://github.com/kubernetes/kubernetes/blob/master/pkg/apis/policy/validation/validation.go
-
-type UnhealthyPodEvictionPolicyType string
-
-const (
-	IfHealthyBudget UnhealthyPodEvictionPolicyType = "IfHealthyBudget"
-	AlwaysAllow     UnhealthyPodEvictionPolicyType = "AlwaysAllow"
-)
-
-var supportedUnhealthyPodEvictionPolicies = sets.NewString(
-	string(IfHealthyBudget),
-	string(AlwaysAllow),
-)
-
-func validatePodDisruptionBudgetSpec(spec policyv1.PodDisruptionBudgetSpec, fldPath *field.Path) field.ErrorList {
+func validatePodDisruptionBudget(pdb EgressPDB, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	if spec.MinAvailable != nil && spec.MaxUnavailable != nil {
-		allErrs = append(allErrs, field.Invalid(fldPath, spec, "minAvailable and maxUnavailable cannot be both set"))
+	if pdb.MinAvailable != nil && pdb.MaxUnavailable != nil {
+		allErrs = append(allErrs, field.Invalid(fldPath, pdb, "minAvailable and maxUnavailable cannot be both set"))
 	}
 
-	if spec.MinAvailable != nil {
-		allErrs = append(allErrs, validatePositiveIntOrPercent(*spec.MinAvailable, fldPath.Child("minAvailable"))...)
-		allErrs = append(allErrs, isNotMoreThan100Percent(*spec.MinAvailable, fldPath.Child("minAvailable"))...)
+	if pdb.MinAvailable != nil {
+		allErrs = append(allErrs, validatePositiveIntOrPercent(*pdb.MinAvailable, fldPath.Child("minAvailable"))...)
+		allErrs = append(allErrs, isNotMoreThan100Percent(*pdb.MinAvailable, fldPath.Child("minAvailable"))...)
 	}
 
-	if spec.MaxUnavailable != nil {
-		allErrs = append(allErrs, validatePositiveIntOrPercent(*spec.MaxUnavailable, fldPath.Child("maxUnavailable"))...)
-		allErrs = append(allErrs, isNotMoreThan100Percent(*spec.MaxUnavailable, fldPath.Child("maxUnavailable"))...)
-	}
-
-	if spec.Selector != nil {
-		allErrs = append(allErrs, field.Invalid(fldPath, spec, "selector is automatically set by the controller"))
-	}
-
-	if spec.UnhealthyPodEvictionPolicy != nil && !supportedUnhealthyPodEvictionPolicies.Has(string(*spec.UnhealthyPodEvictionPolicy)) {
-		allErrs = append(allErrs, field.NotSupported(fldPath.Child("unhealthyPodEvictionPolicy"), *spec.UnhealthyPodEvictionPolicy, supportedUnhealthyPodEvictionPolicies.List()))
+	if pdb.MaxUnavailable != nil {
+		allErrs = append(allErrs, validatePositiveIntOrPercent(*pdb.MaxUnavailable, fldPath.Child("maxUnavailable"))...)
+		allErrs = append(allErrs, isNotMoreThan100Percent(*pdb.MaxUnavailable, fldPath.Child("maxUnavailable"))...)
 	}
 
 	return allErrs
