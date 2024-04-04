@@ -516,7 +516,7 @@ var _ = Describe("Egress reconciler", func() {
 		By("creating an Egress")
 		eg := makeEgress("eg7")
 		minAvailable := intstr.FromInt(1)
-		eg.Spec.PodDisruptionBudget = &coilv2.EgressPDB{
+		eg.Spec.PodDisruptionBudget = &coilv2.EgressPDBSpec{
 			MinAvailable: &minAvailable,
 		}
 		err := k8sClient.Create(ctx, eg)

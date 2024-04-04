@@ -390,8 +390,7 @@ func (r *EgressReconciler) reconcilePDB(ctx context.Context, log logr.Logger, eg
 		if pdb.Labels == nil {
 			pdb.Labels = make(map[string]string)
 		}
-		labels := selectorLabels(eg.Name)
-		for k, v := range labels {
+		for k, v := range selectorLabels(eg.Name) {
 			pdb.Labels[k] = v
 		}
 

@@ -173,7 +173,7 @@ Step 5 and 6 are automatically done by Coil.
 It defines an egress portal of the cluster for some destinations.
 
 Coil creates a `Deployment` and `Service` for each `Egress`.
-It also creates `PodDisruptionBudget` when `spec.podDisruptionBudget` is specified.
+It also creates a `PodDisruptionBudget` when `spec.podDisruptionBudget` is specified.
 
 Here is an example `Egress` resource for the Internet:
 
@@ -247,7 +247,7 @@ You may customize the container of egress Pods as shown in the above example.
 | `template`              | [PodTemplateSpec][]       | Copied to Deployment's `spec.template`.                              |
 | `sessionAffinity`       | `ClusterIP` or `None`     | Copied to Service's `spec.sessionAffinity`.  Default is `ClusterIP`. |
 | `sessionAffinityConfig` | [SessionAffinityConfig][] | Copied to Service's `spec.sessionAffinityConfig`.                    |
-| `podDisruptionBudget`   | `EgressPDB`               | `minAvailable` and `maxUnavailable` are supported.                   |
+| `podDisruptionBudget`   | `EgressPDBSpec`           | `minAvailable` and `maxUnavailable` are copied to PDB's spec.        |
 
 ### Client Pods
 

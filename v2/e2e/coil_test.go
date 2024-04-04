@@ -282,7 +282,7 @@ var _ = Describe("Coil", func() {
 		}).Should(Equal(2))
 
 		By("deleting Egress")
-		kubectlSafe(nil, "delete", "-f", "manifests/egress.yaml")
+		kubectlSafe(nil, "delete", "egress", "-n", "internet", "egress")
 
 		By("checking PDB deletion")
 		Eventually(func() error {

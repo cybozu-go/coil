@@ -66,7 +66,7 @@ type EgressSpec struct {
 
 	// PodDisruptionBudget is an optional PodDisruptionBudget for Egress NAT pods.
 	// +optional
-	PodDisruptionBudget *EgressPDB `json:"podDisruptionBudget,omitempty"`
+	PodDisruptionBudget *EgressPDBSpec `json:"podDisruptionBudget,omitempty"`
 }
 
 // EgressPodTemplate defines pod template for Egress
@@ -84,7 +84,7 @@ type EgressPodTemplate struct {
 }
 
 // EgressPDB defines PDB for Egress
-type EgressPDB struct {
+type EgressPDBSpec struct {
 	// MinAvailable is the minimum number of pods that must be available at any given time.
 	// +optional
 	MinAvailable *intstr.IntOrString `json:"minAvailable,omitempty"`
@@ -150,7 +150,9 @@ func (es EgressSpec) validateUpdate() field.ErrorList {
 	return es.validate()
 }
 
-func validatePodDisruptionBudget(pdb EgressPDB, fldPath *field.Path) field.ErrorList {
+// For validation of PodDisruptionBudget
+// Ref. https://github.com/kubernetes/kubernetes/blob/master/pkg/apis/policy/validation/validation.go
+func validatePodDisruptionBudget(pdb EgressPDBSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if pdb.MinAvailable != nil && pdb.MaxUnavailable != nil {

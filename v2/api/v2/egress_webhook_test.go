@@ -180,7 +180,7 @@ var _ = Describe("Egress Webhook", func() {
 	It("should allow valid PDB", func() {
 		r := makeEgress()
 		maxUnavailable := intstr.FromInt(1)
-		r.Spec.PodDisruptionBudget = &EgressPDB{MaxUnavailable: &maxUnavailable}
+		r.Spec.PodDisruptionBudget = &EgressPDBSpec{MaxUnavailable: &maxUnavailable}
 		err := k8sClient.Create(ctx, r)
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -189,13 +189,13 @@ var _ = Describe("Egress Webhook", func() {
 		r := makeEgress()
 		maxUnavailable := intstr.FromInt(1)
 		minAvailable := intstr.FromInt(1)
-		r.Spec.PodDisruptionBudget = &EgressPDB{MaxUnavailable: &maxUnavailable, MinAvailable: &minAvailable}
+		r.Spec.PodDisruptionBudget = &EgressPDBSpec{MaxUnavailable: &maxUnavailable, MinAvailable: &minAvailable}
 		err := k8sClient.Create(ctx, r)
 		Expect(err).To(HaveOccurred())
 
 		r = makeEgress()
 		maxUnavailable = intstr.FromString("120%")
-		r.Spec.PodDisruptionBudget = &EgressPDB{MaxUnavailable: &maxUnavailable}
+		r.Spec.PodDisruptionBudget = &EgressPDBSpec{MaxUnavailable: &maxUnavailable}
 		err = k8sClient.Create(ctx, r)
 		Expect(err).To(HaveOccurred())
 	})
