@@ -1,6 +1,6 @@
 module github.com/cybozu-go/coil/v2
 
-go 1.22
+go 1.22.2
 
 require (
 	github.com/bits-and-blooms/bitset v1.13.0
