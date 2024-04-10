@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -509,5 +510,26 @@ var _ = Describe("Egress reconciler", func() {
 			}
 			return nil
 		}).Should(Succeed())
+	})
+
+	It("should create PDB", func() {
+		By("creating an Egress")
+		eg := makeEgress("eg7")
+		minAvailable := intstr.FromInt(1)
+		eg.Spec.PodDisruptionBudget = &coilv2.EgressPDBSpec{
+			MinAvailable: &minAvailable,
+		}
+		err := k8sClient.Create(ctx, eg)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		By("checking PodDisruptionBudget")
+		var pdb *policyv1.PodDisruptionBudget
+		Eventually(func() error {
+			pdb = &policyv1.PodDisruptionBudget{}
+			return k8sClient.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, pdb)
+		}).Should(Succeed())
+
+		Expect(*pdb.Spec.MinAvailable).To(Equal(intstr.FromInt(1)))
+		Expect(pdb.Spec.Selector.MatchLabels).To(HaveKeyWithValue(constants.LabelAppName, "coil"))
 	})
 })

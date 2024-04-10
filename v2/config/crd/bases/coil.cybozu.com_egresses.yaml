@@ -52,6 +52,25 @@ spec:
                   If set to true, the kernel picks a flow based on the flow hash of the encapsulated packet.
                   The default is false.
                 type: boolean
+              podDisruptionBudget:
+                description: PodDisruptionBudget is an optional PodDisruptionBudget
+                  for Egress NAT pods.
+                properties:
+                  maxUnavailable:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: MaxUnavailable is the maximum number of pods that
+                      can be unavailable at any given time.
+                    x-kubernetes-int-or-string: true
+                  minAvailable:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: MinAvailable is the minimum number of pods that must
+                      be available at any given time.
+                    x-kubernetes-int-or-string: true
+                type: object
               replicas:
                 default: 1
                 description: |-

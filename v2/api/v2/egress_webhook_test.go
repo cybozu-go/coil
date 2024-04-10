@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func makeEgress() *Egress {
@@ -174,5 +175,28 @@ var _ = Describe("Egress Webhook", func() {
 		r.Spec.SessionAffinity = corev1.ServiceAffinityNone
 		err = k8sClient.Update(ctx, r)
 		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("should allow valid PDB", func() {
+		r := makeEgress()
+		maxUnavailable := intstr.FromInt(1)
+		r.Spec.PodDisruptionBudget = &EgressPDBSpec{MaxUnavailable: &maxUnavailable}
+		err := k8sClient.Create(ctx, r)
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("should deny invalid PDB", func() {
+		r := makeEgress()
+		maxUnavailable := intstr.FromInt(1)
+		minAvailable := intstr.FromInt(1)
+		r.Spec.PodDisruptionBudget = &EgressPDBSpec{MaxUnavailable: &maxUnavailable, MinAvailable: &minAvailable}
+		err := k8sClient.Create(ctx, r)
+		Expect(err).To(HaveOccurred())
+
+		r = makeEgress()
+		maxUnavailable = intstr.FromString("120%")
+		r.Spec.PodDisruptionBudget = &EgressPDBSpec{MaxUnavailable: &maxUnavailable}
+		err = k8sClient.Create(ctx, r)
+		Expect(err).To(HaveOccurred())
 	})
 })

@@ -2,11 +2,15 @@ package v2
 
 import (
 	"net"
+	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/validation"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
@@ -59,6 +63,10 @@ type EgressSpec struct {
 	// The default is false.
 	// +optional
 	FouSourcePortAuto bool `json:"fouSourcePortAuto,omitempty"`
+
+	// PodDisruptionBudget is an optional PodDisruptionBudget for Egress NAT pods.
+	// +optional
+	PodDisruptionBudget *EgressPDBSpec `json:"podDisruptionBudget,omitempty"`
 }
 
 // EgressPodTemplate defines pod template for Egress
@@ -73,6 +81,17 @@ type EgressPodTemplate struct {
 	// Spec defines the pod template spec.
 	// +optional
 	Spec corev1.PodSpec `json:"spec,omitempty"`
+}
+
+// EgressPDB defines PDB for Egress
+type EgressPDBSpec struct {
+	// MinAvailable is the minimum number of pods that must be available at any given time.
+	// +optional
+	MinAvailable *intstr.IntOrString `json:"minAvailable,omitempty"`
+
+	// MaxUnavailable is the maximum number of pods that can be unavailable at any given time.
+	// +optional
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 }
 
 // Metadata defines a simplified version of ObjectMeta.
@@ -119,11 +138,74 @@ func (es EgressSpec) validate() field.ErrorList {
 		}
 	}
 
+	if es.PodDisruptionBudget != nil {
+		pp := p.Child("podDisruptionBudget")
+		allErrs = append(allErrs, validatePodDisruptionBudget(*es.PodDisruptionBudget, pp)...)
+	}
+
 	return allErrs
 }
 
 func (es EgressSpec) validateUpdate() field.ErrorList {
 	return es.validate()
+}
+
+// For validation of PodDisruptionBudget
+// Ref. https://github.com/kubernetes/kubernetes/blob/master/pkg/apis/policy/validation/validation.go
+func validatePodDisruptionBudget(pdb EgressPDBSpec, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	if pdb.MinAvailable != nil && pdb.MaxUnavailable != nil {
+		allErrs = append(allErrs, field.Invalid(fldPath, pdb, "minAvailable and maxUnavailable cannot be both set"))
+	}
+
+	if pdb.MinAvailable != nil {
+		allErrs = append(allErrs, validatePositiveIntOrPercent(*pdb.MinAvailable, fldPath.Child("minAvailable"))...)
+		allErrs = append(allErrs, isNotMoreThan100Percent(*pdb.MinAvailable, fldPath.Child("minAvailable"))...)
+	}
+
+	if pdb.MaxUnavailable != nil {
+		allErrs = append(allErrs, validatePositiveIntOrPercent(*pdb.MaxUnavailable, fldPath.Child("maxUnavailable"))...)
+		allErrs = append(allErrs, isNotMoreThan100Percent(*pdb.MaxUnavailable, fldPath.Child("maxUnavailable"))...)
+	}
+
+	return allErrs
+}
+
+func validatePositiveIntOrPercent(intOrPercent intstr.IntOrString, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	switch intOrPercent.Type {
+	case intstr.String:
+		for _, msg := range utilvalidation.IsValidPercent(intOrPercent.StrVal) {
+			allErrs = append(allErrs, field.Invalid(fldPath, intOrPercent, msg))
+		}
+	case intstr.Int:
+		allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(intOrPercent.IntValue()), fldPath)...)
+	default:
+		allErrs = append(allErrs, field.Invalid(fldPath, intOrPercent, "must be an integer or percentage (e.g '5%%')"))
+	}
+	return allErrs
+}
+
+func isNotMoreThan100Percent(intOrStringValue intstr.IntOrString, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	value, isPercent := getPercentValue(intOrStringValue)
+	if !isPercent || value <= 100 {
+		return nil
+	}
+	allErrs = append(allErrs, field.Invalid(fldPath, intOrStringValue, "must not be greater than 100%"))
+	return allErrs
+}
+
+func getPercentValue(intOrStringValue intstr.IntOrString) (int, bool) {
+	if intOrStringValue.Type != intstr.String {
+		return 0, false
+	}
+	if len(utilvalidation.IsValidPercent(intOrStringValue.StrVal)) != 0 {
+		return 0, false
+	}
+	value, _ := strconv.Atoi(intOrStringValue.StrVal[:len(intOrStringValue.StrVal)-1])
+	return value, true
 }
 
 // EgressStatus defines the observed state of Egress
