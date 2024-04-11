@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-const version = "2.5.2"
+const version = "2.6.0"
 
 // Version returns the semantic versioning string of Coil.
 func Version() string {

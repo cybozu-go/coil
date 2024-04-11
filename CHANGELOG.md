@@ -5,6 +5,18 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.6.0] - 2024-04-11
+
+### Added
+
+- Support PDB for egress (#275)
+
+### Changed
+
+- Fix to check that egress_watcher pick a valid client (#280)
+- Update dependencies (#278)
+- Bump google.golang.org/protobuf from 1.31.0 to 1.33.0 in /v2 (#277)
+
 ## [2.5.2] - 2024-02-02
 
 ### Changed
@@ -227,7 +239,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.5.2...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/cybozu-go/coil/compare/v2.5.2...v2.6.0
 [2.5.2]: https://github.com/cybozu-go/coil/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/cybozu-go/coil/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/cybozu-go/coil/compare/v2.4.0...v2.5.0
