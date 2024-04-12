@@ -2,6 +2,8 @@ package sub
 
 import (
 	"errors"
+	"fmt"
+	v2 "github.com/cybozu-go/coil/v2"
 	"net"
 	"os"
 	"strings"
@@ -98,7 +100,7 @@ func subMain() error {
 		return err
 	}
 
-	setupLog.Info("starting manager")
+	setupLog.Info(fmt.Sprintf("starting manager (version: %s)", v2.Version()))
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		return err
