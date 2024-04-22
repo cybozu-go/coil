@@ -29,7 +29,7 @@ type AddressPoolReconciler struct {
 
 var _ reconcile.Reconciler = &AddressPoolReconciler{}
 
-// +kubebuilder:rbac:groups=coil.cybozu.com,resources=addresspools,verbs=get;list;watch
+// +kubebuilder:rbac:groups=coil.cybozu.com,resources=addresspools,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=addressblocks,verbs=get;list;watch
 
 // Reconcile implements Reconciler interface.

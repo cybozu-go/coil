@@ -503,4 +503,42 @@ var _ = Describe("Coil", func() {
 			Expect(resp).To(HaveLen(1 << 20))
 		}
 	})
+
+	It("should delete address pool", func() {
+		By("creating a dummy address pool")
+		_, err := kubectl(nil, "apply", "-f", "manifests/dummy_pool.yaml")
+		Expect(err).NotTo(HaveOccurred())
+
+		Eventually(func() error {
+			ap := coilv2.AddressPool{}
+			out, err := kubectl(nil, "get", "addresspool", "dummy", "-o", "json")
+			if err != nil {
+				return err
+			}
+			if err := json.Unmarshal(out, &ap); err != nil {
+				return err
+			}
+			return nil
+		}).Should(Succeed())
+
+		By("deleting the dummy address pool")
+		_, err = kubectl(nil, "delete", "-f", "manifests/dummy_pool.yaml")
+		Expect(err).NotTo(HaveOccurred())
+
+		Consistently(func() error {
+			apList := coilv2.AddressPoolList{}
+			out, err := kubectl(nil, "get", "addresspool", "-o", "json")
+			if err != nil {
+				return err
+			}
+			if err := json.Unmarshal(out, &apList); err != nil {
+				return err
+			}
+			if len(apList.Items) == 1 {
+				return nil
+			}
+			return fmt.Errorf("the number of AddressPool must be 1")
+		}).Should(Succeed())
+
+	})
 })
