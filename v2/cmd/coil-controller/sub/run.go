@@ -2,11 +2,12 @@ package sub
 
 import (
 	"fmt"
-	v2 "github.com/cybozu-go/coil/v2"
 	"net"
 	"os"
 	"strconv"
 	"time"
+
+	v2 "github.com/cybozu-go/coil/v2"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/controllers"
@@ -21,6 +22,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 const (
@@ -57,12 +60,16 @@ func subMain() error {
 		LeaderElection:          true,
 		LeaderElectionID:        "coil-leader",
 		LeaderElectionNamespace: "kube-system", // coil should run in kube-system
-		MetricsBindAddress:      config.metricsAddr,
+		Metrics: metricsserver.Options{
+			BindAddress: config.metricsAddr,
+		},
 		GracefulShutdownTimeout: &timeout,
 		HealthProbeBindAddress:  config.healthAddr,
-		Host:                    host,
-		Port:                    port,
-		CertDir:                 config.certDir,
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Host:    host,
+			Port:    port,
+			CertDir: config.certDir,
+		}),
 	})
 	if err != nil {
 		return err

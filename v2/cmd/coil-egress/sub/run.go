@@ -3,11 +3,12 @@ package sub
 import (
 	"errors"
 	"fmt"
-	v2 "github.com/cybozu-go/coil/v2"
 	"net"
 	"os"
 	"strings"
 	"time"
+
+	v2 "github.com/cybozu-go/coil/v2"
 
 	"github.com/cybozu-go/coil/v2/controllers"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
@@ -18,6 +19,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 const (
@@ -69,9 +71,11 @@ func subMain() error {
 
 	timeout := gracefulTimeout
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                  scheme,
-		LeaderElection:          false,
-		MetricsBindAddress:      config.metricsAddr,
+		Scheme:         scheme,
+		LeaderElection: false,
+		Metrics: metricsserver.Options{
+			BindAddress: config.metricsAddr,
+		},
 		GracefulShutdownTimeout: &timeout,
 		HealthProbeBindAddress:  config.healthAddr,
 	})

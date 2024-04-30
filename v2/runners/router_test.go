@@ -15,6 +15,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/common/expfmt"
 	ctrl "sigs.k8s.io/controller-runtime"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 type fakeSyncer struct {
@@ -61,9 +62,11 @@ var _ = Describe("Router", func() {
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.TODO())
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-			Scheme:             scheme,
-			LeaderElection:     false,
-			MetricsBindAddress: "localhost:13450",
+			Scheme:         scheme,
+			LeaderElection: false,
+			Metrics: metricsserver.Options{
+				BindAddress: "localhost:13450",
+			},
 		})
 		Expect(err).ToNot(HaveOccurred())
 
