@@ -9,7 +9,6 @@ import (
 	"time"
 
 	v2 "github.com/cybozu-go/coil/v2"
-
 	"github.com/cybozu-go/coil/v2/controllers"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/cybozu-go/coil/v2/pkg/founat"
