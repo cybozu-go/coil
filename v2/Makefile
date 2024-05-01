@@ -70,7 +70,7 @@ check-generate:
 	$(MAKE) generate
 	$(MAKE) manifests
 	go mod tidy
-	git diff --exit-code --name-only
+	git diff --exit-code
 
 # Generate manifests e.g. CRD, RBAC etc.
 .PHONY: manifests
