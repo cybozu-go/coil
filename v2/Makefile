@@ -2,7 +2,7 @@
 
 IMAGE_TAG := latest
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
-CONTROLLER_TOOLS_VERSION=0.14.0
+CONTROLLER_TOOLS_VERSION=0.15.0
 PROTOC_VERSION=26.0
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
 PROTOC_GEN_GO_GRPC_VERSON=1.3.0
@@ -70,7 +70,7 @@ check-generate:
 	$(MAKE) generate
 	$(MAKE) manifests
 	go mod tidy
-	git diff --exit-code --name-only
+	git diff --exit-code
 
 # Generate manifests e.g. CRD, RBAC etc.
 .PHONY: manifests

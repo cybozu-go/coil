@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 type mockNodeIPAM struct {
@@ -164,9 +165,11 @@ var _ = Describe("Coild server", func() {
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.TODO())
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-			Scheme:             scheme,
-			LeaderElection:     false,
-			MetricsBindAddress: fmt.Sprintf("localhost:%d", metricPort),
+			Scheme:         scheme,
+			LeaderElection: false,
+			Metrics: metricsserver.Options{
+				BindAddress: fmt.Sprintf("localhost:%d", metricPort),
+			},
 		})
 		metricPort--
 		Expect(err).ToNot(HaveOccurred())
