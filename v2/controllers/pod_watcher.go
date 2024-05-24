@@ -179,7 +179,6 @@ OUTER:
 		if err := r.eg.AddClient(ip, link); err != nil {
 			return err
 		}
-		// link up here
 	}
 
 OUTER2:

@@ -140,6 +140,7 @@ func (e *egress) AddClient(addr net.IP, link netlink.Link) error {
 	}
 
 	// link up here to minimize the down time
+	// See https://github.com/cybozu-go/coil/issues/287.
 	if err := netlink.LinkSetUp(link); err != nil {
 		return fmt.Errorf("netlink: failed to link up %s: %w", link.Attrs().Name, err)
 	}
