@@ -139,6 +139,10 @@ func (e *egress) AddClient(addr net.IP, link netlink.Link) error {
 		}
 	}
 
+	// link up here to minimize the down time
+	if err := netlink.LinkSetUp(link); err != nil {
+		return fmt.Errorf("netlink: failed to link up %s: %w", link.Attrs().Name, err)
+	}
 	err = netlink.RouteAdd(&netlink.Route{
 		Dst:       netlink.NewIPNet(addr),
 		LinkIndex: link.Attrs().Index,

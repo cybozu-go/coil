@@ -241,7 +241,7 @@ func (t *fouTunnel) addOrRecreatePeer4(addr net.IP, sportAuto bool) (string, err
 
 	attrs := netlink.NewLinkAttrs()
 	attrs.Name = linkName
-	attrs.Flags = net.FlagUp
+	// attrs.Flags = net.FlagUp
 	encapSport := uint16(t.port)
 	if sportAuto {
 		encapSport = 0
@@ -311,7 +311,7 @@ func (t *fouTunnel) addOrRecreatePeer6(addr net.IP, sportAuto bool) (string, err
 
 	attrs := netlink.NewLinkAttrs()
 	attrs.Name = linkName
-	attrs.Flags = net.FlagUp
+	// attrs.Flags = net.FlagUp
 	encapSport := uint16(t.port)
 	if sportAuto {
 		encapSport = 0
