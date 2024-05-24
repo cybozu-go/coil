@@ -386,6 +386,12 @@ func (c *natClient) addEgress1(link netlink.Link, n *net.IPNet) error {
 		priv = c.v6priv
 	}
 
+	// link up here to minimize the down time
+	// See https://github.com/cybozu-go/coil/issues/287.
+	if err := netlink.LinkSetUp(link); err != nil {
+		return fmt.Errorf("netlink: failed to link up %s: %w", link.Attrs().Name, err)
+	}
+
 	for _, p := range priv {
 		if !p.Contains(n.IP) {
 			continue
@@ -398,15 +404,9 @@ func (c *natClient) addEgress1(link netlink.Link, n *net.IPNet) error {
 			Protocol:  ncProtocolID,
 		})
 		if err != nil {
-			return fmt.Errorf("netlink: failed to add route to %s: %w", n.String(), err)
+			return fmt.Errorf("netlink: failed to add route(table %d) to %s: %w", ncNarrowTableID, n.String(), err)
 		}
 		return nil
-	}
-
-	// link up here to minimize the down time
-	// See https://github.com/cybozu-go/coil/issues/287.
-	if err := netlink.LinkSetUp(link); err != nil {
-		return fmt.Errorf("netlink: failed to link up %s: %w", link.Attrs().Name, err)
 	}
 
 	err := netlink.RouteAdd(&netlink.Route{
@@ -416,7 +416,7 @@ func (c *natClient) addEgress1(link netlink.Link, n *net.IPNet) error {
 		Protocol:  ncProtocolID,
 	})
 	if err != nil {
-		return fmt.Errorf("netlink: failed to add route to %s: %w", n.String(), err)
+		return fmt.Errorf("netlink: failed to add route(table %d) to %s: %w", ncWideTableID, n.String(), err)
 	}
 	return nil
 }
