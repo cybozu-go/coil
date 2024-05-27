@@ -108,7 +108,7 @@ var _ = Describe("Pod watcher", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		err = SetupPodWatcher(mgr, "internet", "egress2", ft, true, eg)
+		err = SetupPodWatcher(mgr, "internet", "egress2", ft, true, eg, cfg)
 		Expect(err).ToNot(HaveOccurred())
 
 		go func() {

@@ -12,11 +12,14 @@ import (
 	"github.com/cybozu-go/coil/v2/pkg/founat"
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
@@ -40,7 +43,7 @@ func init() {
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 // SetupPodWatcher registers pod watching reconciler to mgr.
-func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, encapSportAuto bool, eg founat.Egress) error {
+func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, encapSportAuto bool, eg founat.Egress, cfg *rest.Config) error {
 	clientPods.Reset()
 
 	r := &podWatcher{
@@ -53,6 +56,38 @@ func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, enc
 		metric:         clientPods.WithLabelValues(ns, name),
 		podAddrs:       make(map[string][]net.IP),
 		peers:          make(map[string]map[string]struct{}),
+	}
+
+	if cfg == nil {
+		cfg = config.GetConfigOrDie()
+	}
+
+	client, err := client.New(cfg, client.Options{})
+	if err != nil {
+		return err
+	}
+
+	var pods corev1.PodList
+	ctx := context.Background()
+	if err := client.List(ctx, &pods); err != nil {
+		return err
+	}
+
+	g := new(errgroup.Group)
+	for _, pod := range pods.Items {
+		pod := pod
+		g.Go(func() error {
+			if isTerminated(&pod) {
+				return nil
+			}
+			if !r.shouldHandle(&pod) {
+				return nil
+			}
+			return r.addPod(&pod, log.FromContext(ctx))
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return err
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
