@@ -5,6 +5,17 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.6.1] - 2024-05-28
+
+### Changed
+
+- Fix downtime on NAT client startup (#288)
+- Make setup egress before the manager starts (#286)
+- Support Kubernetes 1.28 (#285)
+- Fix to be able to remove AddressPool finalizer by controller (#283)
+- Bump golang.org/x/net from 0.22.0 to 0.23.0 in /v2 (#282)
+- Add version info to the starting logs (#281)
+
 ## [2.6.0] - 2024-04-11
 
 ### Added
@@ -239,7 +250,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.6.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.6.1...HEAD
+[2.6.1]: https://github.com/cybozu-go/coil/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/cybozu-go/coil/compare/v2.5.2...v2.6.0
 [2.5.2]: https://github.com/cybozu-go/coil/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/cybozu-go/coil/compare/v2.5.0...v2.5.1
