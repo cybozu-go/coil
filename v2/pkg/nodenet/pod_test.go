@@ -136,8 +136,8 @@ func TestPodNetwork(t *testing.T) {
 				}
 			}
 		}
-		if result.CNIVersion != "1.0.0" {
-			t.Error(`CNI version != 1.0.0`)
+		if result.CNIVersion != "1.1.0" {
+			t.Errorf(`CNI version != 1.1.0 but %s`, result.CNIVersion)
 		}
 	}
 

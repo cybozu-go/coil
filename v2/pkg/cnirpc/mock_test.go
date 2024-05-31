@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/resolver"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -83,7 +84,8 @@ func TestCNIWithMock(t *testing.T) {
 	dialFunc := func(ctx context.Context, a string) (net.Conn, error) {
 		return dialer.DialContext(ctx, "unix", a)
 	}
-	conn, err := grpc.Dial(s.sockName, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(dialFunc))
+	resolver.SetDefaultScheme("passthrough")
+	conn, err := grpc.NewClient(s.sockName, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(dialFunc))
 	if err != nil {
 		t.Fatal(err)
 	}

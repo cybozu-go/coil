@@ -9,6 +9,7 @@ import (
 	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/resolver"
 	"google.golang.org/grpc/status"
 )
 
@@ -36,7 +37,9 @@ func connect(sock string) (*grpc.ClientConn, error) {
 	dialFunc := func(ctx context.Context, a string) (net.Conn, error) {
 		return dialer.DialContext(ctx, "unix", a)
 	}
-	conn, err := grpc.Dial(sock, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(dialFunc))
+	resolver.SetDefaultScheme("passthrough")
+
+	conn, err := grpc.NewClient(sock, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(dialFunc))
 	if err != nil {
 		return nil, types.NewError(types.ErrTryAgainLater, "failed to connect to "+sock, err.Error())
 	}

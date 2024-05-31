@@ -110,5 +110,5 @@ func cmdCheck(args *skel.CmdArgs) error {
 }
 
 func main() {
-	skel.PluginMain(cmdAdd, cmdCheck, cmdDel, version.PluginSupports("0.3.1", "0.4.0", "1.0.0"), fmt.Sprintf("coil %s", v2.Version()))
+	skel.PluginMainFuncs(skel.CNIFuncs{Add: cmdAdd, Del: cmdDel, Check: cmdCheck, GC: nil, Status: nil}, version.PluginSupports("0.3.1", "0.4.0", "1.0.0"), fmt.Sprintf("coil %s", v2.Version()))
 }

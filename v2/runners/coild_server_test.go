@@ -23,6 +23,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/resolver"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -199,7 +200,8 @@ var _ = Describe("Coild server", func() {
 		dialFunc := func(ctx context.Context, a string) (net.Conn, error) {
 			return dialer.DialContext(ctx, "unix", a)
 		}
-		conn, err = grpc.Dial(coildSocket, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(dialFunc))
+		resolver.SetDefaultScheme("passthrough")
+		conn, err = grpc.NewClient(coildSocket, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(dialFunc))
 		Expect(err).ToNot(HaveOccurred())
 		cniClient = cnirpc.NewCNIClient(conn)
 	})
