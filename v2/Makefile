@@ -7,11 +7,13 @@ PROTOC_VERSION=27.0
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
 PROTOC_GEN_GO_GRPC_VERSON=1.3.0
 PROTOC_GEN_DOC_VERSION=1.5.1
+YQ_VERSION=4.44.1
 
 ## DON'T EDIT BELOW THIS LINE
 SUDO=sudo
 CONTROLLER_GEN := $(shell pwd)/bin/controller-gen
 SETUP_ENVTEST := $(shell pwd)/bin/setup-envtest
+YQ := $(shell pwd)/bin/yq
 CRD_OPTIONS = "crd:crdVersions=v1"
 ROLES = config/rbac/coil-controller_role.yaml \
 	config/rbac/coild_role.yaml \
@@ -26,6 +28,8 @@ NATNSLIST = nat-client nat-router nat-egress nat-target
 OTHERNSLIST = test-egress-dual test-egress-v4 test-egress-v6 \
 	test-client-dual test-client-v4 test-client-v6 test-client-custom \
 	test-fou-dual test-fou-v4 test-fou-v6
+WGET_OPTIONS := --retry-on-http-error=503 --retry-connrefused --no-verbose
+WGET := wget $(WGET_OPTIONS)
 
 # Set the shell used to bash for better error handling.
 SHELL = /bin/bash
@@ -74,8 +78,16 @@ check-generate:
 
 # Generate manifests e.g. CRD, RBAC etc.
 .PHONY: manifests
-manifests: $(CONTROLLER_GEN) $(ROLES)
+manifests: $(CONTROLLER_GEN) $(ROLES) $(YQ)
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	# Reduce the size of Egress CRD by deleting `description` fields below the pod's template because it exceeds the limit of `metadata.annotations` length when it's applied with client-side mode.
+	$(YQ) -i 'del(.spec.versions.[].schema.openAPIV3Schema.properties.spec.properties.template | ..  |select(key == "description"))' config/crd/bases/coil.cybozu.com_egresses.yaml
+
+$(YQ):
+	$(WGET) -O yq.tar.gz https://github.com/mikefarah/yq/releases/download/v$(YQ_VERSION)/yq_linux_amd64.tar.gz
+	tar -C $(shell pwd)/bin/ -zxf yq.tar.gz ./yq_linux_amd64 -O > $@
+	rm -f yq.tar.gz
+	chmod +x $@
 
 COIL_CONTROLLER_ROLE_DEPENDS = controllers/addresspool_controller.go \
 	controllers/blockrequest_controller.go \
@@ -180,7 +192,7 @@ push: work/LICENSE
 .PHONY: setup
 setup:
 	$(SUDO) apt-get update
-	$(SUDO) apt-get -y install --no-install-recommends rsync unzip
+	$(SUDO) apt-get -y install --no-install-recommends rsync unzip wget
 
 	curl -sfL -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-linux-x86_64.zip
 	unzip -o protoc.zip bin/protoc 'include/*'
