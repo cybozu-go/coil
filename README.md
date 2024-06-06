@@ -19,7 +19,7 @@ There are blog articles about Coil: https://blog.kintone.io/archive/category/Coi
 
 ## Status
 
-Version 2 is generally available (GA).  It conforms to [CNI spec 0.4.0](https://github.com/containernetworking/cni/blob/spec-v0.4.0/SPEC.md).
+Version 2 is generally available (GA).  It conforms to [CNI spec 1.1.0](https://github.com/containernetworking/cni/blob/spec-v1.1.0/SPEC.md).
 
 ## Dependencies
 

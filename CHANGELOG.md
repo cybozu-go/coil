@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.7.0] - 2024-06-06
+
+### Changed
+
+- Support Kubernetes 1.29 and CNI 1.1.0 (#290)
+
 ## [2.6.1] - 2024-05-28
 
 ### Changed
@@ -250,7 +256,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.6.1...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.7.0...HEAD
+[2.7.0]: https://github.com/cybozu-go/coil/compare/v2.6.1...v2.7.0
 [2.6.1]: https://github.com/cybozu-go/coil/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/cybozu-go/coil/compare/v2.5.2...v2.6.0
 [2.5.2]: https://github.com/cybozu-go/coil/compare/v2.5.1...v2.5.2
