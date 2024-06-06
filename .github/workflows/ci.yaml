@@ -16,12 +16,12 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
-    - uses: actions/setup-go@v4
+    - uses: actions/setup-go@v5
       with:
         go-version: ${{ env.go-version }}
     - name: Cache tools
       id: cache-tools
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           v2/bin
@@ -39,7 +39,7 @@ jobs:
     name: End-to-end Test
     strategy:
       matrix:
-        kindest-node: ["1.26.14", "1.27.11", "1.28.7"]
+        kindest-node: ["1.27.13", "1.28.9", "1.29.4"]
         ip-version: ["ipv4", "ipv6"]
     runs-on: ubuntu-22.04
     steps:
