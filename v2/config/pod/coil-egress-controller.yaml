@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coil-egress-controller
+  namespace: system
+  labels:
+    app.kubernetes.io/component: coil-egress-controller
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: coil-egress-controller
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: coil-egress-controller
+    spec:
+      hostNetwork: true
+      priorityClassName: system-cluster-critical
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        effect: NoSchedule
+      - key: node.kubernetes.io/not-ready
+        effect: NoSchedule
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values: ["coil-egress-controller"]
+              topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsUser: 10000
+        runAsGroup: 10000
+      serviceAccountName: coil-egress-controller
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: coil-egress-controller
+        image: coil:dev
+        command: ["coil-egress-controller"]
+        args:
+          - --zap-stacktrace-level=panic
+        env:
+        - name: "COIL_POD_NAMESPACE"
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: "COIL_POD_NAME"
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        ports:
+        - name: metrics
+          containerPort: 9396
+          protocol: TCP
+        - name: health
+          containerPort: 9397
+          protocol: TCP
+        - name: webhook-server
+          containerPort: 9444
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: health
+        volumeMounts:
+        - mountPath: /certs
+          name: cert
+          readOnly: true
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: coilv2-egress-webhook-server-cert

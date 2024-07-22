@@ -1,14 +1,27 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: coil-controller
+  name: coil-ipam-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: coil-controller
+  name: coil-ipam-controller
 subjects:
 - kind: ServiceAccount
-  name: coil-controller
+  name: coil-ipam-controller
+  namespace: system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: coil-egress-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: coil-egress-controller
+subjects:
+- kind: ServiceAccount
+  name: coil-egress-controller
   namespace: system
 ---
 apiVersion: rbac.authorization.k8s.io/v1

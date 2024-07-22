@@ -8,5 +8,8 @@ roleRef:
   name: coil-leader-election
 subjects:
 - kind: ServiceAccount
-  name: coil-controller
+  name: coil-ipam-controller
+  namespace: system
+- kind: ServiceAccount
+  name: coil-egress-controller
   namespace: system

@@ -21,6 +21,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+	corev1 "k8s.io/api/core/v1"
 )
 
 var (
@@ -48,14 +49,19 @@ type PodNetwork interface {
 	// Init initializes the host network.
 	Init() error
 
-	// Setup connects the host network and the container network with a veth pair.
+	// SetupIPAM connects the host network and the container network with a veth pair.
 	// `nsPath` is the container network namespace's (possibly bind-mounted) file.
 	// If `hook` is non-nil, it is called in the Pod network.
-	Setup(nsPath, podName, podNS string, conf *PodNetConf, hook SetupHook) (*current.Result, error)
+	SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf) (*current.Result, error)
+
+	// SetupEgress configures egress for container.
+	// `nsPath` is the container network namespace's (possibly bind-mounted) file.
+	// If `hook` is non-nil, it is called in the Pod network.
+	SetupEgress(nsPath string, conf *PodNetConf, hook SetupHook) error
 
 	// Update updates the container network configuration
 	// Currently, it only updates configuration using a SetupHook, e.g. NAT setting
-	Update(podIPv4, podIPv6 net.IP, hook SetupHook) error
+	Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev1.Pod) error
 
 	// Check checks the pod network's status.
 	Check(containerId, iface string) error
@@ -69,7 +75,7 @@ type PodNetwork interface {
 }
 
 // NewPodNetwork creates a PodNetwork
-func NewPodNetwork(podTableID, podRulePrio, protocolId int, hostIPv4, hostIPv6 net.IP, compatCalico, registerFromMain bool, log logr.Logger) PodNetwork {
+func NewPodNetwork(podTableID, podRulePrio, protocolId int, hostIPv4, hostIPv6 net.IP, compatCalico, registerFromMain bool, log logr.Logger, enableIPAM bool) PodNetwork {
 	return &podNetwork{
 		podTableId:       podTableID,
 		podRulePrio:      podRulePrio,
@@ -79,6 +85,7 @@ func NewPodNetwork(podTableID, podRulePrio, protocolId int, hostIPv4, hostIPv6 n
 		compatCalico:     compatCalico,
 		registerFromMain: registerFromMain,
 		log:              log,
+		enableIPAM:       enableIPAM,
 	}
 }
 
@@ -92,12 +99,13 @@ type podNetwork struct {
 	compatCalico     bool
 	registerFromMain bool
 	log              logr.Logger
+	enableIPAM       bool
 
 	mu sync.Mutex
 }
 
-func genAlias(conf *PodNetConf) string {
-	return fmt.Sprintf("COIL:%s:%s:%s", conf.PoolName, conf.ContainerId, conf.IFace)
+func GenAlias(conf *PodNetConf, id string) string {
+	return fmt.Sprintf("COIL:%s:%s:%s", conf.PoolName, id, conf.IFace)
 }
 
 func parseLink(l netlink.Link) *PodNetConf {
@@ -187,9 +195,22 @@ func (pn *podNetwork) initRule(family int) error {
 	return nil
 }
 
-func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hook SetupHook) (*current.Result, error) {
+func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf) (*current.Result, error) {
 	pn.mu.Lock()
 	defer pn.mu.Unlock()
+
+	containerNS, err := ns.GetNS(nsPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open netns path %s: %w", nsPath, err)
+	}
+	defer containerNS.Close()
+
+	var hostIPv6 net.IP
+	var hLink netlink.Link
+
+	result := &current.Result{
+		CNIVersion: current.ImplementedSpecVersion,
+	}
 
 	// cleanup garbage veth
 	switch l, err := lookup(conf.ContainerId, conf.IFace); err {
@@ -203,16 +224,7 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 		return nil, err
 	}
 
-	containerNS, err := ns.GetNS(nsPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open netns path %s: %w", nsPath, err)
-	}
-	defer containerNS.Close()
-
 	// setup veth and configure IP addresses
-	result := &current.Result{
-		CNIVersion: current.ImplementedSpecVersion,
-	}
 	err = containerNS.Do(func(hostNS ns.NetNS) error {
 		vethName := ""
 		if pn.compatCalico {
@@ -287,7 +299,7 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 
 	// install cleanup handler upon errors
 	hName := result.Interfaces[1].Name
-	hLink, err := netlink.LinkByName(hName)
+	hLink, err = netlink.LinkByName(hName)
 	if err != nil {
 		return nil, fmt.Errorf("netlink: failed to look up the host-side veth: %w", err)
 	}
@@ -297,14 +309,13 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 		}
 	}()
 
-	// give identifer as an alias of host veth
-	err = netlink.LinkSetAlias(hLink, genAlias(conf))
+	// give identifier as an alias of host veth
+	err = netlink.LinkSetAlias(hLink, GenAlias(conf, conf.ContainerId))
 	if err != nil {
 		return nil, fmt.Errorf("netlink: failed to set alias: %w", err)
 	}
 
 	// setup routing on the host side
-	var hostIPv6 net.IP
 	if conf.IPv6 != nil {
 		ip.SettleAddresses(hName, 10)
 
@@ -398,9 +409,6 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 			}
 		}
 
-		if hook != nil {
-			return hook(conf.IPv4, conf.IPv6)
-		}
 		return nil
 	})
 	if err != nil {
@@ -411,7 +419,31 @@ func (pn *podNetwork) Setup(nsPath, podName, podNS string, conf *PodNetConf, hoo
 	return result, nil
 }
 
-func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook) error {
+func (pn *podNetwork) SetupEgress(nsPath string, conf *PodNetConf, hook SetupHook) error {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+
+	containerNS, err := ns.GetNS(nsPath)
+	if err != nil {
+		return fmt.Errorf("failed to open netns path %s: %w", nsPath, err)
+	}
+	defer containerNS.Close()
+
+	// setup routing on the container side
+	err = containerNS.Do(func(ns.NetNS) error {
+		if hook != nil {
+			return hook(conf.IPv4, conf.IPv6)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("error executing hook: %w", err)
+	}
+
+	return nil
+}
+
+func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev1.Pod) error {
 	pn.mu.Lock()
 	defer pn.mu.Unlock()
 
@@ -422,12 +454,25 @@ func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook) error {
 
 	var netNsPath string
 	for _, c := range podConfigs {
-		// When both c.IPvX and podIPvX are nil, net.IP.Equal() returns always true.
-		// To avoid comparing nil to nil, confirm c.IPvX is not nil.
-		if (c.IPv4 != nil && c.IPv4.Equal(podIPv4)) || (c.IPv6 != nil && c.IPv6.Equal(podIPv6)) {
-			netNsPath, err = getNetNsPath(c.HostVethName)
-			if err != nil {
-				return err
+		if pn.enableIPAM {
+			// When both c.IPvX and podIPvX are nil, net.IP.Equal() returns always true.
+			// To avoid comparing nil to nil, confirm c.IPvX is not nil.
+			if (c.IPv4 != nil && c.IPv4.Equal(podIPv4)) || (c.IPv6 != nil && c.IPv6.Equal(podIPv6)) {
+				netNsPath, err = getNetNsPath(c.HostVethName)
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			// We need to bind PodNetConf with Pod. When Coil is a primary CNI IP address can be used for that.
+			// However different CNIs manage IP addresses differently, therefore, in egress-only mode instead of
+			// storing container's ID in ContainerId, we store pod's UID there to be able to identify pod that was
+			// used to create particular PodNetConf.
+			if c.ContainerId == string(pod.UID) {
+				netNsPath, err = getNetNsPath(c.HostVethName)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}

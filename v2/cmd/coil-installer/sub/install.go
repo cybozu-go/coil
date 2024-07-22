@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func installCniConf(cniConfName, cniEtcDir, cniNetConf, cniNetConfFile string) error {
@@ -29,9 +30,11 @@ func installCniConf(cniConfName, cniEtcDir, cniNetConf, cniNetConfFile string) e
 		if fi.IsDir() {
 			continue
 		}
-		err := os.Remove(filepath.Join(cniEtcDir, fi.Name()))
-		if err != nil {
-			return err
+		if strings.Contains(fi.Name(), "conflist") {
+			err := os.Remove(filepath.Join(cniEtcDir, fi.Name()))
+			if err != nil {
+				return err
+			}
 		}
 	}
 
