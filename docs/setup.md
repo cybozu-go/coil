@@ -57,7 +57,7 @@ $ vi kustomization.yaml
 (actually, the example is a network configuration list).
 
 You may edit the file to, say, add Cilium for network policies or to tune MTU.
-Note that `coil` must be the first in the plugin list.
+Note that `coil` must be the first in the plugin list if IPAM is enabled.
 
 ```console
 vi netconf.json
@@ -76,7 +76,9 @@ The following example adds `tuning` and `bandwidth` plugins.
   "plugins": [
     {
       "type": "coil",
-      "socket": "/run/coild.sock"
+      "socket": "/run/coild.sock",
+      "ipam": true,
+      "egress": true
     },
     {
       "type": "tuning",

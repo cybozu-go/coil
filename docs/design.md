@@ -73,7 +73,8 @@ Now that we have learned how to do these things, and want to add rich features s
 
 Coil v2 will consist of the following programs:
 
-- `coil-controller`: Kubernetes controller managing custom resources.
+- `coil-ipam-controller`: Kubernetes controller managing IPAM related custom resources.
+- `coil-egress-controller`: Kubernetes controller managing on-demand NAT egress related custom resources.
 - `coild`: Daemon program running on nodes.
 - `coil`: CNI interface that delegates requests from `kubelet` to `coild`.
 - `coil-egress`: Administration program running in Egress pods.
@@ -102,11 +103,11 @@ To make things simple, the default pool is the pool whose name is `default`.
 To reduce the number of advertised routes, addresses in an address pool are divided into fixed-size blocks.
 These blocks are called _address blocks_, and assigned to nodes.  Since all IP addresses in an address block are routed to the same node, only one route per address block need to be advertised.
 
-For example, if an address pool defines that the size of an address block is 2<sup>5</sup>, `coil-controller` will carve an address block for IPv4 with `/27` subnet mask out of the pool, and assigns it to a node.
+For example, if an address pool defines that the size of an address block is 2<sup>5</sup>, `coil-ipam-controller` will carve an address block for IPv4 with `/27` subnet mask out of the pool, and assigns it to a node.
 
 
 In general, avoiding immediate reuse of IP addresses is better not to confuse other software or components.
-To avoid such immediate reuse, `coil-controller` remembers the last used address, and it assigns the address from the next address.
+To avoid such immediate reuse, `coil-ipam-controller` remembers the last used address, and it assigns the address from the next address.
 
 The same problem may occur when we use address blocks of the size `/32`.
 In this case, there is a high chance of reusing the same address immediately.
@@ -333,7 +334,7 @@ Therefore, when the deletion of the owning `AddressPool` is directed, all `Addre
 That said, an `AddressBlock` should not be deleted until there are no more Pods with an address in the block.
 For this purpose, Coil adds a finalizer to each `AddressBlock`.  **`coild` checks the usage of addresses in the block**, and once there are no more Pods using the addresses, it removes the finalizer to delete the `AddressBlock`.
 
-`AddressBlock` should also be deleted when `Node` that acquired the block is deleted.  Since `coild` running as a DaemonSet pod cannot do this, **`coil-controller` watches Node deletions and removes `AddressBlocks`**.  `coil-controller` periodically checks dangling `AddressBlocks` and removes them.
+`AddressBlock` should also be deleted when `Node` that acquired the block is deleted.  Since `coild` running as a DaemonSet pod cannot do this, **`coil-ipam-controller` watches Node deletions and removes `AddressBlocks`**.  `coil-ipam-controller` periodically checks dangling `AddressBlocks` and removes them.
 
 `coild` also deletes `AddressBlock` when it frees the last IP address used in the block.  At startup, `coild` also checks each `AddressBlock` for the Node, and if no Pod is using the addresses in the block, it deletes the `AddressBlock`.
 
@@ -342,7 +343,7 @@ Note that Coil does not include `Node` in the list of owner references of an `Ad
 ### AddressPool
 
 Similar to an `AddressBlock` and its addresses, an `AddressPool` should not be deleted until there are no more `AddressBlock`s derived from the pool.
-For this purpose, Coil adds a finalizer to each `AddressPool`.  `coil-controller` checks the usage of blocks in the pool.
+For this purpose, Coil adds a finalizer to each `AddressPool`.  `coil-ipam-controller` checks the usage of blocks in the pool.
 
 Note that `blockOwnerDeletion: true` in `AddressBlock`'s `ownerReferences` does not always block the deletion of the owning `AddressPool`.
 This directive has effect only when foreground cascading deletion is adopted.
@@ -397,7 +398,7 @@ skinparam rectangle {
 together {
 actor User
 package Deployment {
-    [coil-controller] as controller
+    [coil-ipam-controller] as controller
 }
 database kube-apiserver as apiserver #lightblue {
     [AddressPool] as pool1

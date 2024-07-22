@@ -5,7 +5,7 @@ images:
 
 resources:
 - config/default
-# If you are using CKE (github.com/cybozu-go/cke) and wwant to use
+# If you are using CKE (github.com/cybozu-go/cke) and want to use
 # its webhook installation feature, comment the above line and
 # uncomment the below line.
 #- config/cke
