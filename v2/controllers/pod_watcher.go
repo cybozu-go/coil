@@ -188,6 +188,8 @@ func (r *podWatcher) addPod(pod *corev1.Pod, logger logr.Logger) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	logger.Info("add pod", "pod", pod.Name, "namespace", pod.Namespace)
+
 	key := pod.Namespace + "/" + pod.Name
 	existing := r.podAddrs[key]
 	podIPs := make([]net.IP, len(pod.Status.PodIPs))
