@@ -2,7 +2,6 @@ package sub
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"os"
 	"strings"
@@ -89,21 +88,24 @@ func subMain() error {
 		return err
 	}
 
+	setupLog.Info("initialize FoU tunnel", "port", config.port, "ipv4", ipv4.String(), "ipv6", ipv6.String())
 	ft := founat.NewFoUTunnel(config.port, ipv4, ipv6, nil)
 	if err := ft.Init(); err != nil {
 		return err
 	}
 
+	setupLog.Info("initialize Egress", "ipv4", ipv4.String(), "ipv6", ipv6.String())
 	eg := founat.NewEgress("eth0", ipv4, ipv6)
 	if err := eg.Init(); err != nil {
 		return err
 	}
 
+	setupLog.Info("setup Pod watcher")
 	if err := controllers.SetupPodWatcher(mgr, myNS, myName, ft, config.enableSportAuto, eg, nil); err != nil {
 		return err
 	}
 
-	setupLog.Info(fmt.Sprintf("starting manager (version: %s)", v2.Version()))
+	setupLog.Info("starting manager", "version", v2.Version())
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		return err
