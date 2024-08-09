@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.7.2] - 2024-08-09
+
+- Add info logs to egress (#298)
+
+### Changed
+
 ## [2.7.1] - 2024-07-22
 
 ### Changed
@@ -264,7 +270,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.7.1...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.7.2...HEAD
+[2.7.2]: https://github.com/cybozu-go/coil/compare/v2.7.1...v2.7.2
 [2.7.1]: https://github.com/cybozu-go/coil/compare/v2.7.0...v2.7.1
 [2.7.0]: https://github.com/cybozu-go/coil/compare/v2.6.1...v2.7.0
 [2.6.1]: https://github.com/cybozu-go/coil/compare/v2.6.0...v2.6.1
