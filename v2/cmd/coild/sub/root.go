@@ -24,6 +24,8 @@ var config struct {
 	egressPort       int
 	registerFromMain bool
 	zapOpts          zap.Options
+	enableIPAM       bool
+	enableEgress     bool
 }
 
 var rootCmd = &cobra.Command{
@@ -61,6 +63,8 @@ func init() {
 	pf.BoolVar(&config.compatCalico, "compat-calico", false, "make veth name compatible with Calico")
 	pf.IntVar(&config.egressPort, "egress-port", 5555, "UDP port number for egress NAT")
 	pf.BoolVar(&config.registerFromMain, "register-from-main", false, "help migration from Coil 2.0.1")
+	pf.BoolVar(&config.enableIPAM, "enable-ipam", true, "enable IPAM related features")
+	pf.BoolVar(&config.enableEgress, "enable-egress", true, "enable IPAM related features")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)

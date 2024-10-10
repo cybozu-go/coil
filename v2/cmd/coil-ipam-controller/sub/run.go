@@ -3,14 +3,12 @@ package sub
 import (
 	"fmt"
 	"net"
-	"os"
 	"strconv"
 	"time"
 
 	v2 "github.com/cybozu-go/coil/v2"
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/controllers"
-	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/cybozu-go/coil/v2/pkg/indexing"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
 	"github.com/cybozu-go/coil/v2/runners"
@@ -18,7 +16,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -57,7 +54,7 @@ func subMain() error {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                  scheme,
 		LeaderElection:          true,
-		LeaderElectionID:        "coil-leader",
+		LeaderElectionID:        "coil-ipam-leader",
 		LeaderElectionNamespace: "kube-system", // coil should run in kube-system
 		Metrics: metricsserver.Options{
 			BindAddress: config.metricsAddr,
@@ -107,32 +104,9 @@ func subMain() error {
 		return err
 	}
 
-	podNS := os.Getenv(constants.EnvPodNamespace)
-	podName := os.Getenv(constants.EnvPodName)
-	img, err := controllers.GetImage(mgr.GetAPIReader(), client.ObjectKey{Namespace: podNS, Name: podName})
-	if err != nil {
-		return err
-	}
-	egressctrl := controllers.EgressReconciler{
-		Client: mgr.GetClient(),
-		Scheme: scheme,
-		Image:  img,
-		Port:   config.egressPort,
-	}
-	if err := egressctrl.SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := controllers.SetupCRBReconciler(mgr); err != nil {
-		return err
-	}
-
 	// register webhooks
 
 	if err := (&coilv2.AddressPool{}).SetupWebhookWithManager(mgr); err != nil {
-		return err
-	}
-	if err := (&coilv2.Egress{}).SetupWebhookWithManager(mgr); err != nil {
 		return err
 	}
 

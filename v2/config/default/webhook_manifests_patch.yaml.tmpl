@@ -1,11 +1,26 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: coilv2-mutating-webhook-configuration
+  name: coilv2-mutating-ipam-webhook-configuration
 webhooks:
 - name: maddresspool.kb.io
   clientConfig:
     caBundle: "%CACERT%"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: coilv2-validating-ipam-webhook-configuration
+webhooks:
+- name: vaddresspool.kb.io
+  clientConfig:
+    caBundle: "%CACERT%"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: coilv2-mutating-egress-webhook-configuration
+webhooks:
 - name: megress.kb.io
   clientConfig:
     caBundle: "%CACERT%"
@@ -13,12 +28,8 @@ webhooks:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: coilv2-validating-webhook-configuration
+  name: coilv2-validating-egress-webhook-configuration
 webhooks:
-- name: vaddresspool.kb.io
-  clientConfig:
-    caBundle: "%CACERT%"
 - name: vegress.kb.io
   clientConfig:
     caBundle: "%CACERT%"
----

@@ -1,0 +1,15 @@
+resources:
+- ../../../../../config/default/egress/v6
+
+configMapGenerator:
+- name: coil-config
+  namespace: system
+  files:
+  - cni_netconf=../../../../netconf/netconf-calico-v6.json
+
+# Adds namespace to all resources.
+namespace: kube-system
+
+# Labels to add to all resources and selectors.
+commonLabels:
+  app.kubernetes.io/name: coil

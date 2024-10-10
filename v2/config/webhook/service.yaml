@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: webhook-service
+  name: ipam-webhook-service
   namespace: system
 spec:
   ports:
@@ -10,4 +10,17 @@ spec:
       targetPort: 9443
       protocol: TCP
   selector:
-    app.kubernetes.io/component: coil-controller
+    app.kubernetes.io/component: coil-ipam-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: egress-webhook-service
+  namespace: system
+spec:
+  ports:
+    - port: 443
+      targetPort: 9444
+      protocol: TCP
+  selector:
+    app.kubernetes.io/component: coil-egress-controller

@@ -91,7 +91,7 @@ func (p *mockPodNetwork) List() ([]*nodenet.PodNetConf, error) {
 	panic("not implemented")
 }
 
-func (p *mockPodNetwork) Setup(nsPath, podName, podNS string, conf *nodenet.PodNetConf, hook nodenet.SetupHook) (*current.Result, error) {
+func (p *mockPodNetwork) SetupIPAM(nsPath, podName, podNS string, conf *nodenet.PodNetConf) (*current.Result, error) {
 	p.nSetup++
 	if p.errSetup {
 		return nil, errors.New("setup failure")
@@ -107,15 +107,14 @@ func (p *mockPodNetwork) Setup(nsPath, podName, podNS string, conf *nodenet.PodN
 			Address: *netlink.NewIPNet(conf.IPv6),
 		})
 	}
-	if hook != nil {
-		if err := hook(conf.IPv4, conf.IPv6); err != nil {
-			return nil, err
-		}
-	}
 	return &current.Result{IPs: ips}, nil
 }
 
-func (p *mockPodNetwork) Update(podIPv4, podIPv6 net.IP, hook nodenet.SetupHook) error {
+func (p *mockPodNetwork) SetupEgress(nsPath string, conf *nodenet.PodNetConf, hook nodenet.SetupHook) error {
+	return nil
+}
+
+func (p *mockPodNetwork) Update(podIPv4, podIPv6 net.IP, hook nodenet.SetupHook, pod *corev1.Pod) error {
 	panic("not implemented")
 }
 

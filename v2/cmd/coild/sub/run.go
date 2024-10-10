@@ -78,13 +78,15 @@ func subMain() error {
 
 	exporter := nodenet.NewRouteExporter(config.exportTableId, config.protocolId, ctrl.Log.WithName("route-exporter"))
 	nodeIPAM := ipam.NewNodeIPAM(nodeName, ctrl.Log.WithName("node-ipam"), mgr, exporter)
-	watcher := &controllers.BlockRequestWatcher{
-		Client:   mgr.GetClient(),
-		NodeIPAM: nodeIPAM,
-		NodeName: nodeName,
-	}
-	if err := watcher.SetupWithManager(mgr); err != nil {
-		return err
+	if config.enableIPAM {
+		watcher := &controllers.BlockRequestWatcher{
+			Client:   mgr.GetClient(),
+			NodeIPAM: nodeIPAM,
+			NodeName: nodeName,
+		}
+		if err := watcher.SetupWithManager(mgr); err != nil {
+			return err
+		}
 	}
 
 	ctx := context.Background()
@@ -101,22 +103,26 @@ func subMain() error {
 		ipv6,
 		config.compatCalico,
 		config.registerFromMain,
-		ctrl.Log.WithName("pod-network"))
+		ctrl.Log.WithName("pod-network"),
+		config.enableIPAM)
 	if err := podNet.Init(); err != nil {
 		return err
 	}
-	podConfigs, err := podNet.List()
-	if err != nil {
-		return err
-	}
 
-	for _, c := range podConfigs {
-		if err := nodeIPAM.Register(ctx, c.PoolName, c.ContainerId, c.IFace, c.IPv4, c.IPv6); err != nil {
+	if config.enableIPAM {
+		podConfigs, err := podNet.List()
+		if err != nil {
 			return err
 		}
-	}
-	if err := nodeIPAM.GC(ctx); err != nil {
-		return err
+
+		for _, c := range podConfigs {
+			if err := nodeIPAM.Register(ctx, c.PoolName, c.ContainerId, c.IFace, c.IPv4, c.IPv6); err != nil {
+				return err
+			}
+		}
+		if err := nodeIPAM.GC(ctx); err != nil {
+			return err
+		}
 	}
 
 	os.Remove(config.socketPath)
@@ -129,15 +135,18 @@ func subMain() error {
 		return err
 	}
 
-	egressWatcher := &controllers.EgressWatcher{
-		Client:     mgr.GetClient(),
-		NodeName:   nodeName,
-		PodNet:     podNet,
-		EgressPort: config.egressPort,
+	if config.enableEgress {
+		egressWatcher := &controllers.EgressWatcher{
+			Client:     mgr.GetClient(),
+			NodeName:   nodeName,
+			PodNet:     podNet,
+			EgressPort: config.egressPort,
+		}
+		if err := egressWatcher.SetupWithManager(mgr); err != nil {
+			return err
+		}
 	}
-	if err := egressWatcher.SetupWithManager(mgr); err != nil {
-		return err
-	}
+
 	ctx2 := ctrl.SetupSignalHandler()
 	if err := indexing.SetupIndexForPodByNodeName(ctx2, mgr); err != nil {
 		return err

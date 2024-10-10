@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
+	"strconv"
 
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
+	current "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/resolver"
@@ -14,20 +18,52 @@ import (
 )
 
 // makeCNIArgs creates *CNIArgs.
-func makeCNIArgs(args *skel.CmdArgs) (*cnirpc.CNIArgs, error) {
+func makeCNIArgs(args *skel.CmdArgs, conf *PluginConf) (*cnirpc.CNIArgs, error) {
 	env := &PluginEnvArgs{}
 	if err := types.LoadArgs(args.Args, env); err != nil {
 		return nil, types.NewError(types.ErrInvalidEnvironmentVariables, "failed to load CNI_ARGS", err.Error())
+	}
+
+	argsData := env.Map()
+	ipamEnablad, exists := conf.Capabilities[ipamEnableKey]
+	if !exists {
+		ipamEnablad = true
+	}
+
+	egressEnabled, exists := conf.Capabilities[egressEnableKey]
+	if !exists {
+		egressEnabled = true
+	}
+
+	argsData[constants.EnableIPAM] = strconv.FormatBool(ipamEnablad)
+	argsData[constants.EnableEgress] = strconv.FormatBool(egressEnabled)
+
+	ips := []string{}
+	interfaces := map[string]bool{}
+	if conf.PrevResult != nil {
+		prevResult, err := current.GetResult(conf.PrevResult)
+		if err != nil {
+			return nil, fmt.Errorf("error getting previous CNI result: %w", err)
+		}
+		for _, ip := range prevResult.IPs {
+			ips = append(ips, ip.Address.IP.String())
+		}
+		for _, intf := range prevResult.Interfaces {
+			interfaces[intf.Name] = intf.Sandbox != ""
+		}
 	}
 
 	cniArgs := &cnirpc.CNIArgs{
 		ContainerId: args.ContainerID,
 		Netns:       args.Netns,
 		Ifname:      args.IfName,
-		Args:        env.Map(),
+		Args:        argsData,
 		Path:        args.Path,
 		StdinData:   args.StdinData,
+		Ips:         ips,
+		Interfaces:  interfaces,
 	}
+
 	return cniArgs, nil
 }
 

@@ -57,6 +57,13 @@ const (
 	EnvEgressName   = "COIL_EGRESS_NAME"
 )
 
+// Config flags
+
+const (
+	EnableIPAM   = "ENABLE_IPAM"
+	EnableEgress = "ENABLE_EGRESS"
+)
+
 // MetricsNS is the namespace for Prometheus metrics
 const MetricsNS = "coil"
 
