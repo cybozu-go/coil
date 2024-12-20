@@ -37,3 +37,60 @@ This is the number of client pods which use the egress.
 | ----------- | ----------------------------- |
 | `namespace` | The egress resource namespace |
 | `egress`    | The egress resource name      |
+
+### `coil_egress_client_pod_info`
+
+This is the client pod information.
+
+| Label       | Description                   |
+| ----------- | ----------------------------- |
+| `namespace` | The egress resource namespace |
+| `egress`    | The egress resource name      |
+| `pod`       | The pod name                  |
+| `pod_ip`    | The pod's IP address          |
+| `interface` | The interface for the pod     |
+
+### `coil_egress_nf_conntrack_entries_limit`
+
+This is the limit of conntrack entries in the kernel.
+This value is from `/proc/sys/net/netfilter/nf_conntrack_max`.
+
+| Label       | Description                   |
+| ----------- | ----------------------------- |
+| `namespace` | The egress resource namespace |
+| `egress`    | The egress resource name      |
+| `pod`       | The pod name                  |
+
+
+### `coil_egress_nf_conntrack_entries`
+
+This is the number of conntrack entries in the kernel.
+This value is from `/proc/sys/net/netfilter/nf_conntrack_count`.
+
+| Label       | Description                   |
+| ----------- | ----------------------------- |
+| `namespace` | The egress resource namespace |
+| `egress`    | The egress resource name      |
+| `pod`       | The pod name                  |
+
+### `coil_egress_nftables_masqueraded_packets_total`
+
+This is the total number of packets masqueraded by iptables in a egress NAT pod.
+This value is from the result of `iptables -t nat -L POSTROUTING -vn`.
+
+| Label       | Description                   |
+| ----------- | ----------------------------- |
+| `namespace` | The egress resource namespace |
+| `egress`    | The egress resource name      |
+| `pod`       | The pod name                  |
+
+### `coil_egress_nftables_masqueraded_bytes_total`
+
+This is the total bytes of masqueraded packets by iptables in a egress NAT pod.
+This value is from the result of `iptables -t nat -L POSTROUTING -vn`.
+
+| Label       | Description                   |
+| ----------- | ----------------------------- |
+| `namespace` | The egress resource namespace |
+| `egress`    | The egress resource name      |
+| `pod`       | The pod name                  |
