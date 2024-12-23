@@ -1,6 +1,7 @@
 package sub
 
 import (
+	"context"
 	"errors"
 	"net"
 	"os"
@@ -11,12 +12,14 @@ import (
 	"github.com/cybozu-go/coil/v2/controllers"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/cybozu-go/coil/v2/pkg/founat"
+	egressMetrics "github.com/cybozu-go/coil/v2/pkg/metrics"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
@@ -33,6 +36,13 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
+
+	metrics.Registry.MustRegister(controllers.ClientPods)
+	metrics.Registry.MustRegister(controllers.ClientPodInfo)
+	metrics.Registry.MustRegister(egressMetrics.NfConnctackCount)
+	metrics.Registry.MustRegister(egressMetrics.NfConnctackLimit)
+	metrics.Registry.MustRegister(egressMetrics.NfTableMasqueradeBytes)
+	metrics.Registry.MustRegister(egressMetrics.NfTableMasqueradePackets)
 }
 
 func subMain() error {
@@ -104,6 +114,15 @@ func subMain() error {
 	if err := controllers.SetupPodWatcher(mgr, myNS, myName, ft, config.enableSportAuto, eg, nil); err != nil {
 		return err
 	}
+
+	setupLog.Info("setup egress metrics collector")
+	runner := egressMetrics.NewRunner()
+	egressCollector, err := egressMetrics.NewEgressCollector(myNS, os.Getenv("HOSTNAME"), myName)
+	if err != nil {
+		return err
+	}
+	runner.Register(egressCollector)
+	go runner.Run(context.Background())
 
 	setupLog.Info("starting manager", "version", v2.Version())
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

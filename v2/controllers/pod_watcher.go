@@ -21,11 +21,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 var (
-	clientPods = prometheus.NewGaugeVec(
+	ClientPods = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: constants.MetricsNS,
 			Subsystem: "egress",
@@ -34,17 +33,24 @@ var (
 		},
 		[]string{"namespace", "egress"},
 	)
-)
 
-func init() {
-	metrics.Registry.MustRegister(clientPods)
-}
+	ClientPodInfo = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: constants.MetricsNS,
+			Subsystem: "egress",
+			Name:      "client_pod_info",
+			Help:      "information of a client pod which uses this egress",
+		},
+		[]string{"namespace", "pod", "pod_ip", "interface", "egress", "egress_namespace"},
+	)
+)
 
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 // SetupPodWatcher registers pod watching reconciler to mgr.
 func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, encapSportAuto bool, eg founat.Egress, cfg *rest.Config) error {
-	clientPods.Reset()
+	ClientPods.Reset()
+	ClientPodInfo.Reset()
 
 	r := &podWatcher{
 		client:         mgr.GetClient(),
@@ -53,7 +59,7 @@ func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, enc
 		ft:             ft,
 		encapSportAuto: encapSportAuto,
 		eg:             eg,
-		metric:         clientPods.WithLabelValues(ns, name),
+		clientPods:     ClientPods.WithLabelValues(ns, name),
 		podAddrs:       make(map[string][]net.IP),
 		peers:          make(map[string]map[string]struct{}),
 	}
@@ -107,7 +113,7 @@ type podWatcher struct {
 	ft             founat.FoUTunnel
 	encapSportAuto bool
 	eg             founat.Egress
-	metric         prometheus.Gauge
+	clientPods     prometheus.Gauge
 
 	mu       sync.Mutex
 	podAddrs map[string][]net.IP
@@ -216,6 +222,8 @@ OUTER:
 		if err := r.eg.AddClient(ip, link); err != nil {
 			return err
 		}
+		metric := ClientPodInfo.WithLabelValues(pod.GetNamespace(), pod.GetName(), ip.String(), link.Attrs().Name, r.myName, r.myNS)
+		metric.Set(1)
 	}
 
 OUTER2:
@@ -229,6 +237,9 @@ OUTER2:
 		if err := r.ft.DelPeer(eip); err != nil {
 			return err
 		}
+		if n := ClientPodInfo.DeletePartialMatch(prometheus.Labels{"namespace": pod.GetNamespace(), "pod": pod.GetName(), "pod_ip": eip.String(), "egress": r.myName, "egress_namespace": r.myNS}); n != 1 {
+			logger.Error(errors.New("metrics deletion error"), "the number of deleted metrics is not one for", "pod", pod.GetName(), "namespace", pod.GetNamespace())
+		}
 	}
 
 	r.podAddrs[key] = podIPs
@@ -241,7 +252,7 @@ OUTER2:
 		keySet[key] = struct{}{}
 	}
 
-	r.metric.Set(float64(len(r.podAddrs)))
+	r.clientPods.Set(float64(len(r.podAddrs)))
 	return nil
 }
 
@@ -249,17 +260,21 @@ func (r *podWatcher) delTerminatedPod(pod *corev1.Pod, logger logr.Logger) error
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	return r.delPeer(pod.Namespace+"/"+pod.Name, "delTerminatedPod", string(pod.Status.Phase), logger)
+	return r.delPeer(types.NamespacedName{Namespace: pod.GetNamespace(), Name: pod.GetName()}, "delTerminatedPod", string(pod.Status.Phase), logger)
 }
 
 func (r *podWatcher) delPod(n types.NamespacedName, logger logr.Logger) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	return r.delPeer(n.Namespace+"/"+n.Name, "delPod", "", logger)
+	if err := r.delPeer(n, "delPod", "", logger); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (r *podWatcher) delPeer(key, caller, podPhase string, logger logr.Logger) error {
+func (r *podWatcher) delPeer(n types.NamespacedName, caller, podPhase string, logger logr.Logger) error {
+	key := n.Namespace + "/" + n.Name
 	for _, ip := range r.podAddrs[key] {
 		existsLivePeers, err := r.existsOtherLivePeers(key, ip.String())
 		if err != nil {
@@ -278,10 +293,13 @@ func (r *podWatcher) delPeer(key, caller, podPhase string, logger logr.Logger) e
 				delete(r.peers, ip.String())
 			}
 		}
+		if deleted := ClientPodInfo.DeletePartialMatch(prometheus.Labels{"namespace": n.Namespace, "pod": n.Name, "pod_ip": ip.String(), "egress": r.myName, "egress_namespace": r.myNS}); deleted != 1 {
+			logger.Error(errors.New("metrics deletion error"), "the number of deleted metrics is not one for", "pod", n.Name, "namespace", n.Namespace)
+		}
 	}
 
 	delete(r.podAddrs, key)
-	r.metric.Set(float64(len(r.podAddrs)))
+	r.clientPods.Set(float64(len(r.podAddrs)))
 	return nil
 }
 

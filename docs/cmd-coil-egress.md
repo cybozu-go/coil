@@ -42,13 +42,14 @@ This is the number of client pods which use the egress.
 
 This is the client pod information.
 
-| Label       | Description                   |
-| ----------- | ----------------------------- |
-| `namespace` | The egress resource namespace |
-| `egress`    | The egress resource name      |
-| `pod`       | The pod name                  |
-| `pod_ip`    | The pod's IP address          |
-| `interface` | The interface for the pod     |
+| Label              | Description                   |
+| -------------------| ----------------------------- |
+| `namespace`        | The pod resource namespace |
+| `pod`              | The pod name                  |
+| `pod_ip`           | The pod's IP address          |
+| `interface`        | The interface for the pod     |
+| `egress`           | The egress resource name      |
+| `egress_namespace` | The egress resource namespace |
 
 ### `coil_egress_nf_conntrack_entries_limit`
 
