@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 var (
@@ -44,6 +45,11 @@ var (
 		[]string{"namespace", "pod", "pod_ip", "interface", "egress", "egress_namespace"},
 	)
 )
+
+func init() {
+	metrics.Registry.MustRegister(ClientPods)
+	metrics.Registry.MustRegister(ClientPodInfo)
+}
 
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
