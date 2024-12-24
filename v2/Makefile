@@ -15,7 +15,8 @@ CONTROLLER_GEN := $(shell pwd)/bin/controller-gen
 SETUP_ENVTEST := $(shell pwd)/bin/setup-envtest
 YQ := $(shell pwd)/bin/yq
 CRD_OPTIONS = "crd:crdVersions=v1"
-ROLES = config/rbac/coil-controller_role.yaml \
+ROLES = config/rbac/coil-ipam-controller_role.yaml \
+	config/rbac/coil-egress-controller_role.yaml \
 	config/rbac/coild_role.yaml \
 	config/rbac/coil-router_role.yaml \
 	config/rbac/coil-egress_role.yaml
@@ -78,10 +79,31 @@ check-generate:
 
 # Generate manifests e.g. CRD, RBAC etc.
 .PHONY: manifests
-manifests: $(CONTROLLER_GEN) $(ROLES) $(YQ)
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+# manifests: $(CONTROLLER_GEN) $(ROLES) $(YQ)
+# 	$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+# 	# Reduce the size of Egress CRD by deleting `description` fields below the pod's template because it exceeds the limit of `metadata.annotations` length when it's applied with client-side mode.
+# 	#$(YQ) -i 'del(.spec.versions.[].schema.openAPIV3Schema.properties.spec.properties.template | ..  |select(key == "description"))' config/crd/bases/coil.cybozu.com_egresses.yaml
+manifests: manifests-ipam manifests-egress
+
+
+.PHONY: manifests-egress
+manifests-egress: $(CONTROLLER_GEN) $(ROLES) $(YQ)
+	mkdir -p tmp/egress
+	cp api/v2/egress_webhook.go tmp/egress
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./tmp/egress/..." output:stdout output:crd:artifacts:config=config/crd/bases > config/webhook/egress/manifests.yaml
+	sed -i 's/webhook-/egress-webhook-/g' config/webhook/egress/manifests.yaml
 	# Reduce the size of Egress CRD by deleting `description` fields below the pod's template because it exceeds the limit of `metadata.annotations` length when it's applied with client-side mode.
 	$(YQ) -i 'del(.spec.versions.[].schema.openAPIV3Schema.properties.spec.properties.template | ..  |select(key == "description"))' config/crd/bases/coil.cybozu.com_egresses.yaml
+	rm -rf tmp 2> /dev/null
+
+.PHONY: manifests-ipam
+manifests-ipam: $(CONTROLLER_GEN) $(ROLES) $(YQ)
+	mkdir -p tmp/ipam
+	cp api/v2/addresspool_webhook.go tmp/ipam
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./tmp/ipam/..." output:stdout output:crd:artifacts:config=config/crd/bases > config/webhook/ipam/manifests.yaml
+	sed -i 's/webhook-/ipam-webhook-/g' config/webhook/ipam/manifests.yaml
+	rm -rf tmp 2> /dev/null
+
 
 $(YQ):
 	$(WGET) -O yq.tar.gz https://github.com/mikefarah/yq/releases/download/v$(YQ_VERSION)/yq_linux_amd64.tar.gz
@@ -89,24 +111,31 @@ $(YQ):
 	rm -f yq.tar.gz
 	chmod +x $@
 
-COIL_CONTROLLER_ROLE_DEPENDS = controllers/addresspool_controller.go \
+COIL_IPAM_CONTROLLER_ROLE_DEPENDS = controllers/addresspool_controller.go \
 	controllers/blockrequest_controller.go \
-	controllers/egress_controller.go \
-	controllers/clusterrolebinding_controller.go \
 	pkg/ipam/pool.go \
 	runners/garbage_collector.go
 
-config/rbac/coil-controller_role.yaml: $(COIL_CONTROLLER_ROLE_DEPENDS)
+config/rbac/coil-ipam-controller_role.yaml: $(COIL_IPAM_CONTROLLER_ROLE_DEPENDS)
 	-rm -rf work
 	mkdir work
 	sed '0,/^package/s/.*/package work/' controllers/addresspool_controller.go > work/addresspool_controller.go
 	sed '0,/^package/s/.*/package work/' controllers/blockrequest_controller.go > work/blockrequest_controller.go
-	sed '0,/^package/s/.*/package work/' controllers/egress_controller.go > work/egress_controller.go
-	sed '0,/^package/s/.*/package work/' controllers/clusterrolebinding_controller.go > work/clusterrolebinding_controller.go
 	sed '0,/^package/s/.*/package work/' pkg/ipam/pool.go > work/pool.go
 	sed '0,/^package/s/.*/package work/' runners/garbage_collector.go > work/garbage_collector.go
-	$(CONTROLLER_GEN) rbac:roleName=coil-controller paths=./work output:stdout > $@
+	$(CONTROLLER_GEN) rbac:roleName=coil-ipam-controller paths=./work output:stdout > $@
 	rm -rf work
+
+COIL_EGRESS_CONTROLLER_ROLE_DEPENDS = controllers/egress_controller.go \
+	controllers/clusterrolebinding_controller.go
+
+config/rbac/coil-egress-controller_role.yaml: $(COIL_EGRESS_CONTROLLER_ROLE_DEPENDS)
+	-rm -rf work
+	mkdir work
+	sed '0,/^package/s/.*/package work/' controllers/egress_controller.go > work/egress_controller.go
+	sed '0,/^package/s/.*/package work/' controllers/clusterrolebinding_controller.go > work/clusterrolebinding_controller.go
+	$(CONTROLLER_GEN) rbac:roleName=coil-egress-controller paths=./work output:stdout > $@
+	# rm -rf work
 
 COILD_DEPENDS = controllers/blockrequest_watcher.go \
 	pkg/ipam/node.go \
@@ -142,12 +171,21 @@ config/rbac/coil-egress_role.yaml: controllers/pod_watcher.go
 
 # TLS certificates for webhook
 .PHONY: certs
-certs: config/default/cert.pem config/default/key.pem config/default/webhook_manifests_patch.yaml
+certs: config/default/cert.pem config/default/key.pem config/default/ipam-cert.pem config/default/ipam-key.pem config/default/ipam/webhook_manifests_patch.yaml config/default/egress-cert.pem config/default/egress-key.pem config/default/egress/webhook_manifests_patch.yaml
 
 config/default/cert.pem config/default/key.pem:
-	go run ./cmd/gencert -outdir=$(PWD)/config/default
+	go run ./cmd/gencert -outdir=$(PWD)/config/default -cn=coilv2-webhook-service -host=coilv2-webhook-service.kube-system.svc -certname=cert.pem -keyname=key.pem
 
-config/default/webhook_manifests_patch.yaml: config/default/cert.pem config/default/webhook_manifests_patch.yaml.tmpl
+config/default/ipam-cert.pem config/default/ipam-key.pem:
+	go run ./cmd/gencert -outdir=$(PWD)/config/default -cn=coilv2-ipam-webhook-service -host=coilv2-ipam-webhook-service.kube-system.svc -certname=ipam-cert.pem -keyname=ipam-key.pem -ca=cert.pem -cakey=key.pem
+
+config/default/egress-cert.pem config/default/egress-key.pem:
+	go run ./cmd/gencert -outdir=$(PWD)/config/default -cn=coilv2-egress-webhook-service -host=coilv2-egress-webhook-service.kube-system.svc -certname=egress-cert.pem -keyname=egress-key.pem -ca=cert.pem -cakey=key.pem
+
+config/default/ipam/webhook_manifests_patch.yaml: config/default/ipam-cert.pem config/default/ipam/webhook_manifests_patch.yaml.tmpl
+	sed "s/%CACERT%/$$(base64 -w0 < $<)/g" $@.tmpl > $@
+
+config/default/egress/webhook_manifests_patch.yaml: config/default/egress-cert.pem config/default/egress/webhook_manifests_patch.yaml.tmpl
 	sed "s/%CACERT%/$$(base64 -w0 < $<)/g" $@.tmpl > $@
 
 # Generate code
@@ -171,7 +209,8 @@ pkg/cnirpc/cni_grpc.pb.go: pkg/cnirpc/cni.proto
 .PHONY: build
 build:
 	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil -ldflags="-s -w" cmd/coil/*.go
-	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil-controller -ldflags="-s -w" cmd/coil-controller/*.go
+	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil-ipam-controller -ldflags="-s -w" cmd/coil-ipam-controller/*.go
+	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil-egress-controller -ldflags="-s -w" cmd/coil-egress-controller/*.go
 	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil-egress -ldflags="-s -w" cmd/coil-egress/*.go
 	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil-installer -ldflags="-s -w" cmd/coil-installer/*.go
 	GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o work/coil-router -ldflags="-s -w" cmd/coil-router/*.go

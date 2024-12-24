@@ -17,6 +17,8 @@ You can tweak optional parameters by editing [`kustomization.yaml`](../v2/kustom
   - [IPv4/v6 dual stack pool](#ipv4v6-dual-stack-pool)
 - [(Option) Configure BIRD](#option-configure-bird)
 - [Note on CRI runtime compatibility](#note-on-cri-runtime-compatibility)
+- [Standalone egress](#standalone-egress)
+  - [Configuration](#configuration)
 
 ## Install `kustomize`
 
@@ -37,7 +39,8 @@ This should generate the following PEM files:
 
 ```console
 $ ls config/default/*.pem
-config/default/cert.pem  config/default/key.pem
+config/default/cert.pem         config/default/egress-key.pem  config/default/ipam-key.pem
+config/default/egress-cert.pem  config/default/ipam-cert.pem   config/default/key.pem
 ```
 
 ## Edit `kustomization.yaml`
@@ -57,7 +60,7 @@ $ vi kustomization.yaml
 (actually, the example is a network configuration list).
 
 You may edit the file to, say, add Cilium for network policies or to tune MTU.
-Note that `coil` must be the first in the plugin list.
+Note that `coil` must be the first in the plugin list if IPAM is enabled.
 
 ```console
 vi netconf.json
@@ -76,7 +79,7 @@ The following example adds `tuning` and `bandwidth` plugins.
   "plugins": [
     {
       "type": "coil",
-      "socket": "/run/coild.sock"
+      "socket": "/run/coild.sock",
     },
     {
       "type": "tuning",
@@ -231,3 +234,86 @@ host directory.
 
 [netconf]: https://github.com/containernetworking/cni/blob/spec-v0.4.0/SPEC.md#network-configuration
 [BIRD]: https://bird.network.cz/
+
+## Standalone egress
+
+Coil can be run as standalone egress NAT controller, using CNI chaining with another CNI providing base connectivity. This chapter will guide you on how to achieve this.
+
+### Configuration
+
+To deploy Coil with only egress feature enabled the following changes are required in the configuration files:
+
+1. Comment all IPAM related pieces in the following `kustomization.yaml` files:
+    - `v2/config/crd/kustomization.yaml`
+    - `v2/config/default/kustomization.yaml`
+    - `v2/config/pod/kustomization.yaml`
+    - `v2/config/rbac/kustomization.yaml`
+
+1. Comment unnecessary resources in `config/crd/patches/remove_status.yaml`.
+1. Add following arguments to the `coild` contianer executable in `config/pod/coild.yaml`
+    ```yaml
+    containers:
+      - name: coild
+        image: coil:dev
+        command: ["coild"]
+        args:
+          - --zap-stacktrace-level=panic
+          - --enable-ipam=false
+          - --enable-egress=true
+          - --pod-table-id=0 # 255 if IPv6 is being used
+          - --protocol-id=2
+    ```
+1. Set CNI config filename using environment variable for init contianer `coil-installer` in `config/pod/coild.yaml`:
+    ```yaml
+    env:
+    - name: CNI_CONF_NAME
+      value: "01-coil.conflist"
+    ```
+1. Add configuration of your chosen CNI to `v2/netconf.json` before `coil` related configuration.
+1. Deploy `coil` to existing cluster as described in [Compile and apply the manifest](#compile-and-apply-the-manifest).
+
+### Testing standalone egress
+
+#### Testing with Kindnet using IPv4
+1. Generate certificates using `v2/Makefile`.
+    ```bash
+    cd v2 && make certs
+    ```
+1. Go to `v2/e2e`
+    ```bash
+    cd e2e
+    ```
+1. Create IPv4 based Kind cluster with Kindnet CNI deployed:
+    ```bash
+    WITH_KINDNET=true TEST_IPV6=false make start
+    ```
+1. Install Coil on the cluster:
+    ```bash
+    make install-coil-egress-v4
+    ```
+1. Run egress-only IPv4 tests:
+    ```bash
+    TEST_IPAM=false TEST_EGRESS=true TEST_IPV6=false make test
+    ```
+
+#### Testing with Kindnet using IPv6
+1. Generate certificates using `v2/Makefile`.
+    ```bash
+    cd v2 && make certs
+    ```
+1. Go to `v2/e2e`
+    ```bash
+    cd e2e
+    ```
+1. Create IPv6 based Kind cluster with Kindnet CNI deployed:
+    ```bash
+    WITH_KINDNET=true TEST_IPV6=true make start
+    ```
+1. Install Coil on the cluster:
+    ```bash
+    make install-coil-egress-v6
+    ```
+1. Run egress-only IPv6 tests:
+    ```bash
+    TEST_IPAM=false TEST_EGRESS=true TEST_IPV6=true make test
+    ```

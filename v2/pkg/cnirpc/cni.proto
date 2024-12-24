@@ -14,6 +14,8 @@ message CNIArgs {
   map<string,string> args = 4;  // Key-Value pairs parsed from CNI_ARGS
   string path = 5;
   bytes stdin_data = 6;
+  repeated string ips = 7;
+  map<string,bool> interfaces = 8;
 }
 
 // ErrorCode enumerates errors for CNIError

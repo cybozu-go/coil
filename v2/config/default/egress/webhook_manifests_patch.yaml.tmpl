@@ -1,0 +1,17 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: coilv2-mutating-egress-webhook-configuration
+webhooks:
+- name: megress.kb.io
+  clientConfig:
+    caBundle: "%CACERT%"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: coilv2-validating-egress-webhook-configuration
+webhooks:
+- name: vegress.kb.io
+  clientConfig:
+    caBundle: "%CACERT%"

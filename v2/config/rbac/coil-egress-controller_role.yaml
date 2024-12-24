@@ -2,15 +2,8 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: coil-controller
+  name: coil-egress-controller
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - nodes
-  verbs:
-  - get
-  - list
 - apiGroups:
   - ""
   resources:
@@ -42,44 +35,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - coil.cybozu.com
-  resources:
-  - addressblocks
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - coil.cybozu.com
-  resources:
-  - addresspools
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - coil.cybozu.com
-  resources:
-  - blockrequests
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - coil.cybozu.com
-  resources:
-  - blockrequests/status
-  verbs:
-  - get
-  - patch
-  - update
 - apiGroups:
   - coil.cybozu.com
   resources:
