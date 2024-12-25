@@ -158,7 +158,7 @@ func (t *mockFoUTunnel) AddPeer(ip net.IP, sportAuto bool) (netlink.Link, error)
 	defer t.mu.Unlock()
 
 	t.peers[ip.String()] = sportAuto
-	return nil, nil
+	return &mockLink{name: ip.String()}, nil
 }
 
 func (t *mockFoUTunnel) DelPeer(ip net.IP) error {
@@ -210,4 +210,17 @@ func (e *mockEgress) GetClients() map[string]bool {
 		m[k] = true
 	}
 	return m
+}
+
+// mockLink implements netlink.Link interface
+type mockLink struct {
+	name string
+}
+
+func (m *mockLink) Attrs() *netlink.LinkAttrs {
+	return &netlink.LinkAttrs{Name: m.name}
+}
+
+func (m *mockLink) Type() string {
+	return "mock-link"
 }
