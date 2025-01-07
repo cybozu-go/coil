@@ -68,21 +68,6 @@ rules:
   - coil.cybozu.com
   resources:
   - blockrequests
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - coil.cybozu.com
-  resources:
-  - blockrequests/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - coil.cybozu.com
-  resources:
   - egresses
   verbs:
   - get
@@ -91,6 +76,7 @@ rules:
 - apiGroups:
   - coil.cybozu.com
   resources:
+  - blockrequests/status
   - egresses/status
   verbs:
   - get

@@ -8,6 +8,7 @@ rules:
   - ""
   resources:
   - namespaces
+  - pods
   - services
   verbs:
   - get
@@ -19,14 +20,6 @@ rules:
   - nodes
   verbs:
   - get
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-  - list
-  - watch
 - apiGroups:
   - coil.cybozu.com
   resources:

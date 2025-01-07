@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM ghcr.io/cybozu/golang:1.22-jammy as build-env
+FROM --platform=$BUILDPLATFORM ghcr.io/cybozu/golang:1.23-noble as build-env
 
 ARG TARGETARCH
 
@@ -7,7 +7,7 @@ WORKDIR /workdir
 
 RUN make build GOARCH=${TARGETARCH}
 
-FROM --platform=$TARGETPLATFORM ghcr.io/cybozu/ubuntu:22.04
+FROM --platform=$TARGETPLATFORM ghcr.io/cybozu/ubuntu:24.04
 
 # https://docs.github.com/en/packages/managing-container-images-with-github-container-registry/connecting-a-repository-to-a-container-image#connecting-a-repository-to-a-container-image-on-the-command-line
 LABEL org.opencontainers.image.source https://github.com/cybozu-go/coil
