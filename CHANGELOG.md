@@ -5,6 +5,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.8.0] - 2025-01-07
+
+### Added
+- Support k8s 1.30 and dependencies (#301)
+- Add conntrack command into the coil image (#305)
+- Add egress related metrics (#306)
+  - See issue [#307](https://github.com/cybozu-go/coil/issues/307) for details
+
 ## [2.7.2] - 2024-08-09
 
 - Add info logs to egress (#298)
@@ -270,7 +278,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.7.2...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.8.0...HEAD
+[2.8.0]: https://github.com/cybozu-go/coil/compare/v2.7.2...v2.8.0
 [2.7.2]: https://github.com/cybozu-go/coil/compare/v2.7.1...v2.7.2
 [2.7.1]: https://github.com/cybozu-go/coil/compare/v2.7.0...v2.7.1
 [2.7.0]: https://github.com/cybozu-go/coil/compare/v2.6.1...v2.7.0
