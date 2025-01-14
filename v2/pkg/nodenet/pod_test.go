@@ -63,7 +63,7 @@ func TestPodNetwork(t *testing.T) {
 	}
 
 	pn := NewPodNetwork(116, 2000, 30, net.ParseIP("10.20.30.41"), net.ParseIP("fd10::41"),
-		false, false, ctrl.Log.WithName("pod-network"))
+		false, false, ctrl.Log.WithName("pod-network"), true)
 	if err := pn.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,11 @@ func TestPodNetwork(t *testing.T) {
 
 	for name, conf := range podConfMap {
 
-		result, err := pn.Setup(nsPath(name), name, "ns1", &conf, func(ipv4, ipv6 net.IP) error {
+		result, err := pn.SetupIPAM(nsPath(name), name, "ns1", &conf)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = pn.SetupEgress(nsPath(name), &conf, func(ipv4, ipv6 net.IP) error {
 			givenIPv4 = ipv4
 			givenIPv6 = ipv6
 			return nil
@@ -210,7 +214,7 @@ func TestPodNetwork(t *testing.T) {
 		givenIPv4 = ipv4
 		givenIPv6 = ipv6
 		return nil
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +265,7 @@ func TestPodNetwork(t *testing.T) {
 		givenIPv4 = ipv4
 		givenIPv6 = ipv6
 		return nil
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +299,7 @@ func TestPodNetwork(t *testing.T) {
 		givenIPv4 = ipv4
 		givenIPv6 = ipv6
 		return nil
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -350,7 +354,7 @@ func TestPodNetwork(t *testing.T) {
 					return err
 				}
 				return nil
-			})
+			}, nil)
 			if err != nil {
 				t.Error(err)
 			}
@@ -364,7 +368,7 @@ func TestPodNetwork(t *testing.T) {
 					return err
 				}
 				return nil
-			})
+			}, nil)
 			if err != nil {
 				t.Error(err)
 			}

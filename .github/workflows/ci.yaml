@@ -13,12 +13,16 @@ env:
 jobs:
   test:
     name: Small test
+    strategy:
+      matrix:
+        test-ipam: ["true", "false"]
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-go@v5
       with:
         go-version: ${{ env.go-version }}
+        cache-dependency-path: "**/go.sum"
     - name: Cache tools
       id: cache-tools
       uses: actions/cache@v4
@@ -29,7 +33,7 @@ jobs:
         key: cache-${{ env.cache-version }}-go-${{ env.go-version }}-${{ hashFiles('v2/Makefile') }}
     - run: make setup
       if: steps.cache-tools.outputs.cache-hit != 'true'
-    - run: make test
+    - run: make test TEST_IPAM=${{ matrix.test-ipam }} TEST_EGRESS=true
     - run: make test-nodenet
       timeout-minutes: 10
     - run: make test-founat
@@ -47,6 +51,7 @@ jobs:
     - uses: actions/setup-go@v5
       with:
         go-version: ${{ env.go-version }}
+        cache-dependency-path: "**/go.sum"
     - run: make image
     - run: make certs
     - name: Enable docker IPv6 mode
@@ -62,7 +67,11 @@ jobs:
       working-directory: v2/e2e
     - run: make install-coil
       working-directory: v2/e2e
-    - run: make test
+    - run: make test TEST_IPAM=true TEST_EGRESS=true TEST_IPV6=false
+      if: matrix.ip-version == 'ipv4'
+      working-directory: v2/e2e
+    - run: make test TEST_IPAM=true TEST_EGRESS=true TEST_IPV6=true
+      if: matrix.ip-version == 'ipv6'
       working-directory: v2/e2e
     - run: make logs
       working-directory: v2/e2e
@@ -71,4 +80,57 @@ jobs:
       if: always()
       with:
         name: logs-${{ matrix.ip-version }}-${{ matrix.kindest-node }}.tar.gz
+        path: v2/e2e/logs.tar.gz
+  e2e-egress:
+    name: End-to-end Test - Egress Only
+    strategy:
+      matrix:
+        kindest-node: ["1.27.13", "1.28.9", "1.29.4"]
+        ip-version: ["ipv4", "ipv6"]
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.go-version }}
+        cache-dependency-path: "**/go.sum"
+    - run: make image
+    - run: make certs
+    - name: Enable docker IPv6 mode
+      if: matrix.ip-version == 'ipv6'
+      working-directory: v2/e2e
+      run: |
+        sudo mkdir -p /etc/docker
+        sudo cp daemon.json /etc/docker/daemon.json
+        sudo systemctl restart docker.service
+        sleep 10
+        echo TEST_IPV6=true >> $GITHUB_ENV
+    - run: make start KUBERNETES_VERSION=${{ matrix.kindest-node }} WITH_KINDNET=true TEST_IPV6=false
+      if: matrix.ip-version == 'ipv4'
+      working-directory: v2/e2e
+    - run: make start KUBERNETES_VERSION=${{ matrix.kindest-node }} WITH_KINDNET=true TEST_IPV6=true
+      if: matrix.ip-version == 'ipv6'
+      working-directory: v2/e2e
+    - run: make install-coil-egress-v4
+      if: matrix.ip-version == 'ipv4'
+      working-directory: v2/e2e
+    - run: make install-coil-egress-v6
+      if: matrix.ip-version == 'ipv6'
+      working-directory: v2/e2e
+    - run: docker exec -i coil-worker ls /etc/cni/net.d/
+      working-directory: v2/e2e
+      if: always()
+    - run: make test TEST_IPAM=false TEST_EGRESS=true TEST_IPV6=false
+      if: matrix.ip-version == 'ipv4'
+      working-directory: v2/e2e
+    - run: make test TEST_IPAM=false TEST_EGRESS=true TEST_IPV6=true
+      if: matrix.ip-version == 'ipv6'
+      working-directory: v2/e2e
+    - run: make logs
+      working-directory: v2/e2e
+      if: always()
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: logs-egress-${{ matrix.ip-version }}-${{ matrix.kindest-node }}.tar.gz
         path: v2/e2e/logs.tar.gz

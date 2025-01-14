@@ -30,6 +30,8 @@ spec:
         command: ["coild"]
         args:
           - --zap-stacktrace-level=panic
+          - --enable-ipam=true
+          - --enable-egress=true
         env:
         - name: COIL_NODE_NAME
           valueFrom:

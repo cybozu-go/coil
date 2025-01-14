@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 
 	v2 "github.com/cybozu-go/coil/v2"
 	"github.com/spf13/cobra"
@@ -17,15 +16,14 @@ var config struct {
 	healthAddr  string
 	webhookAddr string
 	certDir     string
-	gcInterval  time.Duration
 	egressPort  int32
 	zapOpts     zap.Options
 }
 
 var rootCmd = &cobra.Command{
-	Use:     "coil-controller",
-	Short:   "controller for coil custom resources",
-	Long:    `coil-controller is a Kubernetes controller for coil custom resources.`,
+	Use:     "coil-egress-controller",
+	Short:   "controller for coil egress related custom resources",
+	Long:    `coil-egress-controller is a Kubernetes controller for coil egress related custom resources.`,
 	Version: v2.Version(),
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cmd.SilenceUsage = true
@@ -44,11 +42,10 @@ func Execute() {
 
 func init() {
 	pf := rootCmd.PersistentFlags()
-	pf.StringVar(&config.metricsAddr, "metrics-addr", ":9386", "bind address of metrics endpoint")
-	pf.StringVar(&config.healthAddr, "health-addr", ":9387", "bind address of health/readiness probes")
-	pf.StringVar(&config.webhookAddr, "webhook-addr", ":9443", "bind address of admission webhook")
+	pf.StringVar(&config.metricsAddr, "metrics-addr", ":9396", "bind address of metrics endpoint")
+	pf.StringVar(&config.healthAddr, "health-addr", ":9397", "bind address of health/readiness probes")
+	pf.StringVar(&config.webhookAddr, "webhook-addr", ":9444", "bind address of admission webhook")
 	pf.StringVar(&config.certDir, "cert-dir", "/certs", "directory to locate TLS certs for webhook")
-	pf.DurationVar(&config.gcInterval, "gc-interval", 1*time.Hour, "garbage collection interval")
 	pf.Int32Var(&config.egressPort, "egress-port", 5555, "UDP port number used by coil-egress")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
