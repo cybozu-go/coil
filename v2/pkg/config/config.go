@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"time"
 
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/spf13/cobra"
@@ -10,19 +11,20 @@ import (
 )
 
 type Config struct {
-	MetricsAddr      string
-	HealthAddr       string
-	PodTableId       int
-	PodRulePrio      int
-	ExportTableId    int
-	ProtocolId       int
-	SocketPath       string
-	CompatCalico     bool
-	EgressPort       int
-	RegisterFromMain bool
-	ZapOpts          zap.Options
-	EnableIPAM       bool
-	EnableEgress     bool
+	MetricsAddr            string
+	HealthAddr             string
+	PodTableId             int
+	PodRulePrio            int
+	ExportTableId          int
+	ProtocolId             int
+	SocketPath             string
+	CompatCalico           bool
+	EgressPort             int
+	RegisterFromMain       bool
+	ZapOpts                zap.Options
+	EnableIPAM             bool
+	EnableEgress           bool
+	AddressBlockGCInterval time.Duration
 }
 
 func Parse(rootCmd *cobra.Command) *Config {
@@ -40,6 +42,7 @@ func Parse(rootCmd *cobra.Command) *Config {
 	pf.BoolVar(&config.RegisterFromMain, "register-from-main", constants.DefaultRegisterFromMain, "help migration from Coil 2.0.1")
 	pf.BoolVar(&config.EnableIPAM, "enable-ipam", constants.DefaultEnableIPAM, "enable IPAM related features")
 	pf.BoolVar(&config.EnableEgress, "enable-egress", constants.DefaultEnableEgress, "enable IPAM related features")
+	pf.DurationVar(&config.AddressBlockGCInterval, "addressblock-gc-interval", constants.DefaultAddressBlockGCInterval, "interval for address block GC")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)

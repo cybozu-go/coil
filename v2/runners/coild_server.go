@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	current "github.com/containernetworking/cni/pkg/types/100"
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
@@ -158,6 +159,18 @@ func (s *coildServer) Start(ctx context.Context) error {
 		<-ctx.Done()
 		grpcServer.GracefulStop()
 	}()
+
+	s.logger.Info("start periodic nodeIPAM GC")
+	gcTicker := time.NewTicker(s.cfg.AddressBlockGCInterval)
+	go func(ctx context.Context) {
+		for {
+			<-gcTicker.C
+			if err := s.nodeIPAM.GC(ctx); err != nil {
+				s.logger.Sugar().Error("failed to run GC", "error", err)
+			}
+		}
+
+	}(ctx)
 
 	return grpcServer.Serve(s.listener)
 }
