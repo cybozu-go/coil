@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
@@ -149,6 +150,19 @@ func (s *coildServer) Start(ctx context.Context) error {
 		<-ctx.Done()
 		grpcServer.GracefulStop()
 	}()
+
+	s.logger.Info("start periodic nodeIPAM GC")
+	gcInterval := 5 * time.Minute
+	gcTicker := time.NewTicker(gcInterval)
+	go func(ctx context.Context) {
+		for {
+			<-gcTicker.C
+			if err := s.nodeIPAM.GC(ctx); err != nil {
+				s.logger.Sugar().Error("failed to run GC", "error", err)
+			}
+		}
+
+	}(ctx)
 
 	return grpcServer.Serve(s.listener)
 }
