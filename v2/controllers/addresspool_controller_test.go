@@ -10,8 +10,10 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
@@ -29,6 +31,9 @@ var _ = Describe("AddressPool reconciler", func() {
 			LeaderElection: false,
 			Metrics: metricsserver.Options{
 				BindAddress: "0",
+			},
+			Controller: config.Controller{
+				SkipNameValidation: ptr.To(true),
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())

@@ -43,7 +43,7 @@ jobs:
     name: End-to-end Test
     strategy:
       matrix:
-        kindest-node: ["1.28.15", "1.29.12", "1.30.8"]
+        kindest-node: ["1.29.12", "1.30.8", "1.31.4"]
         with-ipam: ["false", "true"]
         ipv6: ["false", "true"]
     runs-on: ubuntu-24.04
