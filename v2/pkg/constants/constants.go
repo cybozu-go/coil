@@ -1,5 +1,7 @@
 package constants
 
+import "time"
+
 // annotation keys
 const (
 	AnnPool         = "coil.cybozu.com/pool"
@@ -64,17 +66,18 @@ const (
 
 // Default config values
 const (
-	DefautlMetricsAddr      = ":9384"
-	DefautlHealthAddr       = ":9385"
-	DefautlPodTableId       = 116
-	DefautlPodRulePrio      = 2000
-	DefautlExportTableId    = 119
-	DefautlProtocolId       = 30
-	DefaultCompatCalico     = false
-	DefaultEgressPort       = 5555
-	DefaultRegisterFromMain = false
-	DefaultEnableIPAM       = true
-	DefaultEnableEgress     = true
+	DefautlMetricsAddr            = ":9384"
+	DefautlHealthAddr             = ":9385"
+	DefautlPodTableId             = 116
+	DefautlPodRulePrio            = 2000
+	DefautlExportTableId          = 119
+	DefautlProtocolId             = 30
+	DefaultCompatCalico           = false
+	DefaultEgressPort             = 5555
+	DefaultRegisterFromMain       = false
+	DefaultEnableIPAM             = true
+	DefaultEnableEgress           = true
+	DefaultAddressBlockGCInterval = 5 * time.Minute
 )
 
 // MetricsNS is the namespace for Prometheus metrics

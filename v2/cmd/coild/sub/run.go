@@ -123,6 +123,7 @@ func subMain() error {
 				return err
 			}
 		}
+		setupLog.Info("run GC for starting up")
 		if err := nodeIPAM.GC(ctx); err != nil {
 			return err
 		}

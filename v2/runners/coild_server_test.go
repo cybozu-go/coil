@@ -225,18 +225,19 @@ var _ = Describe("Coild server", func() {
 		logbuf = &bytes.Buffer{}
 		logger := zap.NewRaw(zap.WriteTo(logbuf), zap.StacktraceLevel(zapcore.DPanicLevel))
 		cfg := &config.Config{
-			MetricsAddr:      constants.DefautlMetricsAddr,
-			HealthAddr:       constants.DefautlMetricsAddr,
-			PodTableId:       constants.DefautlPodTableId,
-			PodRulePrio:      constants.DefautlPodRulePrio,
-			ExportTableId:    constants.DefautlExportTableId,
-			ProtocolId:       constants.DefautlProtocolId,
-			SocketPath:       constants.DefaultSocketPath,
-			CompatCalico:     constants.DefaultCompatCalico,
-			EgressPort:       constants.DefaultEgressPort,
-			RegisterFromMain: constants.DefaultRegisterFromMain,
-			EnableIPAM:       testIPAM,
-			EnableEgress:     testEgress,
+			MetricsAddr:            constants.DefautlMetricsAddr,
+			HealthAddr:             constants.DefautlMetricsAddr,
+			PodTableId:             constants.DefautlPodTableId,
+			PodRulePrio:            constants.DefautlPodRulePrio,
+			ExportTableId:          constants.DefautlExportTableId,
+			ProtocolId:             constants.DefautlProtocolId,
+			SocketPath:             constants.DefaultSocketPath,
+			CompatCalico:           constants.DefaultCompatCalico,
+			EgressPort:             constants.DefaultEgressPort,
+			RegisterFromMain:       constants.DefaultRegisterFromMain,
+			EnableIPAM:             testIPAM,
+			EnableEgress:           testEgress,
+			AddressBlockGCInterval: 10 * time.Second,
 		}
 
 		serv := NewCoildServer(l, mgr, nodeIPAM, podNet, natsetup, cfg, logger, mockAlias)
