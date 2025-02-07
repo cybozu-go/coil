@@ -1,11 +1,11 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: coil-controller
+  name: coil-ipam-controller
   namespace: system
 spec:
   template:
     spec:
       containers:
-      - name: coil-controller
+      - name: coil-ipam-controller
         args: ["--gc-interval=10s"]

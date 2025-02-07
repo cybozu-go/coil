@@ -2,14 +2,14 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: mutating-webhook-configuration
+  name: mutating-ipam-webhook-configuration
 webhooks:
 - admissionReviewVersions:
   - v1
   - v1beta1
   clientConfig:
     service:
-      name: webhook-service
+      name: ipam-webhook-service
       namespace: system
       path: /mutate-coil-cybozu-com-v2-addresspool
   failurePolicy: Fail
@@ -24,38 +24,18 @@ webhooks:
     resources:
     - addresspools
   sideEffects: None
-- admissionReviewVersions:
-  - v1
-  - v1beta1
-  clientConfig:
-    service:
-      name: webhook-service
-      namespace: system
-      path: /mutate-coil-cybozu-com-v2-egress
-  failurePolicy: Fail
-  name: megress.kb.io
-  rules:
-  - apiGroups:
-    - coil.cybozu.com
-    apiVersions:
-    - v2
-    operations:
-    - CREATE
-    resources:
-    - egresses
-  sideEffects: None
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: validating-webhook-configuration
+  name: validating-ipam-webhook-configuration
 webhooks:
 - admissionReviewVersions:
   - v1
   - v1beta1
   clientConfig:
     service:
-      name: webhook-service
+      name: ipam-webhook-service
       namespace: system
       path: /validate-coil-cybozu-com-v2-addresspool
   failurePolicy: Fail
@@ -70,25 +50,4 @@ webhooks:
     - UPDATE
     resources:
     - addresspools
-  sideEffects: None
-- admissionReviewVersions:
-  - v1
-  - v1beta1
-  clientConfig:
-    service:
-      name: webhook-service
-      namespace: system
-      path: /validate-coil-cybozu-com-v2-egress
-  failurePolicy: Fail
-  name: vegress.kb.io
-  rules:
-  - apiGroups:
-    - coil.cybozu.com
-    apiVersions:
-    - v2
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - egresses
   sideEffects: None

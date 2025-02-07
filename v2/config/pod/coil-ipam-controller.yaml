@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: coil-controller
+  name: coil-ipam-controller
   namespace: system
   labels:
-    app.kubernetes.io/component: coil-controller
+    app.kubernetes.io/component: coil-ipam-controller
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/component: coil-controller
+      app.kubernetes.io/component: coil-ipam-controller
   replicas: 2
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: coil-controller
+        app.kubernetes.io/component: coil-ipam-controller
     spec:
       hostNetwork: true
       priorityClassName: system-cluster-critical
@@ -33,17 +33,17 @@ spec:
                 matchExpressions:
                 - key: app.kubernetes.io/component
                   operator: In
-                  values: ["coil-controller"]
+                  values: ["coil-ipam-controller"]
               topologyKey: kubernetes.io/hostname
       securityContext:
         runAsUser: 10000
         runAsGroup: 10000
-      serviceAccountName: coil-controller
+      serviceAccountName: coil-ipam-controller
       terminationGracePeriodSeconds: 10
       containers:
-      - name: coil-controller
+      - name: coil-ipam-controller
         image: coil:dev
-        command: ["coil-controller"]
+        command: ["coil-ipam-controller"]
         args:
           - --zap-stacktrace-level=panic
         env:
@@ -87,4 +87,4 @@ spec:
       - name: cert
         secret:
           defaultMode: 420
-          secretName: coilv2-webhook-server-cert
+          secretName: coilv2-ipam-webhook-server-cert

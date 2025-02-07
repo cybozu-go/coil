@@ -1,13 +1,16 @@
 resources:
 - serviceaccount.yaml
-- coil-controller_role.yaml
-- coil-router_role.yaml
-- coild_role.yaml
-- coil-egress_role.yaml
 - role_binding.yaml
 - leader_election_role.yaml
 - leader_election_role_binding.yaml
+- coild_role.yaml
+# [IPAM] Following files should be uncommented to enable IPAM features.
+- coil-ipam-controller_role.yaml
+- coil-router_role.yaml
 - addressblock_viewer_role.yaml
 - addresspool_viewer_role.yaml
 - blockrequest_viewer_role.yaml
+# [EGRESS] Following files should be uncommented to enable Egress NAT features.
+- coil-egress-controller_role.yaml
+- coil-egress_role.yaml
 - egress_viewer_role.yaml

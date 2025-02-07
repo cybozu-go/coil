@@ -13,7 +13,9 @@ import (
 	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
 )
 
-const rpcTimeout = 1 * time.Minute
+const (
+	rpcTimeout = 1 * time.Minute
+)
 
 func cmdAdd(args *skel.CmdArgs) error {
 	conf, err := parseConfig(args.StdinData)
@@ -21,11 +23,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return err
 	}
 
-	if conf.PrevResult != nil {
-		return types.NewError(types.ErrInvalidNetworkConfig, "coil must be called as the first plugin", "")
-	}
-
-	cniArgs, err := makeCNIArgs(args)
+	cniArgs, err := makeCNIArgs(args, conf)
 	if err != nil {
 		return err
 	}
@@ -45,7 +43,13 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return convertError(err)
 	}
 
-	result, err := current.NewResult(resp.Result)
+	var result types.Result
+	if conf.PrevResult != nil {
+		result, err = current.NewResultFromResult(conf.PrevResult)
+	} else {
+		result, err = current.NewResult(resp.Result)
+	}
+
 	if err != nil {
 		return types.NewError(types.ErrDecodingFailure, "failed to unmarshal result", err.Error())
 	}
@@ -59,7 +63,7 @@ func cmdDel(args *skel.CmdArgs) error {
 		return err
 	}
 
-	cniArgs, err := makeCNIArgs(args)
+	cniArgs, err := makeCNIArgs(args, conf)
 	if err != nil {
 		return err
 	}
@@ -87,7 +91,7 @@ func cmdCheck(args *skel.CmdArgs) error {
 		return err
 	}
 
-	cniArgs, err := makeCNIArgs(args)
+	cniArgs, err := makeCNIArgs(args, conf)
 	if err != nil {
 		return err
 	}

@@ -1,2 +1,6 @@
 cert.pem
 key.pem
+ipam-cert.pem
+ipam-key.pem
+egress-cert.pem
+egress-key.pem
