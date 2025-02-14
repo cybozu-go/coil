@@ -2,12 +2,12 @@
 
 IMAGE_TAG := latest
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
-CONTROLLER_TOOLS_VERSION=0.16.4
-PROTOC_VERSION=29.2
+CONTROLLER_TOOLS_VERSION=0.16.5
+PROTOC_VERSION=29.3
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
 PROTOC_GEN_GO_GRPC_VERSON=1.5.1
 PROTOC_GEN_DOC_VERSION=1.5.1
-YQ_VERSION=4.44.6
+YQ_VERSION=4.45.1
 
 ## DON'T EDIT BELOW THIS LINE
 SUDO=sudo
