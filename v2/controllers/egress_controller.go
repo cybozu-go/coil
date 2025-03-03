@@ -35,7 +35,7 @@ type EgressReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
 
-// coil-controller needs to have access to Pods to grant egress service accounts the same privilege.
+// coil-egress-controller needs to have access to Pods to grant egress service accounts the same privilege.
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 // Reconcile implements Reconciler interface.

@@ -20,7 +20,7 @@ import (
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses,verbs=get;list;watch
 
-// SetupCRBReconciler setups ClusterResourceBinding reconciler for coil-controller.
+// SetupCRBReconciler setups ClusterResourceBinding reconciler for coil-ipam-controller and coil-egress-controller.
 func SetupCRBReconciler(mgr manager.Manager) error {
 	r := &crbReconciler{
 		Client: mgr.GetClient(),

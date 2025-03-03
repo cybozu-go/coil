@@ -143,7 +143,7 @@
       },
       "id": 20,
       "panels": [],
-      "title": "coil-controller Stats",
+      "title": "coil-ipam-controller Stats",
       "type": "row"
     },
     {
@@ -194,7 +194,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(controller_runtime_reconcile_time_seconds_bucket{job=\"coil\", component=\"coil-controller\"}[5m])) by (le, controller))",
+          "expr": "histogram_quantile(0.95, sum(rate(controller_runtime_reconcile_time_seconds_bucket{job=\"coil\", component=\"coil-ipam-controller\"}[5m])) by (le, controller))",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -501,8 +501,8 @@
           "scopedVars": {
             "component": {
               "selected": false,
-              "text": "coil-controller",
-              "value": "coil-controller"
+              "text": "coil-ipam-controller",
+              "value": "coil-ipam-controller"
             }
           },
           "seriesOverrides": [],
@@ -604,8 +604,8 @@
           "scopedVars": {
             "component": {
               "selected": false,
-              "text": "coil-controller",
-              "value": "coil-controller"
+              "text": "coil-ipam-controller",
+              "value": "coil-ipam-controller"
             }
           },
           "seriesOverrides": [],
@@ -706,8 +706,8 @@
           "scopedVars": {
             "component": {
               "selected": false,
-              "text": "coil-controller",
-              "value": "coil-controller"
+              "text": "coil-ipam-controller",
+              "value": "coil-ipam-controller"
             }
           },
           "seriesOverrides": [],
@@ -794,8 +794,8 @@
           },
           {
             "selected": false,
-            "text": "coil-controller",
-            "value": "coil-controller"
+            "text": "coil-ipam-controller",
+            "value": "coil-ipam-controller"
           },
           {
             "selected": false,
@@ -808,7 +808,7 @@
             "value": "egress"
           }
         ],
-        "query": "coil-controller,coild,egress",
+        "query": "coil-ipam-controller,coild,egress",
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"

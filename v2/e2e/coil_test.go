@@ -68,7 +68,7 @@ func testIPAM() {
 	// This series of tests confirms the following things:
 	// - coil can call coild gRPC method appropriately
 	// - coild runs gRPC server
-	// - coil-controller can process BlockRequest
+	// - coil-ipam-controller can process BlockRequest
 	// - coil-router setups the kernel routing table
 	It("should allow pods on different nodes to communicate", func() {
 		By("creating the default pool")
