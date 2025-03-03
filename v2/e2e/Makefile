@@ -1,5 +1,5 @@
-KIND_VERSION=0.26.0
-KUBERNETES_VERSION=1.31.5
+KIND_VERSION=0.27.0
+KUBERNETES_VERSION=1.31.6
 KUSTOMIZE_VERSION = 5.6.0
 BINDIR := $(abspath $(PWD)/../bin)
 
@@ -75,6 +75,8 @@ setup-nodes:
 	$(KUBECTL) label nodes coil-worker test=coil
 	$(KUBECTL) label nodes coil-worker2 test=coil
 
+TEST_IPAM ?= true
+TEST_EGRESS ?= true
 .PHONY: test
 test: setup-echotest
 	TEST_IPAM=$(TEST_IPAM) TEST_EGRESS=$(TEST_EGRESS) go test -count 1 -v . -args -ginkgo.progress -ginkgo.v
