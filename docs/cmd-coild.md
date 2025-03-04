@@ -52,6 +52,8 @@ Calico needs to be configured to set [`FELIX_INTERFACEPREFIX`](https://github.co
 Flags:
       --compat-calico         make veth name compatible with Calico
       --egress-port int       UDP port number for egress NAT (default 5555)
+      --enable-egress         enable Egress related features (default true)
+      --enable-ipam           enable IPAM related features (default true)
       --export-table-id int   routing table ID to which coild exports routes (default 119)
       --health-addr string    bind address of health/readiness probes (default ":9385")
   -h, --help                  help for coild
