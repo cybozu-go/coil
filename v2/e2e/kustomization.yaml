@@ -1,15 +1,15 @@
 resources:
-  - ../config/default
-  - ../config/pod/coil-router.yaml
+- ../config/default
+- ../config/pod/coil-router.yaml
 
 patchesStrategicMerge:
-  - coil-ipam-controller_patch.yaml
+- coil-ipam-controller_patch.yaml
 
 configMapGenerator:
-  - name: coil-config
-    namespace: system
-    files:
-      - cni_netconf=../netconf.json
+- name: coil-config
+  namespace: system
+  files:
+  - cni_netconf=../netconf.json
 
 # Adds namespace to all resources.
 namespace: kube-system
