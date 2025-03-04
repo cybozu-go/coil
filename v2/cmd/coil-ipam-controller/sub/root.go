@@ -22,9 +22,9 @@ var config struct {
 }
 
 var rootCmd = &cobra.Command{
-	Use:     "coil-controller",
-	Short:   "controller for coil custom resources",
-	Long:    `coil-controller is a Kubernetes controller for coil custom resources.`,
+	Use:     "coil-ipam-controller",
+	Short:   "controller for coil ipam related custom resources",
+	Long:    `coil-ipam-controller is a Kubernetes controller for coil ipam related custom resources.`,
 	Version: v2.Version(),
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cmd.SilenceUsage = true

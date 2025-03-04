@@ -317,7 +317,7 @@ The default timeout seconds is 10800 (= 3 hours).
 Coil exposes two types of Prometheus metrics.
 
 1. Address pool metrics  
-   Metrics about address pools managed by Coil. For description, read [cmd-coil-controller.md](cmd-coil-controller.md#prometheus-metrics).
+   Metrics about address pools managed by Coil. For description, read [cmd-coil-ipam-controller.md](cmd-coil-ipam-controller.md#prometheus-metrics).
 2. Program metrics  
    Metrics about coil components internal. Memory usage, the number of requests to the API server, etc. They are exposed by controller-runtime.
 
@@ -343,8 +343,13 @@ scrape_configs:
         target_label: __address__
       - source_labels: [__address__, __meta_kubernetes_pod_label_app_kubernetes_io_component]
         action: replace
-        regex: ([^:]+)(?::\d+)?;coil-controller
+        regex: ([^:]+)(?::\d+)?;coil-ipam-controller
         replacement: ${1}:9386
+        target_label: __address__
+      - source_labels: [__address__, __meta_kubernetes_pod_label_app_kubernetes_io_component]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;coil-egress-controller
+        replacement: ${1}:9396
         target_label: __address__
       - source_labels: [__address__, __meta_kubernetes_pod_label_app_kubernetes_io_component]
         action: replace

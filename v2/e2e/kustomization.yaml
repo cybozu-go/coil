@@ -3,7 +3,7 @@ resources:
 - ../config/pod/coil-router.yaml
 
 patchesStrategicMerge:
-- coil-controller_patch.yaml
+- coil-ipam-controller_patch.yaml
 
 configMapGenerator:
 - name: coil-config

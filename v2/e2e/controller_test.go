@@ -28,7 +28,7 @@ var _ = Describe("coil controllers", func() {
 })
 
 func testCoilIPAMController() {
-	It("should elect a leader instance of coil-controller", func() {
+	It("should elect a leader instance of coil-ipam-controller", func() {
 		kubectlSafe(nil, "-n", "kube-system", "get", "leases", "coil-ipam-leader")
 	})
 
@@ -70,7 +70,7 @@ func testCoilIPAMController() {
 
 func testCoilEgressController() {
 	Context("when the egress features are enabled", func() {
-		It("should elect a leader instance of coil-controller", func() {
+		It("should elect a leader instance of coil-egress-controller", func() {
 			kubectlSafe(nil, "-n", "kube-system", "get", "leases", "coil-egress-leader")
 		})
 
