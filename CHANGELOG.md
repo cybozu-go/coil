@@ -5,6 +5,74 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.9.0] - 2025-03-07
+
+### Important Changes
+
+We are excited to introduce the stand-alone egress NAT feature (#299) from this version!
+Thank you @p-strusiewiczsurmacki-mobica!
+
+Now you can use stand-alone egress and/or ipam mode by `coild` flags.
+By default, both are enabled.
+
+You can configure this settings via coild's flag.
+The document is here: [docs/cmd-coild.md](./docs/cmd-coild.md#command-line-flags).
+
+There are no breaking changes in this version.
+But there are some points which we should take care of when upgrading.
+
+From this version, `coil-controller` is separated into `coil-ipam-controller` and `coil-egress-controller`.
+
+The following steps show how to upgrade coil v2.9.0.
+
+#### Step1: Generate new manifests
+
+You need to generate new version's manifests.
+For example, you can get manifests.
+
+```console
+$ cd v2
+$ make certs
+$ kustomize build --load-restrictor=LoadRestrictionsNone .
+```
+
+Due to the controller separation, validating and mutating webhooks have also been changed.
+Therefore, when generating new versions of the manifests, you must renew webhooks certificates.
+
+#### Step2: Apply new manifests
+
+Once new manifests are applied, `coil-ipam-controller` and `coil-egress-controller` are deployed.
+However, `coil-ipam-controller` stays `Pending` because it uses the same port as `coil-controller`.
+
+The following is an example of the `coil-ipam-controller` stays a pending state.
+```console
+$ kubectl get pod -n kube-system
+NAME                                         READY   STATUS              RESTARTS      AGE
+coil-controller-7486bd8778-6jnrv             1/1     Running             0             7m29s
+coil-controller-7486bd8778-k6vsq             1/1     Running             1 (76s ago)   7m29s
+coil-egress-controller-5f6dccb47b-4g9wv      1/1     Running             0             87s
+coil-egress-controller-5f6dccb47b-h4sph      1/1     Running             0             87s
+coil-ipam-controller-bcfb666d4-42w52         0/1     Pending             0             87s
+coil-ipam-controller-bcfb666d4-n5r6s         0/1     Pending             0             87s
+```
+
+#### Step3: Delete coil-controller and old webhooks
+
+The following `coil-controller` related resources are no longer needed, and you must delete these to make coil work well.
+
+- deployment/kube-system/coil-controller
+- lease/kube-system/coil-leader
+- validatingwebhookconfiguration/coilv2-validating-webhook-configuration
+- mutatingwebhookconfiguration/coilv2-mutating-webhook-configuration
+- clusterrole/coil-controller
+- clusterrolebinding/coil-controller
+
+### Added
+- Standalone Egress NAT (#299)
+- Add periodic nodeIPAM GC (#309)
+- Update for k8s 1.31 (#310)
+
+
 ## [2.8.0] - 2025-01-07
 
 ### Added
@@ -278,7 +346,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.8.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.9.0...HEAD
+[2.9.0]: https://github.com/cybozu-go/coil/compare/v2.8.0...v2.9.0
 [2.8.0]: https://github.com/cybozu-go/coil/compare/v2.7.2...v2.8.0
 [2.7.2]: https://github.com/cybozu-go/coil/compare/v2.7.1...v2.7.2
 [2.7.1]: https://github.com/cybozu-go/coil/compare/v2.7.0...v2.7.1
