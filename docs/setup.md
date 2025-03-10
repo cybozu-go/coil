@@ -26,10 +26,10 @@ Follow the instructions: https://kubectl.docs.kubernetes.io/installation/kustomi
 
 `kustomize` 4.1.3 is verified to work for Coil.
 
-## Generate TLS certificate
+## Generate TLS certificate (optional)
 
 Coil runs an admission webhook server, and it needs a self-signed certificate.
-Run `make certs` under `v2/` directory to generate the certificate.
+Caoil will generate certificates upon start, but you can also pre-generate those if you want with `make certs` command under `v2/` directory.
 
 ```console
 $ make certs
@@ -275,13 +275,9 @@ To deploy Coil with only egress feature enabled the following changes are requir
 ### Testing standalone egress
 
 #### Testing with Kindnet using IPv4
-1. Generate certificates using `v2/Makefile`.
-    ```bash
-    cd v2 && make certs
-    ```
 1. Go to `v2/e2e`
     ```bash
-    cd e2e
+    cd v2/e2e
     ```
 1. Create IPv4 based Kind cluster with Kindnet CNI deployed:
     ```bash
@@ -297,13 +293,9 @@ To deploy Coil with only egress feature enabled the following changes are requir
     ```
 
 #### Testing with Kindnet using IPv6
-1. Generate certificates using `v2/Makefile`.
-    ```bash
-    cd v2 && make certs
-    ```
 1. Go to `v2/e2e`
     ```bash
-    cd e2e
+    cd v2/e2e
     ```
 1. Create IPv6 based Kind cluster with Kindnet CNI deployed:
     ```bash

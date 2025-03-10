@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -41,6 +42,28 @@ func kubectlSafe(input []byte, args ...string) []byte {
 	stdout, err := kubectl(input, args...)
 	ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
 	return stdout
+}
+
+func kubectlSafeTimeout(input []byte, args ...string) []byte {
+	ctxTimeout, ctxTimeoutCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer ctxTimeoutCancel()
+
+	var stdout []byte
+	var err error
+	for {
+		t := time.NewTimer(time.Millisecond * 100)
+		select {
+		case <-ctxTimeout.Done():
+			t.Stop()
+			ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
+			return stdout
+		case <-t.C:
+			stdout, err = kubectl(input, args...)
+			if err == nil {
+				ctxTimeoutCancel()
+			}
+		}
+	}
 }
 
 // ns, name, label are optional.  If name is empty, obj must be a list type.

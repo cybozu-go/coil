@@ -74,7 +74,6 @@ Prepare a recent Ubuntu and install Docker and Go, then run:
 
 ```console
 $ cd v2
-$ make certs
 $ make image
 
 $ cd e2e

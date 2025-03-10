@@ -1,6 +1,7 @@
 package sub
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"github.com/cybozu-go/coil/v2/controllers"
 	"github.com/cybozu-go/coil/v2/pkg/indexing"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
+	"github.com/cybozu-go/coil/v2/pkg/utils"
 	"github.com/cybozu-go/coil/v2/runners"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -78,6 +80,46 @@ func subMain() error {
 		return err
 	}
 
+	var setupFinished chan struct{}
+
+	if !config.disableCertRotation {
+		setupFinished, err = utils.SetupRotator(mgr, "ipam", config.disableRestartOnCertRefresh)
+		if err != nil {
+			return fmt.Errorf("failed to setup Rotator: %w", err)
+		}
+	}
+
+	ctx := ctrl.SetupSignalHandler()
+
+	setupErr := make(chan error)
+
+	go func() {
+		setupErr <- setupManager(ctx, mgr, setupFinished)
+		close(setupErr)
+	}()
+
+	mgrCtx, cancel := context.WithCancel(ctx)
+
+	mgrErr := make(chan error)
+	go func() {
+		setupLog.Info(fmt.Sprintf("starting manager (version: %s)", v2.Version()))
+		if err := mgr.Start(mgrCtx); err != nil {
+			mgrErr <- err
+		}
+		close(mgrErr)
+	}()
+
+	if err := utils.WaitForExit(setupErr, mgrErr, cancel); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setupManager(ctx context.Context, mgr ctrl.Manager, setupFinished chan struct{}) error {
+	// wait for certificates to be configured
+	<-setupFinished
+
 	// register controllers
 
 	pm := ipam.NewPoolManager(mgr.GetClient(), mgr.GetAPIReader(), ctrl.Log.WithName("pool-manager"), scheme)
@@ -90,7 +132,6 @@ func subMain() error {
 		return err
 	}
 
-	ctx := ctrl.SetupSignalHandler()
 	if err := indexing.SetupIndexForAddressBlock(ctx, mgr); err != nil {
 		return err
 	}
@@ -114,12 +155,6 @@ func subMain() error {
 
 	gc := runners.NewGarbageCollector(mgr, ctrl.Log.WithName("gc"), config.gcInterval)
 	if err := mgr.Add(gc); err != nil {
-		return err
-	}
-
-	setupLog.Info(fmt.Sprintf("starting manager (version: %s)", v2.Version()))
-	if err := mgr.Start(ctx); err != nil {
-		setupLog.Error(err, "problem running manager")
 		return err
 	}
 
