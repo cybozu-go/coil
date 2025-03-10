@@ -89,3 +89,32 @@ jobs:
       with:
         name: logs-ipv6-${{ matrix.ipv6 }}-with-ipam-${{ matrix.with-ipam }}-${{ matrix.kindest-node }}.tar.gz
         path: v2/e2e/logs.tar.gz
+  certs-generation:
+    name: Cert generation test
+    strategy:
+      matrix:
+        kindest-node: ["1.29.12", "1.30.8", "1.31.4"]
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.go-version }}
+        cache-dependency-path: "**/go.sum"
+    - run: make image
+    - run: make enable-certs-generation
+      working-directory: v2/e2e
+    - run: make start KUBERNETES_VERSION=${{ matrix.kindest-node }}
+      working-directory: v2/e2e
+    - run: make install-coil
+      working-directory: v2/e2e
+    - run: make test
+      working-directory: v2/e2e
+    - run: make logs
+      working-directory: v2/e2e
+      if: always()
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: logs-cert-generation-${{ matrix.kindest-node }}.tar.gz
+        path: v2/e2e/logs.tar.gz

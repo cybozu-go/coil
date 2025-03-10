@@ -1,6 +1,7 @@
 package sub
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	v2 "github.com/cybozu-go/coil/v2"
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/controllers"
+	"github.com/cybozu-go/coil/v2/pkg/cert"
 	"github.com/cybozu-go/coil/v2/pkg/indexing"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
 	"github.com/cybozu-go/coil/v2/runners"
@@ -78,6 +80,40 @@ func subMain() error {
 		return err
 	}
 
+	certCompleted := make(chan struct{})
+
+	if config.enableCertRotation {
+		if certCompleted, err = cert.SetupRotator(mgr, "ipam", config.enableRestartOnCertRefresh, certCompleted); err != nil {
+			return fmt.Errorf("failed to setup Rotator: %w", err)
+		}
+	} else {
+		close(certCompleted)
+	}
+
+	ctx := ctrl.SetupSignalHandler()
+
+	setupErr := make(chan error)
+
+	go func() {
+		setupErr <- setupManager(ctx, mgr, certCompleted)
+		close(setupErr)
+	}()
+
+	mgrCtx, cancel := context.WithCancel(ctx)
+
+	mgrErr := make(chan error)
+	go func() {
+		setupLog.Info(fmt.Sprintf("starting manager (version: %s)", v2.Version()))
+		if err := mgr.Start(mgrCtx); err != nil {
+			mgrErr <- err
+		}
+		close(mgrErr)
+	}()
+
+	return cert.WaitForExit(setupErr, mgrErr, cancel)
+}
+
+func setupManager(ctx context.Context, mgr ctrl.Manager, certCompleted chan struct{}) error {
 	// register controllers
 
 	pm := ipam.NewPoolManager(mgr.GetClient(), mgr.GetAPIReader(), ctrl.Log.WithName("pool-manager"), scheme)
@@ -90,7 +126,6 @@ func subMain() error {
 		return err
 	}
 
-	ctx := ctrl.SetupSignalHandler()
 	if err := indexing.SetupIndexForAddressBlock(ctx, mgr); err != nil {
 		return err
 	}
@@ -104,6 +139,9 @@ func subMain() error {
 		return err
 	}
 
+	// wait for certificates to be configured
+	<-certCompleted
+
 	// register webhooks
 
 	if err := (&coilv2.AddressPool{}).SetupWebhookWithManager(mgr); err != nil {
@@ -114,12 +152,6 @@ func subMain() error {
 
 	gc := runners.NewGarbageCollector(mgr, ctrl.Log.WithName("gc"), config.gcInterval)
 	if err := mgr.Add(gc); err != nil {
-		return err
-	}
-
-	setupLog.Info(fmt.Sprintf("starting manager (version: %s)", v2.Version()))
-	if err := mgr.Start(ctx); err != nil {
-		setupLog.Error(err, "problem running manager")
 		return err
 	}
 

@@ -17,7 +17,22 @@ resources:
 
 patchesStrategicMerge:
 # Uncomment the following if you want to run Coil with Calico network policy.
-#- config/pod/compat_calico.yaml
+# - config/pod/compat_calico.yaml
+
+# [CERTS] Following patches should be uncommented if automatic cert generation is used.
+# patches:
+# - path: config/pod/generate_certs.yaml
+#   target:
+#     group: apps
+#     version: v1
+#     kind: Deployment
+#     name: coil-ipam-controller
+# - path: config/pod/generate_certs.yaml
+#   target:
+#     group: apps
+#     version: v1
+#     kind: Deployment
+#     name: coil-egress-controller
 
 # Edit netconf.json to customize CNI configurations
 configMapGenerator:

@@ -1,6 +1,7 @@
 package sub
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -10,6 +11,7 @@ import (
 	v2 "github.com/cybozu-go/coil/v2"
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/controllers"
+	"github.com/cybozu-go/coil/v2/pkg/cert"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -78,9 +80,40 @@ func subMain() error {
 		return err
 	}
 
-	// register controllers
+	certCompleted := make(chan struct{})
 
-	ctx := ctrl.SetupSignalHandler()
+	if config.enableCertRotation {
+		if certCompleted, err = cert.SetupRotator(mgr, "egress", config.enableRestartOnCertRefresh, certCompleted); err != nil {
+			return fmt.Errorf("failed to setup Rotator: %w", err)
+		}
+	} else {
+		close(certCompleted)
+	}
+
+	setupErr := make(chan error)
+
+	go func() {
+		setupErr <- setupManager(mgr, certCompleted)
+		close(setupErr)
+	}()
+
+	mgrCtx, cancel := context.WithCancel(ctrl.SetupSignalHandler())
+	defer cancel()
+
+	mgrErr := make(chan error)
+	go func() {
+		setupLog.Info(fmt.Sprintf("starting manager (version: %s)", v2.Version()))
+		if err := mgr.Start(mgrCtx); err != nil {
+			mgrErr <- err
+		}
+		close(mgrErr)
+	}()
+
+	return cert.WaitForExit(setupErr, mgrErr, cancel)
+}
+
+func setupManager(mgr ctrl.Manager, certCompleted chan struct{}) error {
+	// register controllers
 
 	podNS := os.Getenv(constants.EnvPodNamespace)
 	podName := os.Getenv(constants.EnvPodName)
@@ -102,17 +135,11 @@ func subMain() error {
 		return err
 	}
 
+	// wait for certificates to be configured
+	<-certCompleted
+
 	// register webhooks
-
 	if err := (&coilv2.Egress{}).SetupWebhookWithManager(mgr); err != nil {
-		return err
-	}
-
-	// start manager
-
-	setupLog.Info(fmt.Sprintf("starting manager (version: %s)", v2.Version()))
-	if err := mgr.Start(ctx); err != nil {
-		setupLog.Error(err, "problem running manager")
 		return err
 	}
 
