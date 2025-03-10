@@ -7,6 +7,7 @@ import (
 	"time"
 
 	v2 "github.com/cybozu-go/coil/v2"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -19,6 +20,9 @@ var config struct {
 	certDir     string
 	gcInterval  time.Duration
 	zapOpts     zap.Options
+
+	enableCertRotation         bool
+	enableRestartOnCertRefresh bool
 }
 
 var rootCmd = &cobra.Command{
@@ -48,6 +52,8 @@ func init() {
 	pf.StringVar(&config.webhookAddr, "webhook-addr", ":9443", "bind address of admission webhook")
 	pf.StringVar(&config.certDir, "cert-dir", "/certs", "directory to locate TLS certs for webhook")
 	pf.DurationVar(&config.gcInterval, "gc-interval", 1*time.Hour, "garbage collection interval")
+	pf.BoolVar(&config.enableCertRotation, "enable-cert-rotation", constants.DefaultEnableCertRotation, "enables webhook's certificate generation")
+	pf.BoolVar(&config.enableRestartOnCertRefresh, "enable-restart-on-cert-refresh", constants.DefaultEnableRestartOnCertRefresh, "enables pod's restart on webhook certificate refresh")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)
