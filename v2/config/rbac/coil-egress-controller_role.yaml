@@ -15,6 +15,15 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - serviceaccounts
   - services
   verbs:
@@ -22,6 +31,16 @@ rules:
   - get
   - list
   - patch
+  - update
+  - watch
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  - validatingwebhookconfigurations
+  verbs:
+  - get
+  - list
   - update
   - watch
 - apiGroups:

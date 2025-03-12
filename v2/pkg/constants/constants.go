@@ -78,6 +78,9 @@ const (
 	DefaultEnableIPAM             = true
 	DefaultEnableEgress           = true
 	DefaultAddressBlockGCInterval = 5 * time.Minute
+
+	DefaultDisableCertRotation         = false
+	DefailtDisableRestartOnCertRefresh = true
 )
 
 // MetricsNS is the namespace for Prometheus metrics
