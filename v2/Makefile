@@ -16,7 +16,9 @@ SETUP_ENVTEST := $(shell pwd)/bin/setup-envtest
 YQ := $(shell pwd)/bin/yq
 CRD_OPTIONS = "crd:crdVersions=v1"
 ROLES = config/rbac/coil-ipam-controller_role.yaml \
+	config/rbac/coil-ipam-controller-certs_role.yaml \
 	config/rbac/coil-egress-controller_role.yaml \
+	config/rbac/coil-egress-controller-certs_role.yaml \
 	config/rbac/coild_role.yaml \
 	config/rbac/coil-router_role.yaml \
 	config/rbac/coil-egress_role.yaml
@@ -122,6 +124,23 @@ config/rbac/coil-ipam-controller_role.yaml: $(COIL_IPAM_CONTROLLER_ROLE_DEPENDS)
 	$(CONTROLLER_GEN) rbac:roleName=coil-ipam-controller paths=./work output:stdout > $@
 	rm -rf work
 
+COIL_IPAM_CONTROLLER_CERTS_ROLE_DEPENDS = controllers/addresspool_controller.go \
+	controllers/blockrequest_controller.go \
+	pkg/ipam/pool.go \
+	runners/garbage_collector.go \
+	pkg/cert/cert.go
+
+config/rbac/coil-ipam-controller-certs_role.yaml: $(COIL_IPAM_CONTROLLER_CERTS_ROLE_DEPENDS)
+	-rm -rf work
+	mkdir work
+	sed '0,/^package/s/.*/package work/' controllers/addresspool_controller.go > work/addresspool_controller.go
+	sed '0,/^package/s/.*/package work/' controllers/blockrequest_controller.go > work/blockrequest_controller.go
+	sed '0,/^package/s/.*/package work/' pkg/ipam/pool.go > work/pool.go
+	sed '0,/^package/s/.*/package work/' runners/garbage_collector.go > work/garbage_collector.go
+	sed '0,/^package/s/.*/package work/' pkg/cert/cert.go > work/cert.go
+	$(CONTROLLER_GEN) rbac:roleName=coil-ipam-controller paths=./work output:stdout > $@
+	rm -rf work
+
 COIL_EGRESS_CONTROLLER_ROLE_DEPENDS = controllers/egress_controller.go \
 	controllers/clusterrolebinding_controller.go
 
@@ -131,7 +150,20 @@ config/rbac/coil-egress-controller_role.yaml: $(COIL_EGRESS_CONTROLLER_ROLE_DEPE
 	sed '0,/^package/s/.*/package work/' controllers/egress_controller.go > work/egress_controller.go
 	sed '0,/^package/s/.*/package work/' controllers/clusterrolebinding_controller.go > work/clusterrolebinding_controller.go
 	$(CONTROLLER_GEN) rbac:roleName=coil-egress-controller paths=./work output:stdout > $@
-	# rm -rf work
+	rm -rf work
+
+COIL_EGRESS_CONTROLLER_CERTS_ROLE_DEPENDS = controllers/egress_controller.go \
+	controllers/clusterrolebinding_controller.go \
+	pkg/cert/cert.go
+
+config/rbac/coil-egress-controller-certs_role.yaml: $(COIL_EGRESS_CONTROLLER_CERTS_ROLE_DEPENDS)
+	-rm -rf work
+	mkdir work
+	sed '0,/^package/s/.*/package work/' controllers/egress_controller.go > work/egress_controller.go
+	sed '0,/^package/s/.*/package work/' controllers/clusterrolebinding_controller.go > work/clusterrolebinding_controller.go
+	sed '0,/^package/s/.*/package work/' pkg/cert/cert.go > work/cert.go
+	$(CONTROLLER_GEN) rbac:roleName=coil-egress-controller paths=./work output:stdout > $@
+	rm -rf work
 
 COILD_DEPENDS = controllers/blockrequest_watcher.go \
 	pkg/ipam/node.go \
@@ -259,3 +291,21 @@ staticcheck:
 	if ! which staticcheck >/dev/null; then \
 		env GOFLAGS= go install honnef.co/go/tools/cmd/staticcheck@latest; \
 	fi
+
+define comment_certs
+    $(eval $@_FILE = $(1))
+	@sed -i -E "{s/(^patchesStrategicMerge.*)/# \1/}" ${$@_FILE}
+	@sed -i -E "{s/(^-.*webhook_manifests_patch.*)/# \1/}" ${$@_FILE}
+	@sed -i -E "{s/(^ +files.*)/# \1/g}" ${$@_FILE}
+	@sed -i -E "{s/(^ +.*\.pem.*)/# \1/g}" ${$@_FILE}
+	@sed -i -E "{s/(^ +.*\/tls.*)/# \1/g}" ${$@_FILE}
+endef    
+
+.PHONY: enable-certs-generation
+enable-certs-generation:
+	@sed -i "23,35 {s/^# //}" kustomization.yaml
+	@sed -i -E 's/^(- coil-.*controller_role\.yaml)/# \1/g' config/rbac/kustomization.yaml
+	@sed -i -E 's/^# (- coil-.*controller-certs_role\.yaml)/\1/g' config/rbac/kustomization.yaml
+	@$(call comment_certs,"config/default/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/v4/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/v6/kustomization.yaml")

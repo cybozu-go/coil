@@ -4,6 +4,7 @@ resources:
 - ../../../pod/egress/v4
 - ../../../webhook/egress
 
+# [CERTS] Following lines should be commented if automatic cert generation is used.
 patchesStrategicMerge:
 - ../webhook_manifests_patch.yaml
 
@@ -13,6 +14,7 @@ generatorOptions:
 secretGenerator:
 # [EGRESS] Following lines be uncommented to enable Egress NAT features.
 - name: coilv2-egress-webhook-server-cert
+# [CERTS] Following lines should be commented if automatic cert generation is used.
   files:
   - ca.crt=../../cert.pem
   - tls.crt=../../egress-cert.pem
