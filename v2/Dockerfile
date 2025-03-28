@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM ghcr.io/cybozu/golang:1.23-noble as build-env
+FROM --platform=$BUILDPLATFORM ghcr.io/cybozu/golang:1.24-noble as build-env
 
 ARG TARGETARCH
 
