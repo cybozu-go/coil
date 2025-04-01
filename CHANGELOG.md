@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.9.1] - 2025-03-28
+
+### Changed
+
+- Update dependencies (#321)
+
 ## [2.9.0] - 2025-03-07
 
 ### Important Changes
@@ -346,7 +352,8 @@ The following `coil-controller` related resources are no longer needed, and you 
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.9.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.9.1...HEAD
+[2.9.1]: https://github.com/cybozu-go/coil/compare/v2.9.0...v2.9.1
 [2.9.0]: https://github.com/cybozu-go/coil/compare/v2.8.0...v2.9.0
 [2.8.0]: https://github.com/cybozu-go/coil/compare/v2.7.2...v2.8.0
 [2.7.2]: https://github.com/cybozu-go/coil/compare/v2.7.1...v2.7.2
