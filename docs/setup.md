@@ -8,7 +8,9 @@ The YAML manifests of Coil can be generated using [kustomize](https://kubernetes
 You can tweak optional parameters by editing [`kustomization.yaml`](../v2/kustomization.yaml) file.
 
 - [Install `kustomize`](#install-kustomize)
-- [Generate TLS certificate](#generate-tls-certificate)
+- [TLS certificates](#tls-certificates)
+  - [Generate certificates manually](#generate-certificates-manually)
+  - [Enable automatic certs rotation](#enable-automatic-certs-rotation)
 - [Edit `kustomization.yaml`](#edit-kustomizationyaml)
 - [Edit `netconf.json`](#edit-netconfjson)
 - [Compile and apply the manifest](#compile-and-apply-the-manifest)
@@ -19,6 +21,9 @@ You can tweak optional parameters by editing [`kustomization.yaml`](../v2/kustom
 - [Note on CRI runtime compatibility](#note-on-cri-runtime-compatibility)
 - [Standalone egress](#standalone-egress)
   - [Configuration](#configuration)
+  - [Testing standalone egress](#testing-standalone-egress)
+    - [Testing with Kindnet using IPv4](#testing-with-kindnet-using-ipv4)
+    - [Testing with Kindnet using IPv6](#testing-with-kindnet-using-ipv6)
 
 ## Install `kustomize`
 
@@ -26,10 +31,13 @@ Follow the instructions: https://kubectl.docs.kubernetes.io/installation/kustomi
 
 `kustomize` 4.1.3 is verified to work for Coil.
 
-## Generate TLS certificate
+## TLS certificates
 
-Coil runs an admission webhook server, and it needs a self-signed certificate.
-Run `make certs` under `v2/` directory to generate the certificate.
+Coil runs admission webhook servers, and each one needs a self-signed certificate. You can either generate certificates manually or have Coil create them when it starts up.
+
+### Generate certificates manually
+
+Run `make certs` under `v2/` directory to generate the certificates.
 
 ```console
 $ make certs
@@ -42,6 +50,16 @@ $ ls config/default/*.pem
 config/default/cert.pem         config/default/egress-key.pem  config/default/ipam-key.pem
 config/default/egress-cert.pem  config/default/ipam-cert.pem   config/default/key.pem
 ```
+
+### Enable automatic certs rotation
+
+Run `make enable-certs-rotation` under `v2/` directory to enable automatic certificate generation in `coil`.
+
+```console
+$ make enable-certs-rotation
+```
+
+This will configure the kustomization files that will can be later used by `make install-coil` target.
 
 ## Edit `kustomization.yaml`
 

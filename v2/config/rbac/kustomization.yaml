@@ -4,13 +4,21 @@ resources:
 - leader_election_role.yaml
 - leader_election_role_binding.yaml
 - coild_role.yaml
+
 # [IPAM] Following files should be uncommented to enable IPAM features.
+# [CERTS] Please uncomment 'coil-egress-controller-certs_role.yaml' and 
+# comment 'coil-egress-controller_role.yaml' if automatic cert generation is being used.
 - coil-ipam-controller_role.yaml
+# - coil-ipam-controller-certs_role.yaml
 - coil-router_role.yaml
 - addressblock_viewer_role.yaml
 - addresspool_viewer_role.yaml
 - blockrequest_viewer_role.yaml
+
 # [EGRESS] Following files should be uncommented to enable Egress NAT features.
+# [CERTS] Please uncomment 'coil-egress-controller-certs_role.yaml' and 
+# comment 'coil-egress-controller_role.yaml' if automatic cert generation is being used.
 - coil-egress-controller_role.yaml
+# - coil-egress-controller-certs_role.yaml
 - coil-egress_role.yaml
 - egress_viewer_role.yaml
