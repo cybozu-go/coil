@@ -301,8 +301,8 @@ endef
 .PHONY: enable-certs-rotation
 enable-certs-rotation:
 	@sed -i "9,21 {s/^# //}" kustomization.yaml
-	@sed -i -E 's/^(- coil-.*controller_role\.yaml)/# \1/g' ../config/rbac/kustomization.yaml
-	@sed -i -E 's/^# (- coil-.*controller-certs_role\.yaml)/\1/g' ../config/rbac/kustomization.yaml
+	@sed -i -E 's/^(- coil-.*controller_role\.yaml)/# \1/g' config/rbac/kustomization.yaml
+	@sed -i -E 's/^# (- coil-.*controller-certs_role\.yaml)/\1/g' config/rbac/kustomization.yaml
 	@touch config/default/cert.pem
 	@touch config/default/ipam-cert.pem
 	@touch config/default/ipam-key.pem
