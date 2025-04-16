@@ -360,6 +360,8 @@ func (r *EgressReconciler) reconcileService(ctx context.Context, log logr.Logger
 			eg.Spec.SessionAffinityConfig.DeepCopyInto(sac)
 			svc.Spec.SessionAffinityConfig = sac
 		}
+		svc.Spec.IPFamilyPolicy = new(corev1.IPFamilyPolicy)
+		*svc.Spec.IPFamilyPolicy = corev1.IPFamilyPolicyPreferDualStack
 
 		return nil
 	})
