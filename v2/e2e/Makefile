@@ -81,14 +81,6 @@ TEST_EGRESS ?= true
 test: setup-echotest
 	TEST_IPAM=$(TEST_IPAM) TEST_EGRESS=$(TEST_EGRESS) go test -count 1 -v . -args -ginkgo.progress -ginkgo.v
 
-.PHONY: test-ipam
-test-ipam: setup-echotest
-	TEST_IPAM=$(TEST_IPAM) TEST_EGRESS=$(TEST_EGRESS) go test -count 1 -v . -args -ginkgo.progress -ginkgo.v
-
-.PHONY: test-egress
-test-egress: setup-echotest
-	TEST_IPAM=$(TEST_IPAM) TEST_EGRESS=$(TEST_EGRESS) go test -count 1 -v . -args -ginkgo.progress -ginkgo.v
-
 .PHONY: setup-echotest
 setup-echotest:
 	CGO_ENABLED=0 go build -o echotest ./echo-server
@@ -111,8 +103,12 @@ endef
 .PHONY: enable-certs-rotation
 enable-certs-rotation:
 	@sed -i "9,21 {s/^# //}" kustomization.yaml
+	@sed -i "18,24 {s/^# //}" configs/egress/v4/kustomization.yaml
+	@sed -i "18,24 {s/^# //}" configs/egress/v6/kustomization.yaml
 	@sed -i -E 's/^(- coil-.*controller_role\.yaml)/# \1/g' ../config/rbac/kustomization.yaml
 	@sed -i -E 's/^# (- coil-.*controller-certs_role\.yaml)/\1/g' ../config/rbac/kustomization.yaml
+	@sed -i -E 's/^(- \.\.\/coil-.*controller_role\.yaml)/# \1/g' ../config/rbac/egress/kustomization.yaml
+	@sed -i -E 's/^# (- \.\.\/coil-.*controller-certs_role\.yaml)/\1/g' ../config/rbac/egress/kustomization.yaml
 	@touch ../config/default/cert.pem
 	@touch ../config/default/ipam-cert.pem
 	@touch ../config/default/ipam-key.pem
