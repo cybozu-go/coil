@@ -20,10 +20,10 @@ const (
 
 var _ = Describe("coil controllers", func() {
 	if os.Getenv(testIPAMKey) == "true" {
-		Context("when the IPAM features are enabled", testCoilIPAMController)
+		Context("when the IPAM features are enabled", Ordered, testCoilIPAMController)
 	}
 	if os.Getenv(testEgressKey) == "true" {
-		Context("when egress feature is enabled", testCoilEgressController)
+		Context("when egress feature is enabled", Ordered, testCoilEgressController)
 	}
 })
 
