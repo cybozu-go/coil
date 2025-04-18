@@ -26,10 +26,10 @@ var (
 
 var _ = Describe("coil", func() {
 	if enableIPAMTests {
-		Context("when the IPAM features are enabled", testIPAM)
+		Context("when the IPAM features are enabled", Ordered, testIPAM)
 	}
 	if enableEgressTests {
-		Context("when egress feature is enabled", testEgress)
+		Context("when egress feature is enabled", Ordered, testEgress)
 	}
 	Context("when coild is deployed", testCoild)
 })

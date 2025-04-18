@@ -79,7 +79,7 @@ coil_egress_client_pod_count{egress="egress2",namespace="internet"} %d
 	return testutil.GatherAndCompare(metrics.Registry, expected, "coil_egress_client_pod_count")
 }
 
-var _ = Describe("Pod watcher", func() {
+var _ = Describe("Pod watcher", Ordered, func() {
 	ctx := context.Background()
 	var cancel context.CancelFunc
 	var ft *mockFoUTunnel
