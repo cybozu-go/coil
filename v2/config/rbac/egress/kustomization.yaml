@@ -5,6 +5,9 @@ resources:
 - ../leader_election_role_binding.yaml
 - ../coild_role.yaml
 # [EGRESS] Following files should be uncommented to enable Egress NAT features.
+# [CERTS] Please uncomment 'coil-egress-controller-certs_role.yaml' and 
+# comment 'coil-egress-controller_role.yaml' if automatic cert generation is being used.
 - ../coil-egress-controller_role.yaml
+# - ../coil-egress-controller-certs_role.yaml
 - ../coil-egress_role.yaml
 - ../egress_viewer_role.yaml
