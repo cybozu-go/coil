@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.10.1] - 2025-04-18
+
+### Changed
+
+- Fixed enable-certs-rotation makefile target (#324)
+- Test with Ordered option (#326)
+
 ## [2.10.0] - 2025-04-09
 
 ### Added
@@ -358,7 +365,8 @@ The following `coil-controller` related resources are no longer needed, and you 
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.10.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.10.1...HEAD
+[2.10.1]: https://github.com/cybozu-go/coil/compare/v2.10.0...v2.10.1
 [2.10.0]: https://github.com/cybozu-go/coil/compare/v2.9.1...v2.10.0
 [2.9.1]: https://github.com/cybozu-go/coil/compare/v2.9.0...v2.9.1
 [2.9.0]: https://github.com/cybozu-go/coil/compare/v2.8.0...v2.9.0
