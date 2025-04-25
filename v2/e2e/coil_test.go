@@ -556,6 +556,10 @@ func testEgress() {
 
 		By("confirming that the fou device must be one in dummy_pod")
 		out, err := kubectl(nil, "exec", "dummy", "--", "ip", "-j", "link", "show")
+
+		// debug
+		fmt.Printf("Debug out: %s", string(out))
+
 		Expect(err).NotTo(HaveOccurred())
 		var dummyPodLinks []link
 		err = json.Unmarshal(out, &dummyPodLinks)
