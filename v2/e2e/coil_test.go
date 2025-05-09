@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,16 +17,31 @@ import (
 	"github.com/prometheus/common/expfmt"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	policyv1 "k8s.io/api/policy/v1"
 )
 
 var (
-	enableIPv6Tests   = os.Getenv(testIPv6Key) == "true"
-	enableIPAMTests   = os.Getenv(testIPAMKey) == "true"
-	enableEgressTests = os.Getenv(testEgressKey) == "true"
+	enableIPv4Tests   = true
+	enableIPv6Tests   = false
+	enableIPAMTests   = true
+	enableEgressTests = true
 )
 
+func ParseEnv() {
+	enableIPv4Tests = ParseBool(testIPv4Key)
+	enableIPv6Tests = ParseBool(testIPv6Key)
+	enableIPAMTests = ParseBool(testIPAMKey)
+	enableEgressTests = ParseBool(testEgressKey)
+}
+
+func ParseBool(key string) bool {
+	value, _ := strconv.ParseBool(os.Getenv(key))
+	return value
+}
+
 var _ = Describe("coil", func() {
+	ParseEnv()
 	if enableIPAMTests {
 		Context("when the IPAM features are enabled", Ordered, testIPAM)
 	}
@@ -77,6 +94,10 @@ func testIPAM() {
 			manifest = "manifests/default_pool_v6.yaml"
 		}
 
+		if enableIPv4Tests && enableIPv6Tests {
+			manifest = "manifests/default_pool_dualstack.yaml"
+		}
+
 		Eventually(func() error {
 			_, err := kubectl(nil, "apply", "-f", manifest)
 			return err
@@ -85,7 +106,8 @@ func testIPAM() {
 		By("creating pods")
 		kubectlSafe(nil, "apply", "-f", "manifests/httpd.yaml")
 		kubectlSafe(nil, "apply", "-f", "manifests/ubuntu.yaml")
-		var httpdIP, httpdNode, ubuntuNode string
+		var httpdNode, ubuntuNode string
+		httpdIP := []corev1.PodIP{}
 		Eventually(func() error {
 			pods := &corev1.PodList{}
 			err := getResource("default", "pods", "", "", pods)
@@ -100,7 +122,7 @@ func testIPAM() {
 		OUTER:
 			for _, pod := range pods.Items {
 				if pod.Name == "httpd" {
-					httpdIP = pod.Status.PodIP
+					httpdIP = pod.Status.PodIPs
 					httpdNode = pod.Spec.NodeName
 				} else {
 					ubuntuNode = pod.Spec.NodeName
@@ -122,14 +144,21 @@ func testIPAM() {
 
 		By("checking communication between pods on different nodes")
 		var testURL string
-		if enableIPv6Tests {
-			testURL = fmt.Sprintf("http://[%s]:8000", httpdIP)
-		} else {
-			testURL = fmt.Sprintf("http://%s:8000", httpdIP)
+
+		for i := range httpdIP {
+			if enableIPv6Tests && net.ParseIP(httpdIP[i].IP).To16() != nil {
+				testURL = fmt.Sprintf("http://[%s]:8000", httpdIP[i].IP)
+			}
+			if enableIPv4Tests && net.ParseIP(httpdIP[i].IP).To4() != nil {
+				testURL = fmt.Sprintf("http://%s:8000", httpdIP[i].IP)
+			}
+			if testURL != "" {
+				Expect(ubuntuNode).NotTo(Equal(httpdNode))
+				out := kubectlSafe(nil, "exec", "ubuntu", "--", "curl", "-s", testURL)
+				Expect(string(out)).To(Equal("Hello"))
+			}
 		}
-		Expect(ubuntuNode).NotTo(Equal(httpdNode))
-		out := kubectlSafe(nil, "exec", "ubuntu", "--", "curl", "-s", testURL)
-		Expect(string(out)).To(Equal("Hello"))
+
 	})
 
 	It("should persist IPAM status between coild restarts", func() {
@@ -203,24 +232,29 @@ func testIPAM() {
 	})
 
 	It("should export routes to routing table 119", func() {
-		var ipOpt string
+		var ipOpts []string
+		if enableIPv4Tests {
+			ipOpts = append(ipOpts, "-4")
+		}
 		if enableIPv6Tests {
-			ipOpt = "-6"
-		} else {
-			ipOpt = "-4"
+			ipOpts = append(ipOpts, "-6")
 		}
-		out, err := runOnNode("coil-worker", "ip", ipOpt, "-j", "route", "show", "table", "119")
-		Expect(err).ShouldNot(HaveOccurred())
 
-		type route struct {
-			Dst      string `json:"dst"`
-			Dev      string `json:"dev"`
-			Protocol string `json:"protocol"`
+		for _, ipOpt := range ipOpts {
+			out, err := runOnNode("coil-worker", "ip", ipOpt, "-j", "route", "show", "table", "119")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			type route struct {
+				Dst      string `json:"dst"`
+				Dev      string `json:"dev"`
+				Protocol string `json:"protocol"`
+			}
+			var routes []route
+			err = json.Unmarshal(out, &routes)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(routes).NotTo(BeEmpty())
 		}
-		var routes []route
-		err = json.Unmarshal(out, &routes)
-		Expect(err).ShouldNot(HaveOccurred())
-		Expect(routes).NotTo(BeEmpty())
+
 	})
 
 	It("should free unused AddressBlocks", func() {
@@ -410,15 +444,22 @@ func testEgress() {
 	})
 
 	It("should allow NAT traffic over foo-over-udp tunnel", func() {
-		var fakeIP, fakeURL, ipOpt string
+		type options struct {
+			fakeIP  string
+			fakeURL string
+			ipOpt   string
+		}
+
+		opts := []options{}
+
+		// var fakeIP, fakeURL, ipOpt string
 		if enableIPv6Tests {
-			fakeIP = "2606:4700:4700::9999"
-			fakeURL = fmt.Sprintf("http://[%s]", fakeIP)
-			ipOpt = "-6"
-		} else {
-			fakeIP = "9.9.9.9"
-			fakeURL = "http://" + fakeIP
-			ipOpt = "-4"
+			fakeIP := "2606:4700:4700::9999"
+			opts = append(opts, options{fakeIP, fmt.Sprintf("http://[%s]", fakeIP), "-6"})
+		}
+		if enableIPv4Tests {
+			fakeIP := "9.9.9.9"
+			opts = append(opts, options{fakeIP, "http://" + fakeIP, "-4"})
 		}
 
 		By("setting a fake global address to coil-control-plane")
@@ -426,12 +467,15 @@ func testEgress() {
 		Expect(err).NotTo(HaveOccurred())
 		_, err = runOnNode("coil-control-plane", "ip", "link", "set", "dummy-fake", "up")
 		Expect(err).NotTo(HaveOccurred())
-		if enableIPv6Tests {
-			_, err = runOnNode("coil-control-plane", "ip", "address", "add", fakeIP+"/128", "dev", "dummy-fake", "nodad")
-		} else {
-			_, err = runOnNode("coil-control-plane", "ip", "address", "add", fakeIP+"/32", "dev", "dummy-fake")
+
+		for _, o := range opts {
+			if strings.Contains(o.ipOpt, "4") {
+				_, err = runOnNode("coil-control-plane", "ip", "address", "add", o.fakeIP+"/32", "dev", "dummy-fake")
+			} else {
+				_, err = runOnNode("coil-control-plane", "ip", "address", "add", o.fakeIP+"/128", "dev", "dummy-fake", "nodad")
+			}
+			Expect(err).NotTo(HaveOccurred())
 		}
-		Expect(err).NotTo(HaveOccurred())
 
 		natAddresses := []string{}
 		if !enableIPAMTests {
@@ -447,14 +491,26 @@ func testEgress() {
 
 		time.Sleep(100 * time.Millisecond)
 
-		By("sending and receiving HTTP request from nat-client")
-		data := make([]byte, 1<<20) // 1 MiB
-		testNAT(data, "nat-client", fakeURL, natAddresses, enableIPAMTests)
+		for _, o := range opts {
+			natAddressesFiltered := []string{}
+			for _, a := range natAddresses {
+				if strings.Contains(o.ipOpt, "4") && net.ParseIP(a).To4() != nil {
+					natAddressesFiltered = append(natAddressesFiltered, a)
+				}
+				if strings.Contains(o.ipOpt, "6") && net.ParseIP(a).To16() != nil {
+					natAddressesFiltered = append(natAddressesFiltered, a)
+				}
+			}
 
-		By("running the same test 100 times")
-		for i := 0; i < 100; i++ {
-			time.Sleep(1 * time.Millisecond)
-			testNAT(data, "nat-client", fakeURL, natAddresses, enableIPAMTests)
+			By("sending and receiving HTTP request from nat-client: " + o.fakeURL)
+			data := make([]byte, 1<<20) // 1 MiB
+			testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, enableIPAMTests)
+
+			By("running the same test 100 times")
+			for i := 0; i < 100; i++ {
+				time.Sleep(1 * time.Millisecond)
+				testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, enableIPAMTests)
+			}
 		}
 
 		natAddresses = []string{}
@@ -462,14 +518,26 @@ func testEgress() {
 			natAddresses = getNATAddresses("egress-sport-auto")
 		}
 
-		By("sending and receiving HTTP request from nat-client-sport-auto")
-		data = make([]byte, 1<<20) // 1 MiB
-		testNAT(data, "nat-client-sport-auto", fakeURL, natAddresses, enableIPAMTests)
+		for _, o := range opts {
+			natAddressesFiltered := []string{}
+			for _, a := range natAddresses {
+				if strings.Contains(o.ipOpt, "4") && net.ParseIP(a).To4() != nil {
+					natAddressesFiltered = append(natAddressesFiltered, a)
+				}
+				if strings.Contains(o.ipOpt, "6") && net.ParseIP(a).To16() != nil {
+					natAddressesFiltered = append(natAddressesFiltered, a)
+				}
+			}
 
-		By("running the same test 100 times with nat-client-sport-auto")
-		for i := 0; i < 100; i++ {
-			time.Sleep(1 * time.Millisecond)
-			testNAT(data, "nat-client-sport-auto", fakeURL, natAddresses, enableIPAMTests)
+			By("sending and receiving HTTP request from nat-client-sport-auto: " + o.fakeURL)
+			data := make([]byte, 1<<20) // 1 MiB
+			testNAT(data, "nat-client-sport-auto", o.fakeURL, natAddressesFiltered, enableIPAMTests)
+
+			By("running the same test 100 times with nat-client-sport-auto")
+			for i := 0; i < 100; i++ {
+				time.Sleep(1 * time.Millisecond)
+				testNAT(data, "nat-client-sport-auto", o.fakeURL, natAddressesFiltered, enableIPAMTests)
+			}
 		}
 
 		By("creating a dummy pod don't use egress")
@@ -511,50 +579,52 @@ func testEgress() {
 			Protocol string `json:"protocol"`
 		}
 
-		Eventually(func() error {
-			out, err := kubectl(nil, "exec", "nat-client", "--", "ip", ipOpt, "-d", "-j", "link", "show")
-			if err != nil {
-				return err
-			}
-			var links []link
-			err = json.Unmarshal(out, &links)
-			if err != nil {
-				return err
-			}
-			var found bool
-			for _, l := range links {
-				if strings.HasPrefix(l.Ifname, "fou") && l.Ifname != "fou-dummy" {
-					if l.Linkinfo.InfoData.Encap.Sport != 0 {
-						return fmt.Errorf("encap sport is not auto actual: %d", l.Linkinfo.InfoData.Encap.Sport)
-					}
-					found = true
-					break
+		for _, o := range opts {
+			Eventually(func() error {
+				out, err := kubectl(nil, "exec", "nat-client", "--", "ip", o.ipOpt, "-d", "-j", "link", "show")
+				if err != nil {
+					return err
 				}
-			}
-			if !found {
-				return fmt.Errorf("fou tunnel device not found")
-			}
+				var links []link
+				err = json.Unmarshal(out, &links)
+				if err != nil {
+					return err
+				}
+				var found bool
+				for _, l := range links {
+					if strings.HasPrefix(l.Ifname, "fou"+strings.ReplaceAll(o.ipOpt, "-", "")) && l.Ifname != "fou-dummy" {
+						if l.Linkinfo.InfoData.Encap.Sport != 0 {
+							return fmt.Errorf("encap sport is not auto actual: %d", l.Linkinfo.InfoData.Encap.Sport)
+						}
+						found = true
+						break
+					}
+				}
+				if !found {
+					return fmt.Errorf("fou tunnel device not found")
+				}
 
-			out, err = kubectl(nil, "exec", "nat-client", "--", "ip", ipOpt, "-j", "route", "show", "table", "118")
-			if err != nil {
-				return err
-			}
-			var routes []route
-			err = json.Unmarshal(out, &routes)
-			if err != nil {
-				return err
-			}
-			if len(routes) != 1 {
-				return fmt.Errorf("routes length is not 1 actual: %d", len(routes))
-			}
-			if routes[0].Dst != fakeIP {
-				return fmt.Errorf("route Dst is not %s actual: %s", fakeIP, routes[0].Dst)
-			}
+				out, err = kubectl(nil, "exec", "nat-client", "--", "ip", o.ipOpt, "-j", "route", "show", "table", "118")
+				if err != nil {
+					return err
+				}
+				var routes []route
+				err = json.Unmarshal(out, &routes)
+				if err != nil {
+					return err
+				}
+				if len(routes) != 1 {
+					return fmt.Errorf("routes length is not 1 actual: %d", len(routes))
+				}
+				if routes[0].Dst != o.fakeIP {
+					return fmt.Errorf("route Dst is not %s actual: %s", o.fakeIP, routes[0].Dst)
+				}
 
-			return nil
-		}).Should(Succeed())
+				return nil
+			}).Should(Succeed())
+		}
 
-		By("confirming that the fou device must be one in dummy_pod")
+		By("confirming that the exact number of fou devices are present in dummy_pod")
 		out, err := kubectl(nil, "exec", "dummy", "--", "ip", "-j", "link", "show")
 		Expect(err).NotTo(HaveOccurred())
 		var dummyPodLinks []link
@@ -566,23 +636,39 @@ func testEgress() {
 				fouCount += 1
 			}
 		}
-		Expect(fouCount).To(Equal(1))
-
-		By("sending and receiving HTTP request from nat-client")
+		expectedFouCount := 1
+		if enableIPv4Tests && enableIPv6Tests {
+			expectedFouCount = 2
+		}
+		Expect(fouCount).To(Equal(expectedFouCount))
 
 		natAddresses = []string{}
 		if !enableIPAMTests {
 			natAddresses = getNATAddresses("egress")
 		}
 
-		data = make([]byte, 1<<20) // 1 MiB
-		testNAT(data, "nat-client", fakeURL, natAddresses, enableIPAMTests)
+		for _, o := range opts {
+			natAddressesFiltered := []string{}
+			for _, a := range natAddresses {
+				if strings.Contains(o.ipOpt, "4") && net.ParseIP(a).To4() != nil {
+					natAddressesFiltered = append(natAddressesFiltered, a)
+				}
+				if strings.Contains(o.ipOpt, "6") && net.ParseIP(a).To16() != nil {
+					natAddressesFiltered = append(natAddressesFiltered, a)
+				}
+			}
 
-		By("running the same test 100 times")
-		for i := 0; i < 100; i++ {
-			time.Sleep(1 * time.Millisecond)
-			testNAT(data, "nat-client", fakeURL, natAddresses, enableIPAMTests)
+			By("sending and receiving HTTP request from nat-client: " + o.fakeURL)
+			data := make([]byte, 1<<20) // 1 MiB
+			testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, enableIPAMTests)
+
+			By("running the same test 100 times")
+			for i := 0; i < 100; i++ {
+				time.Sleep(1 * time.Millisecond)
+				testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, enableIPAMTests)
+			}
 		}
+
 	})
 }
 
@@ -613,14 +699,36 @@ func testNAT(data []byte, clientPod, fakeURL string, natAddresses []string, ipam
 
 func getNATAddresses(name string) []string {
 	eps := &corev1.Endpoints{}
-	err := getResource("internet", "endpoints", name, "", eps)
-	Expect(err).ToNot(HaveOccurred())
-
+	svc := &corev1.Service{}
+	epslices := &discoveryv1.EndpointSliceList{}
 	natAddresses := []string{}
-	for _, s := range eps.Subsets {
-		for _, a := range s.Addresses {
-			natAddresses = append(natAddresses, a.IP)
+
+	if enableIPv4Tests && enableIPv6Tests {
+		err := getResource("internet", "service", name, "", svc)
+		Expect(err).ToNot(HaveOccurred())
+		err = getResource("internet", "endpointslices", "", "", epslices)
+		Expect(err).ToNot(HaveOccurred())
+
+		for _, eps := range epslices.Items {
+			for _, or := range eps.ObjectMeta.OwnerReferences {
+				if or.UID == svc.UID {
+					for _, ep := range eps.Endpoints {
+						natAddresses = append(natAddresses, ep.Addresses...)
+					}
+					break
+				}
+			}
+		}
+	} else {
+		err := getResource("internet", "endpoints", name, "", eps)
+		Expect(err).ToNot(HaveOccurred())
+
+		for _, s := range eps.Subsets {
+			for _, a := range s.Addresses {
+				natAddresses = append(natAddresses, a.IP)
+			}
 		}
 	}
+
 	return natAddresses
 }

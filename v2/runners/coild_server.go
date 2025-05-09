@@ -438,39 +438,27 @@ func (s *coildServer) getHook(ctx context.Context, pod *corev1.Pod) (nodenet.Set
 				"failed to get Service "+n.String(), err.Error())
 		}
 
-		// coil doesn't support dual stack services for now, although it's stable from k8s 1.23
-		// https://kubernetes.io/docs/concepts/services-networking/dual-stack/
-		svcIP := net.ParseIP(svc.Spec.ClusterIP)
-		if svcIP == nil {
-			return nil, newError(codes.Internal, cnirpc.ErrorCode_INTERNAL,
-				"invalid ClusterIP in Service "+n.String(), svc.Spec.ClusterIP)
-		}
-		var subnets []*net.IPNet
-		if ip4 := svcIP.To4(); ip4 != nil {
-			svcIP = ip4
-			for _, sn := range eg.Spec.Destinations {
-				_, subnet, err := net.ParseCIDR(sn)
-				if err != nil {
-					return nil, newInternalError(err, "invalid network in Egress "+n.String())
-				}
-				if subnet.IP.To4() != nil {
-					subnets = append(subnets, subnet)
-				}
+		for _, clusterIP := range svc.Spec.ClusterIPs {
+			svcIP := net.ParseIP(clusterIP)
+			if svcIP == nil {
+				return nil, newError(codes.Internal, cnirpc.ErrorCode_INTERNAL,
+					"invalid ClusterIP in Service "+n.String(), clusterIP)
 			}
-		} else {
-			for _, sn := range eg.Spec.Destinations {
-				_, subnet, err := net.ParseCIDR(sn)
-				if err != nil {
-					return nil, newInternalError(err, "invalid network in Egress "+n.String())
-				}
-				if subnet.IP.To4() == nil {
-					subnets = append(subnets, subnet)
-				}
-			}
-		}
+			var subnets []*net.IPNet
 
-		if len(subnets) > 0 {
-			gwlist = append(gwlist, GWNets{Gateway: svcIP, Networks: subnets, SportAuto: eg.Spec.FouSourcePortAuto})
+			for _, sn := range eg.Spec.Destinations {
+				_, subnet, err := net.ParseCIDR(sn)
+				if err != nil {
+					return nil, newInternalError(err, "invalid network in Egress "+n.String())
+				}
+				if (svcIP.To4() != nil) == (subnet.IP.To4() != nil) {
+					subnets = append(subnets, subnet)
+				}
+			}
+
+			if len(subnets) > 0 {
+				gwlist = append(gwlist, GWNets{Gateway: svcIP, Networks: subnets, SportAuto: eg.Spec.FouSourcePortAuto})
+			}
 		}
 	}
 

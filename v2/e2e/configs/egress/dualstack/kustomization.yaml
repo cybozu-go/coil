@@ -1,11 +1,11 @@
 resources:
-- ../../../../config/default/egress/v4
+- ../../../../config/default/egress/v6
 
 configMapGenerator:
 - name: coil-config
   namespace: system
   files:
-  - cni_netconf=../../../netconf/netconf-kindnet-v4.json
+  - cni_netconf=../../../netconf/netconf-kindnet-dualstack.json
 
 # Adds namespace to all resources.
 namespace: kube-system

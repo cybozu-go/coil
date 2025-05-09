@@ -10,10 +10,26 @@ export KUBECTL
 
 KIND_CONFIG = kind-config.yaml
 ifeq ($(TEST_IPV6),true)
-	ifeq ($(WITH_KINDNET),true)
-		KIND_CONFIG = kind-config_kindnet_v6.yaml
-	else 
-		KIND_CONFIG = kind-config_v6.yaml
+	ifeq ($(TEST_IPV4),true)
+		ifeq ($(IPV6_PRIMARY),true)
+			ifeq ($(WITH_KINDNET),true)
+				KIND_CONFIG = kind-config_dualstack_v6_kindnet.yaml
+			else 
+				KIND_CONFIG = kind-config_dualstack_v6.yaml
+			endif
+		else
+			ifeq ($(WITH_KINDNET),true)
+				KIND_CONFIG = kind-config_dualstack_kindnet.yaml
+			else 
+				KIND_CONFIG = kind-config_dualstack.yaml
+			endif
+		endif
+	else
+		ifeq ($(WITH_KINDNET),true)
+			KIND_CONFIG = kind-config_kindnet_v6.yaml
+		else 
+			KIND_CONFIG = kind-config_v6.yaml
+		endif
 	endif
 else
 	ifeq ($(WITH_KINDNET),true)
@@ -50,7 +66,7 @@ install-coil-egress-v4: setup-nodes
 	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
 	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
 	$(KUBECTL) rollout status daemonset coild -n kube-system --timeout=3m
-	./kindnet-conf --action set --file 10-coil.conflist
+	./kindnet-conf --action set --cni-config 10-coil.conflist
 	rm -rf tmp kindnet-conf
 
 .PHONY: install-coil-egress-v6
@@ -65,7 +81,24 @@ install-coil-egress-v6: setup-nodes
 	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
 	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
 	$(KUBECTL) rollout status daemonset coild -n kube-system --timeout=3m
-	./kindnet-conf --action set --file 10-coil.conflist --protocol v6
+	./kindnet-conf --action set --cni-config 10-coil.conflist --protocol v6
+	rm -rf tmp kindnet-conf
+
+.PHONY: install-coil-egress-v6
+install-coil-egress-dualstack: setup-nodes
+	rm -rf tmp
+	mkdir tmp 2> /dev/null
+	$(KUBECTL) rollout status daemonset kindnet -n kube-system --timeout 120s
+	CGO_ENABLED=0 go build -o kindnet-conf ./kindnet-configurer
+	./kindnet-conf --action get --protocol v4
+	./kindnet-conf --action get --protocol v6
+	$(KIND) load docker-image --name coil coil:dev
+	$(KUSTOMIZE) build --load-restrictor=LoadRestrictionsNone configs/egress/dualstack | $(KUBECTL) apply -f -
+	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
+	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
+	$(KUBECTL) rollout status daemonset coild -n kube-system --timeout=3m
+	./kindnet-conf --action set --cni-config 10-coil.conflist --protocol v4
+	./kindnet-conf --action set --cni-config 10-coil.conflist --protocol v6
 	rm -rf tmp kindnet-conf
 
 .PHONY: setup-nodes
@@ -105,6 +138,7 @@ enable-certs-rotation:
 	@sed -i "9,21 {s/^# //}" kustomization.yaml
 	@sed -i "18,24 {s/^# //}" configs/egress/v4/kustomization.yaml
 	@sed -i "18,24 {s/^# //}" configs/egress/v6/kustomization.yaml
+	@sed -i "18,24 {s/^# //}" configs/egress/dualstack/kustomization.yaml
 	@sed -i -E 's/^(- coil-.*controller_role\.yaml)/# \1/g' ../config/rbac/kustomization.yaml
 	@sed -i -E 's/^# (- coil-.*controller-certs_role\.yaml)/\1/g' ../config/rbac/kustomization.yaml
 	@sed -i -E 's/^(- \.\.\/coil-.*controller_role\.yaml)/# \1/g' ../config/rbac/egress/kustomization.yaml

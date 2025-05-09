@@ -9,26 +9,27 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	containerName   = "coil-worker"
-	ipv4            = "v4"
-	ipv6            = "v6"
-	getAction       = "get"
-	setAction       = "set"
-	defaultConflist = "10-kindnet.conflist"
-	numOfNodes      = 4
+	containerName      = "coil"
+	ipv4               = "v4"
+	ipv6               = "v6"
+	getAction          = "get"
+	setAction          = "set"
+	defaultConflist    = "10-kindnet.conflist"
+	numOfNodes         = 4
+	defaultTmpFilename = "networks"
 )
 
 func main() {
 	action := flag.String("action", getAction, "Action to perform (get/set)")
 	container := flag.String("container", containerName, "Base name of the container to use")
 	protocol := flag.String("protocol", ipv4, "Version of IP protocol to use")
-	file := flag.String("file", defaultConflist, "CNI config file to edit")
+	cniConfig := flag.String("cni-config", defaultConflist, "CNI config file to edit")
+	file := flag.String("file", defaultTmpFilename, "Base name for temporary file")
 
 	flag.Parse()
 
@@ -36,13 +37,25 @@ func main() {
 		log.Fatalf("invalid protocol [%s]", *protocol)
 	}
 
+	containers := []string{}
+	for i := 0; i < numOfNodes; i++ {
+		c := fmt.Sprintf("%s-worker", *container)
+		if i == 0 {
+			c = fmt.Sprintf("%s-control-plane", *container)
+		}
+		if i > 1 {
+			c = fmt.Sprintf("%s%d", c, i)
+		}
+		containers = append(containers, c)
+	}
+
 	switch *action {
 	case getAction:
-		if err := get(*file, *protocol, *container); err != nil {
+		if err := get(*cniConfig, *protocol, *file, containers); err != nil {
 			log.Fatal(err)
 		}
 	case setAction:
-		if err := set(*file, *protocol, *container); err != nil {
+		if err := set(*cniConfig, *protocol, *file, containers); err != nil {
 			log.Fatal(err)
 		}
 	default:
@@ -50,8 +63,8 @@ func main() {
 	}
 }
 
-func get(conflistName, protoVer, contianerBase string) error {
-	path := filepath.Join("tmp", "networks")
+func get(conflistName, protoVer, tmpFilename string, containers []string) error {
+	path := filepath.Join("tmp", fmt.Sprintf("%s-%s", tmpFilename, protoVer))
 	f, err := os.Create(path)
 	if err != nil {
 		return err
@@ -63,11 +76,7 @@ func get(conflistName, protoVer, contianerBase string) error {
 		address = "fd00:10:244:"
 	}
 
-	for i := 1; i < numOfNodes; i++ {
-		container := contianerBase
-		if i > 1 {
-			container += strconv.Itoa(i)
-		}
+	for _, container := range containers {
 		var err error
 		var output string
 		var errOutput string
@@ -99,10 +108,6 @@ func get(conflistName, protoVer, contianerBase string) error {
 		}
 
 		network := output[start:end]
-		key := strings.ToUpper(container) + "_NETWORK"
-		if err := os.Setenv(key, network); err != nil {
-			return fmt.Errorf("failed to set env [%s]: %w", key, err)
-		}
 		if _, err := fmt.Fprintln(f, network); err != nil {
 			return fmt.Errorf("failed to write temporary file %s: %w", path, err)
 		}
@@ -111,8 +116,8 @@ func get(conflistName, protoVer, contianerBase string) error {
 	return nil
 }
 
-func set(conflistName, protoVer, contianerBase string) error {
-	f, err := os.Open(filepath.Join("tmp", "networks"))
+func set(conflistName, protoVer, tmpFilename string, contianers []string) error {
+	f, err := os.Open(filepath.Join("tmp", fmt.Sprintf("%s-%s", tmpFilename, protoVer)))
 	if err != nil {
 		return err
 	}
@@ -120,14 +125,9 @@ func set(conflistName, protoVer, contianerBase string) error {
 
 	scanner := bufio.NewScanner(f)
 
-	for i := 1; i < numOfNodes; i++ {
-		container := contianerBase
-		if i > 1 {
-			container += strconv.Itoa(i)
-		}
+	for _, container := range contianers {
 		scanner.Scan()
 		network := scanner.Text()
-		fmt.Printf("%s: %s\n", strings.ToUpper(container)+"_NETWORK", network)
 		reg := fmt.Sprintf("s/10\\.244\\.0\\.0/%s/", network)
 		if protoVer == ipv6 {
 			reg = fmt.Sprintf("s/fd00\\:10\\:244\\:\\:/%s/", network)

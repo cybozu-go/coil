@@ -45,7 +45,18 @@ jobs:
       matrix:
         kindest-node: ["1.29.12", "1.30.8", "1.31.4"]
         with-ipam: ["false", "true"]
+        ipv4: ["false", "true"]
         ipv6: ["false", "true"]
+        ipv6-primary: ["false", "true"]
+        exclude:
+        - ipv4: "false"
+          ipv6: "false"        
+        - ipv4: "false"
+          ipv6: "true"
+          ipv6-primary: "true"
+        - ipv4: "true"
+          ipv6: "false"
+          ipv6-primary: "true"
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
@@ -64,22 +75,25 @@ jobs:
         sudo systemctl restart docker.service
         sleep 10
         echo TEST_IPV6=true >> $GITHUB_ENV
-    - run: make start KUBERNETES_VERSION=${{ matrix.kindest-node }} WITH_KINDNET=false TEST_IPV6=${{ matrix.ipv6 }}
+    - run: make start KUBERNETES_VERSION=${{ matrix.kindest-node }} WITH_KINDNET=false TEST_IPV4=${{ matrix.ipv4 }} TEST_IPV6=${{ matrix.ipv6 }} IPV6_PRIMARY=${{ matrix.ipv6-primary }}
       if: matrix.with-ipam == 'true'
       working-directory: v2/e2e
-    - run: make start KUBERNETES_VERSION=${{ matrix.kindest-node }} WITH_KINDNET=true TEST_IPV6=${{ matrix.ipv6 }}
+    - run: make start KUBERNETES_VERSION=${{ matrix.kindest-node }} WITH_KINDNET=true TEST_IPV4=${{ matrix.ipv4 }} TEST_IPV6=${{ matrix.ipv6 }} IPV6_PRIMARY=${{ matrix.ipv6-primary }}
       if: matrix.with-ipam == 'false'
       working-directory: v2/e2e
     - run: make install-coil
       if: matrix.with-ipam == 'true'
       working-directory: v2/e2e
     - run: make install-coil-egress-v4
-      if: matrix.with-ipam == 'false' && matrix.ipv6 == 'false'
+      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'false'
       working-directory: v2/e2e
     - run: make install-coil-egress-v6
-      if: matrix.with-ipam == 'false' && matrix.ipv6 == 'true'
+      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'false' && matrix.ipv6 == 'true'
       working-directory: v2/e2e
-    - run: make test TEST_IPAM=${{ matrix.with-ipam }} TEST_EGRESS=true TEST_IPV6=${{ matrix.ipv6 }}
+    - run: make install-coil-egress-dualstack
+      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'true'
+      working-directory: v2/e2e
+    - run: make test TEST_IPAM=${{ matrix.with-ipam }} TEST_EGRESS=true TEST_IPV4=${{ matrix.ipv4 }} TEST_IPV6=${{ matrix.ipv6 }}
       working-directory: v2/e2e
     - run: make logs
       working-directory: v2/e2e
@@ -87,7 +101,7 @@ jobs:
     - uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: logs-ipv6-${{ matrix.ipv6 }}-with-ipam-${{ matrix.with-ipam }}-${{ matrix.kindest-node }}.tar.gz
+        name: logs-ipv4-${{ matrix.ipv4 }}-ipv6-${{ matrix.ipv6 }}-with-ipam-${{ matrix.with-ipam }}-ipv6-primary-${{ matrix.ipv6-primary }}-${{ matrix.kindest-node }}.tar.gz
         path: v2/e2e/logs.tar.gz
   certs-generation:
     name: Cert generation test

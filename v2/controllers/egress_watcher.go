@@ -109,7 +109,7 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 }
 
 func (r *EgressWatcher) reconcileEgressClient(ctx context.Context, eg *coilv2.Egress, pod *corev1.Pod, logger *logr.Logger) error {
-	hook, err := r.getHook(ctx, eg, logger)
+	hooks, err := r.getHooks(ctx, eg, logger)
 	if err != nil {
 		return fmt.Errorf("failed to setup NAT hook: %w", err)
 	}
@@ -125,8 +125,11 @@ func (r *EgressWatcher) reconcileEgressClient(ctx context.Context, eg *coilv2.Eg
 			ipv6 = ip.To16()
 		}
 	}
-	if err := r.PodNet.Update(ipv4, ipv6, hook, pod); err != nil {
-		return fmt.Errorf("failed to update NAT configuration: %w", err)
+
+	for _, hook := range hooks {
+		if err := r.PodNet.Update(ipv4, ipv6, hook, pod); err != nil {
+			return fmt.Errorf("failed to update NAT configuration: %w", err)
+		}
 	}
 
 	return nil
@@ -138,7 +141,7 @@ type gwNets struct {
 	sportAuto bool
 }
 
-func (r *EgressWatcher) getHook(ctx context.Context, eg *coilv2.Egress, logger *logr.Logger) (nodenet.SetupHook, error) {
+func (r *EgressWatcher) getHooks(ctx context.Context, eg *coilv2.Egress, logger *logr.Logger) ([]nodenet.SetupHook, error) {
 	var gw gwNets
 	svc := &corev1.Service{}
 
@@ -146,41 +149,31 @@ func (r *EgressWatcher) getHook(ctx context.Context, eg *coilv2.Egress, logger *
 		return nil, err
 	}
 
-	// See getHook in coild_server.go
-	svcIP := net.ParseIP(svc.Spec.ClusterIP)
-	if svcIP == nil {
-		return nil, fmt.Errorf("invalid ClusterIP in Service %s %s", eg.Name, svc.Spec.ClusterIP)
-	}
-	var subnets []*net.IPNet
-	if ip4 := svcIP.To4(); ip4 != nil {
-		svcIP = ip4
+	hooks := []nodenet.SetupHook{}
+	for _, clusterIP := range svc.Spec.ClusterIPs {
+		var subnets []*net.IPNet
+		svcIP := net.ParseIP(clusterIP)
+		if svcIP == nil {
+			return nil, fmt.Errorf("invalid ClusterIP in Service %s %s", eg.Name, svc.Spec.ClusterIP)
+		}
+
 		for _, sn := range eg.Spec.Destinations {
 			_, subnet, err := net.ParseCIDR(sn)
 			if err != nil {
 				return nil, fmt.Errorf("invalid network in Egress %s", eg.Name)
 			}
-			if subnet.IP.To4() != nil {
+			if (svcIP.To4() != nil) == (subnet.IP.To4() != nil) {
 				subnets = append(subnets, subnet)
 			}
 		}
-	} else {
-		for _, sn := range eg.Spec.Destinations {
-			_, subnet, err := net.ParseCIDR(sn)
-			if err != nil {
-				return nil, fmt.Errorf("invalid network in Egress %s", eg.Name)
-			}
-			if subnet.IP.To4() == nil {
-				subnets = append(subnets, subnet)
-			}
+
+		if len(subnets) > 0 {
+			gw = gwNets{gateway: svcIP, networks: subnets, sportAuto: eg.Spec.FouSourcePortAuto}
+			hooks = append(hooks, r.hook(gw, logger))
 		}
 	}
 
-	if len(subnets) > 0 {
-		gw = gwNets{gateway: svcIP, networks: subnets, sportAuto: eg.Spec.FouSourcePortAuto}
-		return r.hook(gw, logger), nil
-	}
-
-	return nil, nil
+	return hooks, nil
 }
 
 func (r *EgressWatcher) hook(gwn gwNets, log *logr.Logger) func(ipv4, ipv6 net.IP) error {

@@ -547,6 +547,7 @@ var _ = Describe("Coild server", func() {
 			// currently, ClusterIP must be picked from 10.0.0.0/24
 			// see https://github.com/kubernetes/kubernetes/pull/51249
 			svc.Spec.ClusterIP = "10.0.0.5"
+			svc.Spec.ClusterIPs = []string{"10.0.0.5"}
 			svc.Spec.Ports = []corev1.ServicePort{{Port: 8080}}
 			err = k8sClient.Create(ctx, svc)
 			Expect(err).NotTo(HaveOccurred())
