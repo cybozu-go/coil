@@ -3,7 +3,7 @@ package e2e
 import (
 	"bytes"
 	"fmt"
-	"os"
+	"net"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	. "github.com/onsi/ginkgo/v2"
@@ -14,15 +14,17 @@ import (
 
 const (
 	testIPv6Key   = "TEST_IPV6"
+	testIPv4Key   = "TEST_IPV4"
 	testIPAMKey   = "TEST_IPAM"
 	testEgressKey = "TEST_EGRESS"
 )
 
 var _ = Describe("coil controllers", func() {
-	if os.Getenv(testIPAMKey) == "true" {
+	ParseEnv()
+	if enableIPAMTests {
 		Context("when the IPAM features are enabled", Ordered, testCoilIPAMController)
 	}
-	if os.Getenv(testEgressKey) == "true" {
+	if enableEgressTests {
 		Context("when egress feature is enabled", Ordered, testCoilEgressController)
 	}
 })
@@ -81,17 +83,25 @@ func testCoilEgressController() {
 
 			node := pods.Items[0].Spec.NodeName
 
-			address := fmt.Sprintf("http://%s:9396/metrics", pods.Items[0].Status.PodIP)
-			if enableIPv6Tests {
-				address = fmt.Sprintf("http://[%s]:9396/metrics", pods.Items[0].Status.PodIP)
+			for _, ip := range pods.Items[0].Status.PodIPs {
+				ipAddr := ""
+				if enableIPv6Tests && net.ParseIP(ip.IP).To16() != nil {
+					ipAddr = fmt.Sprintf("[%s]", ip.IP)
+				}
+				if enableIPv4Tests && net.ParseIP(ip.IP).To4() != nil {
+					ipAddr = ip.IP
+				}
+				if ipAddr != "" {
+					address := fmt.Sprintf("http://%s:9396/metrics", ipAddr)
+
+					out, err := runOnNode(node, "curl", "-sf", address)
+					Expect(err).ShouldNot(HaveOccurred())
+
+					mfs, err := (&expfmt.TextParser{}).TextToMetricFamilies(bytes.NewReader(out))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(mfs).NotTo(BeEmpty())
+				}
 			}
-
-			out, err := runOnNode(node, "curl", "-sf", address)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			mfs, err := (&expfmt.TextParser{}).TextToMetricFamilies(bytes.NewReader(out))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(mfs).NotTo(BeEmpty())
 		})
 	})
 }

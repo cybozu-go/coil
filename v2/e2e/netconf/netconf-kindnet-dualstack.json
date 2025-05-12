@@ -1,0 +1,37 @@
+{
+  "cniVersion": "0.3.1",
+  "name": "kindnet",
+  "plugins": [
+    {
+      "type": "ptp",
+      "ipMasq": false,
+      "ipam": {
+              "type": "host-local",
+              "dataDir": "/run/cni-ipam-state",
+              "routes": [
+                      { "dst": "0.0.0.0/0" }
+                      ,
+                      { "dst": "::/0" }
+              ],
+              "ranges": [
+                      [ { "subnet": "10.244.0.0/24" } ]
+                      ,
+                      [ { "subnet": "fd00:10:244::/64" } ]
+              ]
+      }
+      ,
+      "mtu": 1500
+
+    }, 
+    {
+      "type": "coil",
+      "socket": "/run/coild.sock"
+    },
+    {
+      "type": "portmap",
+      "capabilities": {
+        "portMappings": true
+      }
+    }
+  ]
+}

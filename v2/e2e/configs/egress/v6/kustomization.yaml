@@ -22,4 +22,3 @@ commonLabels:
 #     version: v1
 #     kind: Deployment
 #     name: coil-egress-controller
-
