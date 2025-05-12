@@ -626,6 +626,10 @@ func testEgress() {
 
 		By("confirming that the exact number of fou devices are present in dummy_pod")
 		out, err := kubectl(nil, "exec", "dummy", "--", "ip", "-j", "link", "show")
+
+		// debug
+		fmt.Printf("Debug out: %s", string(out))
+
 		Expect(err).NotTo(HaveOccurred())
 		var dummyPodLinks []link
 		err = json.Unmarshal(out, &dummyPodLinks)
