@@ -48,6 +48,13 @@ func testEgressDual(t *testing.T) {
 		if !exist {
 			return errors.New("NAT rule not found for IPv4")
 		}
+		exist, err = ipt.Exists("filter", "FORWARD", "-o", "lo", "-m", "state", "--state", "INVALID", "-j", "DROP")
+		if err != nil {
+			return err
+		}
+		if !exist {
+			return errors.New("Filter rule not found for IPv4")
+		}
 
 		ipt, err = iptables.NewWithProtocol(iptables.ProtocolIPv6)
 		if err != nil {
@@ -59,6 +66,14 @@ func testEgressDual(t *testing.T) {
 		}
 		if !exist {
 			return errors.New("NAT rule not found for IPv6")
+		}
+
+		exist, err = ipt.Exists("filter", "FORWARD", "-o", "lo", "-m", "state", "--state", "INVALID", "-j", "DROP")
+		if err != nil {
+			return err
+		}
+		if !exist {
+			return errors.New("Filter rule not found for IPv6")
 		}
 
 		rm, err := ruleMap(netlink.FAMILY_V4)
@@ -168,6 +183,14 @@ func testEgressV4(t *testing.T) {
 			return errors.New("NAT rule not found for IPv4")
 		}
 
+		exist, err = ipt.Exists("filter", "FORWARD", "-o", "lo", "-m", "state", "--state", "INVALID", "-j", "DROP")
+		if err != nil {
+			return err
+		}
+		if !exist {
+			return errors.New("Filter rule not found for IPv4")
+		}
+
 		ipt, err = iptables.NewWithProtocol(iptables.ProtocolIPv6)
 		if err != nil {
 			return err
@@ -178,6 +201,14 @@ func testEgressV4(t *testing.T) {
 		}
 		if exist {
 			return errors.New("NAT rule found for IPv6")
+		}
+
+		exist, err = ipt.Exists("filter", "FORWARD", "-o", "lo", "-m", "state", "--state", "INVALID", "-j", "DROP")
+		if err != nil {
+			return err
+		}
+		if exist {
+			return errors.New("Filter rule found for IPv6")
 		}
 
 		rm, err := ruleMap(netlink.FAMILY_V4)
@@ -256,6 +287,14 @@ func testEgressV6(t *testing.T) {
 			return errors.New("NAT rule found for IPv4")
 		}
 
+		exist, err = ipt.Exists("filter", "FORWARD", "-o", "lo", "-m", "state", "--state", "INVALID", "-j", "DROP")
+		if err != nil {
+			return err
+		}
+		if exist {
+			return errors.New("Filter rule found for IPv4")
+		}
+
 		ipt, err = iptables.NewWithProtocol(iptables.ProtocolIPv6)
 		if err != nil {
 			return err
@@ -266,6 +305,14 @@ func testEgressV6(t *testing.T) {
 		}
 		if !exist {
 			return errors.New("NAT rule not found for IPv6")
+		}
+
+		exist, err = ipt.Exists("filter", "FORWARD", "-o", "lo", "-m", "state", "--state", "INVALID", "-j", "DROP")
+		if err != nil {
+			return err
+		}
+		if !exist {
+			return errors.New("Filter rule not found for IPv6")
 		}
 
 		rm, err := ruleMap(netlink.FAMILY_V4)
