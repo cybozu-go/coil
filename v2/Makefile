@@ -296,7 +296,7 @@ define comment_certs
     $(eval $@_FILE = $(1))
 	@sed -i -E "{s/(^patchesStrategicMerge.*)/# \1/}" ${$@_FILE}
 	@sed -i -E "{s/(^-.*webhook_manifests_patch.*)/# \1/}" ${$@_FILE}
-endef    
+endef
 
 .PHONY: enable-certs-rotation
 enable-certs-rotation:
