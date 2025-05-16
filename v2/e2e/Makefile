@@ -14,20 +14,20 @@ ifeq ($(TEST_IPV6),true)
 		ifeq ($(IPV6_PRIMARY),true)
 			ifeq ($(WITH_KINDNET),true)
 				KIND_CONFIG = kind-config_dualstack_v6_kindnet.yaml
-			else 
+			else
 				KIND_CONFIG = kind-config_dualstack_v6.yaml
 			endif
 		else
 			ifeq ($(WITH_KINDNET),true)
 				KIND_CONFIG = kind-config_dualstack_kindnet.yaml
-			else 
+			else
 				KIND_CONFIG = kind-config_dualstack.yaml
 			endif
 		endif
 	else
 		ifeq ($(WITH_KINDNET),true)
 			KIND_CONFIG = kind-config_kindnet_v6.yaml
-		else 
+		else
 			KIND_CONFIG = kind-config_v6.yaml
 		endif
 	endif
@@ -131,7 +131,7 @@ define comment_certs
     $(eval $@_FILE = $(1))
 	@sed -i -E "{s/(^patchesStrategicMerge.*)/# \1/}" ${$@_FILE}
 	@sed -i -E "{s/(^-.*webhook_manifests_patch.*)/# \1/}" ${$@_FILE}
-endef    
+endef
 
 .PHONY: enable-certs-rotation
 enable-certs-rotation:

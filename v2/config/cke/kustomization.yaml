@@ -2,7 +2,8 @@ resources:
 - ../crd
 - ../rbac
 - ../pod
-- ../webhook
+- ../webhook/egress
+- ../webhook/ipam
 - ./webhook-secret.yaml
 
 patchesStrategicMerge:
