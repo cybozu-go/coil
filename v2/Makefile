@@ -32,6 +32,7 @@ PODNSLIST = pod1 pod2 pod3 pod4 pod5 pod6
 NATNSLIST = nat-client nat-router nat-egress nat-target
 OTHERNSLIST = test-egress-dual test-egress-v4 test-egress-v6 \
 	test-client-dual test-client-v4 test-client-v6 test-client-custom \
+	test-client-dual-oo test-client-v4-oo test-client-v6-oo test-client-custom-oo \
 	test-fou-dual test-fou-v4 test-fou-v6
 WGET_OPTIONS := --retry-on-http-error=503 --retry-connrefused --no-verbose
 WGET := wget $(WGET_OPTIONS)
