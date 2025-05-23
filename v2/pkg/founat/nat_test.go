@@ -40,11 +40,11 @@ func TestNAT(t *testing.T) {
 			return fmt.Errorf("ft.AddPeer failed for fd01::202: %w", err)
 		}
 
-		err = nc.AddEgress(link4, []*net.IPNet{{IP: net.ParseIP("10.1.3.0"), Mask: net.CIDRMask(24, 32)}})
+		err = nc.AddEgress(link4, []*net.IPNet{{IP: net.ParseIP("10.1.3.0"), Mask: net.CIDRMask(24, 32)}}, false)
 		if err != nil {
 			return fmt.Errorf("nc.AddEgress failed for 10.1.3.0/24: %w", err)
 		}
-		err = nc.AddEgress(link6, []*net.IPNet{{IP: net.ParseIP("fd01::300"), Mask: net.CIDRMask(120, 128)}})
+		err = nc.AddEgress(link6, []*net.IPNet{{IP: net.ParseIP("fd01::300"), Mask: net.CIDRMask(120, 128)}}, false)
 		if err != nil {
 			return fmt.Errorf("nc.AddEgress failed for fd01::300/120: %w", err)
 		}

@@ -146,7 +146,7 @@ func testClientDual(t *testing.T) {
 			{IP: net.ParseIP("0.0.0.0"), Mask: net.CIDRMask(0, 32)},
 			{IP: net.ParseIP("fd02::"), Mask: net.CIDRMask(64, 128)},
 			{IP: net.ParseIP("::"), Mask: net.CIDRMask(0, 128)},
-		})
+		}, false)
 		if err != nil {
 			return fmt.Errorf("failed to add egress: %w", err)
 		}
@@ -196,7 +196,7 @@ func testClientDual(t *testing.T) {
 			{IP: net.ParseIP("fd04::"), Mask: net.CIDRMask(64, 128)},
 			{IP: net.ParseIP("fd05::"), Mask: net.CIDRMask(64, 128)},
 			{IP: net.ParseIP("::"), Mask: net.CIDRMask(0, 128)},
-		})
+		}, false)
 
 		if err != nil {
 			return fmt.Errorf("failed to add egress: %w", err)
@@ -363,7 +363,7 @@ func testClientV4(t *testing.T) {
 			{IP: net.ParseIP("0.0.0.0"), Mask: net.CIDRMask(0, 32)},
 			{IP: net.ParseIP("fd02::"), Mask: net.CIDRMask(64, 128)},
 			{IP: net.ParseIP("::"), Mask: net.CIDRMask(0, 128)},
-		})
+		}, false)
 		if err != nil {
 			return fmt.Errorf("failed to add egress: %w", err)
 		}
@@ -453,7 +453,7 @@ func testClientV6(t *testing.T) {
 			{IP: net.ParseIP("0.0.0.0"), Mask: net.CIDRMask(0, 32)},
 			{IP: net.ParseIP("fd02::"), Mask: net.CIDRMask(64, 128)},
 			{IP: net.ParseIP("::"), Mask: net.CIDRMask(0, 128)},
-		})
+		}, false)
 		if err != nil {
 			return fmt.Errorf("failed to add egress: %w", err)
 		}
@@ -528,7 +528,7 @@ func testClientCustom(t *testing.T) {
 		err = nc.AddEgress(link, []*net.IPNet{
 			{IP: net.ParseIP("10.1.2.0"), Mask: net.CIDRMask(24, 32)},
 			{IP: net.ParseIP("fd03::"), Mask: net.CIDRMask(64, 128)},
-		})
+		}, false)
 		if err != nil {
 			return fmt.Errorf("failed to add egress: %w", err)
 		}

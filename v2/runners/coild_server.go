@@ -37,9 +37,10 @@ import (
 
 // GWNets represents networks for a destination.
 type GWNets struct {
-	Gateway   net.IP
-	Networks  []*net.IPNet
-	SportAuto bool
+	Gateway         net.IP
+	Networks        []*net.IPNet
+	SportAuto       bool
+	OriginatingOnly bool
 }
 
 // NATSetup represents a NAT setup function for Pods.
@@ -83,7 +84,7 @@ func (n natSetup) Hook(l []GWNets, log *zap.Logger) func(ipv4, ipv6 net.IP) erro
 			if err != nil {
 				return err
 			}
-			if err := cl.AddEgress(link, gwn.Networks); err != nil {
+			if err := cl.AddEgress(link, gwn.Networks, gwn.OriginatingOnly); err != nil {
 				return err
 			}
 		}
@@ -457,7 +458,8 @@ func (s *coildServer) getHook(ctx context.Context, pod *corev1.Pod) (nodenet.Set
 			}
 
 			if len(subnets) > 0 {
-				gwlist = append(gwlist, GWNets{Gateway: svcIP, Networks: subnets, SportAuto: eg.Spec.FouSourcePortAuto})
+				gwlist = append(gwlist, GWNets{Gateway: svcIP, Networks: subnets,
+					SportAuto: eg.Spec.FouSourcePortAuto, OriginatingOnly: eg.Spec.OriginatingOnly})
 			}
 		}
 	}
