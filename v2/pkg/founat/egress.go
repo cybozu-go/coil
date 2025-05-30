@@ -76,8 +76,7 @@ func (e *egress) Init() error {
 		if err != nil {
 			return fmt.Errorf("failed to setup masquerade rule for IPv4: %w", err)
 		}
-		err = ipt.Append("filter", "FORWARD", "-o", e.iface, "-m", "state", "--state", "INVALID", "-j", "DROP")
-		if err != nil {
+		if err := ipt.Append("filter", "FORWARD", "-o", e.iface, "-m", "state", "--state", "INVALID", "-j", "DROP"); err != nil {
 			return fmt.Errorf("failed to setup drop rule for invalid packets: %w", err)
 		}
 
@@ -96,8 +95,7 @@ func (e *egress) Init() error {
 		if err != nil {
 			return fmt.Errorf("failed to setup masquerade rule for IPv6: %w", err)
 		}
-		err = ipt.Append("filter", "FORWARD", "-o", e.iface, "-m", "state", "--state", "INVALID", "-j", "DROP")
-		if err != nil {
+		if err := ipt.Append("filter", "FORWARD", "-o", e.iface, "-m", "state", "--state", "INVALID", "-j", "DROP"); err != nil {
 			return fmt.Errorf("failed to setup drop rule for invalid packets: %w", err)
 		}
 
