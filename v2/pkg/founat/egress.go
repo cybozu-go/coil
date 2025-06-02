@@ -76,6 +76,9 @@ func (e *egress) Init() error {
 		if err != nil {
 			return fmt.Errorf("failed to setup masquerade rule for IPv4: %w", err)
 		}
+		if err := ipt.Append("filter", "FORWARD", "-o", e.iface, "-m", "state", "--state", "INVALID", "-j", "DROP"); err != nil {
+			return fmt.Errorf("failed to setup drop rule for invalid packets: %w", err)
+		}
 
 		rule := e.newRule(netlink.FAMILY_V4)
 		if err := netlink.RuleAdd(rule); err != nil {
@@ -91,6 +94,9 @@ func (e *egress) Init() error {
 		err = ipt.Append("nat", "POSTROUTING", "!", "-s", ipn.String(), "-o", e.iface, "-j", "MASQUERADE")
 		if err != nil {
 			return fmt.Errorf("failed to setup masquerade rule for IPv6: %w", err)
+		}
+		if err := ipt.Append("filter", "FORWARD", "-o", e.iface, "-m", "state", "--state", "INVALID", "-j", "DROP"); err != nil {
+			return fmt.Errorf("failed to setup drop rule for invalid packets: %w", err)
 		}
 
 		rule := e.newRule(netlink.FAMILY_V6)
