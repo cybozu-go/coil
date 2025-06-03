@@ -1,6 +1,8 @@
 package v2
 
 import (
+	"context"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,13 +23,13 @@ func (r *Egress) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 // +kubebuilder:webhook:path=/mutate-coil-cybozu-com-v2-egress,mutating=true,failurePolicy=fail,sideEffects=None,groups=coil.cybozu.com,resources=egresses,verbs=create,versions=v2,name=megress.kb.io,admissionReviewVersions={v1,v1beta1}
 
-var _ webhook.Defaulter = &Egress{}
+var _ webhook.CustomDefaulter = &Egress{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
-func (r *Egress) Default() {
+func (r *Egress) Default(ctx context.Context, obj runtime.Object) error {
 	tmpl := r.Spec.Template
 	if tmpl == nil {
-		return
+		return nil
 	}
 
 	if len(tmpl.Spec.Containers) == 0 {
@@ -37,14 +39,15 @@ func (r *Egress) Default() {
 			},
 		}
 	}
+	return nil
 }
 
 // +kubebuilder:webhook:path=/validate-coil-cybozu-com-v2-egress,mutating=false,failurePolicy=fail,sideEffects=None,groups=coil.cybozu.com,resources=egresses,verbs=create;update,versions=v2,name=vegress.kb.io,admissionReviewVersions={v1,v1beta1}
 
-var _ webhook.Validator = &Egress{}
+var _ webhook.CustomValidator = &Egress{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Egress) ValidateCreate() (warnings admission.Warnings, err error) {
+func (r *Egress) ValidateCreate(ctx context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
 	errs := r.Spec.validate()
 	if len(errs) == 0 {
 		return nil, nil
@@ -54,7 +57,7 @@ func (r *Egress) ValidateCreate() (warnings admission.Warnings, err error) {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Egress) ValidateUpdate(old runtime.Object) (warnings admission.Warnings, err error) {
+func (r *Egress) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (warnings admission.Warnings, err error) {
 	errs := r.Spec.validateUpdate()
 	if len(errs) == 0 {
 		return nil, nil
@@ -64,6 +67,6 @@ func (r *Egress) ValidateUpdate(old runtime.Object) (warnings admission.Warnings
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Egress) ValidateDelete() (warnings admission.Warnings, err error) {
+func (r *Egress) ValidateDelete(ctx context.Context, old runtime.Object) (warnings admission.Warnings, err error) {
 	return nil, nil
 }
