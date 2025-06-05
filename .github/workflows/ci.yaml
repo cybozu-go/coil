@@ -43,14 +43,14 @@ jobs:
     name: End-to-end Test
     strategy:
       matrix:
-        kindest-node: ["1.29.12", "1.30.8", "1.31.4"]
+        kindest-node: ["1.30.13", "1.31.9", "1.32.5"]
         with-ipam: ["false", "true"]
         ipv4: ["false", "true"]
         ipv6: ["false", "true"]
         ipv6-primary: ["false", "true"]
         exclude:
         - ipv4: "false"
-          ipv6: "false"        
+          ipv6: "false"
         - ipv4: "false"
           ipv6: "true"
           ipv6-primary: "true"
@@ -107,7 +107,7 @@ jobs:
     name: Cert generation test
     strategy:
       matrix:
-        kindest-node: ["1.29.12", "1.30.8", "1.31.4"]
+        kindest-node: ["1.30.13", "1.31.9", "1.32.5"]
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
