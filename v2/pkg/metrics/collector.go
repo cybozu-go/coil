@@ -9,7 +9,7 @@ import (
 )
 
 type Collector interface {
-	Update() error
+	Update(ctx context.Context) error
 	Name() string
 }
 
@@ -44,7 +44,7 @@ func (r *Runner) collect(ctx context.Context) {
 	wg.Add(len(r.collectors))
 	for _, c := range r.collectors {
 		go func(c Collector) {
-			if err := c.Update(); err != nil {
+			if err := c.Update(ctx); err != nil {
 				logger.Error(err, "failed to collect metrics", "name", c.Name())
 			}
 			wg.Done()

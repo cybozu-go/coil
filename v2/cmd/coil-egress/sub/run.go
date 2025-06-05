@@ -41,6 +41,8 @@ func init() {
 	metrics.Registry.MustRegister(egressMetrics.NfConnctackLimit)
 	metrics.Registry.MustRegister(egressMetrics.NfTableMasqueradeBytes)
 	metrics.Registry.MustRegister(egressMetrics.NfTableMasqueradePackets)
+	metrics.Registry.MustRegister(egressMetrics.NfTableInvalidBytes)
+	metrics.Registry.MustRegister(egressMetrics.NfTableInvalidPackets)
 }
 
 func subMain() error {
