@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"errors"
 	"os"
 	"strconv"
@@ -99,7 +100,7 @@ func (c *egressCollector) Name() string {
 	return "egress-collector"
 }
 
-func (c *egressCollector) Update() error {
+func (c *egressCollector) Update(ctx context.Context) error {
 
 	val, err := readUintFromFile(NF_CONNTRACK_COUNT_PATH)
 	if err != nil {
@@ -115,14 +116,14 @@ func (c *egressCollector) Update() error {
 
 	natPackets, natBytes, err := c.getNfTablesNATCounter()
 	if err != nil {
-		return nil
+		return err
 	}
 	c.nfTablesNATPackets.Set(float64(natPackets))
 	c.nfTablesNATBytes.Set(float64(natBytes))
 
 	invalidPackets, invalidBytes, err := c.getNfTablesInvalidCounter()
 	if err != nil {
-		return nil
+		return err
 	}
 	c.nfTablesInvalidPackets.Set(float64(invalidPackets))
 	c.nfTablesInvalidBytes.Set(float64(invalidBytes))
