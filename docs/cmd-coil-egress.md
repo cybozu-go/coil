@@ -95,3 +95,26 @@ This value is from the result of `iptables -t nat -L POSTROUTING -vn`.
 | `namespace` | The egress resource namespace |
 | `egress`    | The egress resource name      |
 | `pod`       | The pod name                  |
+
+### `coil_egress_nftables_invalid_packets_total`
+
+This is the total number of packets dropped as invalid packets by iptables in a egress NAT pod.
+This value is from the result of `iptables -t filter -L -vn`.
+
+| Label       | Description                   |
+| ----------- | ----------------------------- |
+| `namespace` | The egress resource namespace |
+| `egress`    | The egress resource name      |
+| `pod`       | The pod name                  |
+
+### `coil_egress_nftables_invalid_bytes_total`
+
+This is the total bytes of packets dropped as invalid packets by iptables in a egress NAT pod.
+This value is from the result of `iptables -t filter -L -vn`.
+
+| Label       | Description                   |
+| ----------- | ----------------------------- |
+| `namespace` | The egress resource namespace |
+| `egress`    | The egress resource name      |
+| `pod`       | The pod name                  |
+
