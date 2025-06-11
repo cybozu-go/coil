@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"errors"
 	"os"
 	"strconv"
@@ -45,14 +46,30 @@ var (
 		Name:      "nftables_masqueraded_bytes_total",
 		Help:      "the number of bytes that are masqueraded by nftables",
 	}, []string{"namespace", "pod", "egress"})
+
+	NfTableInvalidPackets = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: constants.MetricsNS,
+		Subsystem: "egress",
+		Name:      "nftables_invalid_packets_total",
+		Help:      "the number of packets that are dropped as invalid packets by nftables",
+	}, []string{"namespace", "pod", "egress"})
+
+	NfTableInvalidBytes = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: constants.MetricsNS,
+		Subsystem: "egress",
+		Name:      "nftables_invalid_bytes_total",
+		Help:      "the number of bytes that are dropped as invalid packets by nftables",
+	}, []string{"namespace", "pod", "egress"})
 )
 
 type egressCollector struct {
-	conn             *nftables.Conn
-	nfConnctackCount prometheus.Gauge
-	nfConnctackLimit prometheus.Gauge
-	nfTablesPackets  prometheus.Gauge
-	nfTablesBytes    prometheus.Gauge
+	conn                   *nftables.Conn
+	nfConnctackCount       prometheus.Gauge
+	nfConnctackLimit       prometheus.Gauge
+	nfTablesNATPackets     prometheus.Gauge
+	nfTablesNATBytes       prometheus.Gauge
+	nfTablesInvalidPackets prometheus.Gauge
+	nfTablesInvalidBytes   prometheus.Gauge
 }
 
 func NewEgressCollector(ns, pod, egress string) (Collector, error) {
@@ -60,6 +77,8 @@ func NewEgressCollector(ns, pod, egress string) (Collector, error) {
 	NfConnctackLimit.Reset()
 	NfTableMasqueradeBytes.Reset()
 	NfTableMasqueradePackets.Reset()
+	NfTableInvalidPackets.Reset()
+	NfTableInvalidBytes.Reset()
 
 	c, err := nftables.New()
 	if err != nil {
@@ -67,11 +86,13 @@ func NewEgressCollector(ns, pod, egress string) (Collector, error) {
 	}
 
 	return &egressCollector{
-		conn:             c,
-		nfConnctackCount: NfConnctackCount.WithLabelValues(ns, pod, egress),
-		nfConnctackLimit: NfConnctackLimit.WithLabelValues(ns, pod, egress),
-		nfTablesPackets:  NfTableMasqueradePackets.WithLabelValues(ns, pod, egress),
-		nfTablesBytes:    NfTableMasqueradeBytes.WithLabelValues(ns, pod, egress),
+		conn:                   c,
+		nfConnctackCount:       NfConnctackCount.WithLabelValues(ns, pod, egress),
+		nfConnctackLimit:       NfConnctackLimit.WithLabelValues(ns, pod, egress),
+		nfTablesNATPackets:     NfTableMasqueradePackets.WithLabelValues(ns, pod, egress),
+		nfTablesNATBytes:       NfTableMasqueradeBytes.WithLabelValues(ns, pod, egress),
+		nfTablesInvalidPackets: NfTableInvalidPackets.WithLabelValues(ns, pod, egress),
+		nfTablesInvalidBytes:   NfTableInvalidBytes.WithLabelValues(ns, pod, egress),
 	}, nil
 }
 
@@ -79,7 +100,7 @@ func (c *egressCollector) Name() string {
 	return "egress-collector"
 }
 
-func (c *egressCollector) Update() error {
+func (c *egressCollector) Update(ctx context.Context) error {
 
 	val, err := readUintFromFile(NF_CONNTRACK_COUNT_PATH)
 	if err != nil {
@@ -93,17 +114,24 @@ func (c *egressCollector) Update() error {
 	}
 	c.nfConnctackLimit.Set(float64(val))
 
-	packets, bytes, err := c.getNfTablesCounter()
+	natPackets, natBytes, err := c.getNfTablesNATCounter()
 	if err != nil {
-		return nil
+		return err
 	}
-	c.nfTablesPackets.Set(float64(packets))
-	c.nfTablesBytes.Set(float64(bytes))
+	c.nfTablesNATPackets.Set(float64(natPackets))
+	c.nfTablesNATBytes.Set(float64(natBytes))
+
+	invalidPackets, invalidBytes, err := c.getNfTablesInvalidCounter()
+	if err != nil {
+		return err
+	}
+	c.nfTablesInvalidPackets.Set(float64(invalidPackets))
+	c.nfTablesInvalidBytes.Set(float64(invalidBytes))
 
 	return nil
 }
 
-func (c *egressCollector) getNfTablesCounter() (uint64, uint64, error) {
+func (c *egressCollector) getNfTablesNATCounter() (uint64, uint64, error) {
 	table := &nftables.Table{Family: nftables.TableFamilyIPv4, Name: "nat"}
 	rules, err := c.conn.GetRules(table, &nftables.Chain{
 		Name:    "POSTROUTING",
@@ -123,6 +151,28 @@ func (c *egressCollector) getNfTablesCounter() (uint64, uint64, error) {
 		}
 	}
 	return 0, 0, errors.New("a masquerade rule is not found")
+}
+
+func (c *egressCollector) getNfTablesInvalidCounter() (uint64, uint64, error) {
+	table := &nftables.Table{Family: nftables.TableFamilyIPv4, Name: "filter"}
+	rules, err := c.conn.GetRules(table, &nftables.Chain{
+		Name:    "FORWARD",
+		Type:    nftables.ChainTypeFilter,
+		Table:   table,
+		Hooknum: nftables.ChainHookForward,
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+	for _, rule := range rules {
+		for _, e := range rule.Exprs {
+			if counter, ok := e.(*expr.Counter); ok {
+				// A rule in the egress pod must be only one, so we can return by finding a first one.
+				return counter.Packets, counter.Bytes, nil
+			}
+		}
+	}
+	return 0, 0, errors.New("a rule for invalid packets is not found")
 }
 
 func readUintFromFile(path string) (uint64, error) {
