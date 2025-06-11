@@ -122,6 +122,10 @@ var _ = Describe("Pod watcher", Ordered, func() {
 				panic(err)
 			}
 		}()
+
+		// Must sleep so that tests do not run before the controller manager is ready.
+		// Although, a shorter duration was previously set (100ms),
+		// the duration was increased because the tests that perform write operation early became flaky (e.g. `should check Pod deletion`).
 		time.Sleep(1000 * time.Millisecond)
 	})
 
