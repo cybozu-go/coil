@@ -35,7 +35,7 @@ var _ webhook.CustomDefaulter = &EgressCustomDefaulter{}
 func (r *EgressCustomDefaulter) Default(ctx context.Context, obj runtime.Object) error {
 	egress, ok := obj.(*Egress)
 	if !ok {
-		return fmt.Errorf("expected an Egress object but got %T", obj)
+		return fmt.Errorf("expected an Egress object but got a %T", obj)
 	}
 
 	tmpl := egress.Spec.Template
@@ -64,30 +64,28 @@ var _ webhook.CustomValidator = &EgressCustomValidator{}
 func (r *EgressCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
 	egress, ok := obj.(*Egress)
 	if !ok {
-		return nil, fmt.Errorf("expected an Egress object but got %T", obj)
+		return nil, fmt.Errorf("expected an Egress object but got a %T", obj)
 	}
 
-	errs := egress.Spec.validate()
-	if len(errs) == 0 {
-		return nil, nil
+	if errs := egress.Spec.validate(); len(errs) != 0 {
+		return nil, apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Egress"}, egress.Name, errs)
 	}
 
-	return nil, apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Egress"}, egress.Name, errs)
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *EgressCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (warnings admission.Warnings, err error) {
 	egress, ok := newObj.(*Egress)
 	if !ok {
-		return nil, fmt.Errorf("expected an Egress object but got %T", newObj)
+		return nil, fmt.Errorf("expected an Egress object but got a %T", newObj)
 	}
 
-	errs := egress.Spec.validateUpdate()
-	if len(errs) == 0 {
-		return nil, nil
+	if errs := egress.Spec.validateUpdate(); len(errs) != 0 {
+		return nil, apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Egress"}, egress.Name, errs)
 	}
 
-	return nil, apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "Egress"}, egress.Name, errs)
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type

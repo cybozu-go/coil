@@ -36,7 +36,7 @@ var _ webhook.CustomDefaulter = &AddressPoolCustomDefaulter{}
 func (r *AddressPoolCustomDefaulter) Default(ctx context.Context, obj runtime.Object) error {
 	addressPool, ok := obj.(*AddressPool)
 	if !ok {
-		return fmt.Errorf("expected an AddressPool object but got %T", obj)
+		return fmt.Errorf("expected an AddressPool object but got a %T", obj)
 	}
 
 	controllerutil.AddFinalizer(addressPool, constants.FinCoil)
@@ -54,28 +54,28 @@ var _ webhook.CustomValidator = &AddressPoolCustomValidator{}
 func (r *AddressPoolCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
 	addressPool, ok := obj.(*AddressPool)
 	if !ok {
-		return nil, fmt.Errorf("expected an AddressPool object but got %T", obj)
-	}
-	errs := addressPool.Spec.validate()
-	if len(errs) == 0 {
-		return nil, nil
+		return nil, fmt.Errorf("expected an AddressPool object but got a %T", obj)
 	}
 
-	return nil, apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "AddressPool"}, addressPool.Name, errs)
+	if errs := addressPool.Spec.validate(); len(errs) != 0 {
+		return nil, apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "AddressPool"}, addressPool.Name, errs)
+	}
+
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *AddressPoolCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (warnings admission.Warnings, err error) {
 	addressPool, ok := newObj.(*AddressPool)
 	if !ok {
-		return nil, fmt.Errorf("expected an AddressPool object but got %T", newObj)
-	}
-	errs := addressPool.Spec.validateUpdate(oldObj.(*AddressPool).Spec)
-	if len(errs) == 0 {
-		return nil, nil
+		return nil, fmt.Errorf("expected an AddressPool object but got a %T", newObj)
 	}
 
-	return nil, apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "AddressPool"}, addressPool.Name, errs)
+	if errs := addressPool.Spec.validateUpdate(oldObj.(*AddressPool).Spec); len(errs) != 0 {
+		return nil, apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "AddressPool"}, addressPool.Name, errs)
+	}
+
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
