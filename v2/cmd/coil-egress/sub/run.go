@@ -79,7 +79,7 @@ func subMain() error {
 	}
 
 	protocols := make([]string, 0, 0)
-	for protocol, _ := range protocolMap {
+	for protocol := range protocolMap {
 		protocols = append(protocols, protocol)
 	}
 
