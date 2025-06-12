@@ -25,14 +25,14 @@ var (
 		Subsystem: "egress",
 		Name:      "nf_conntrack_entries_count",
 		Help:      "the number of entries in the nf_conntrack table",
-	}, []string{"namespace", "pod", "egress", "protocol"})
+	}, []string{"namespace", "pod", "egress"})
 
 	NfConnctackLimit = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: constants.MetricsNS,
 		Subsystem: "egress",
 		Name:      "nf_conntrack_entries_limit",
 		Help:      "the limit of the nf_conntrack table",
-	}, []string{"namespace", "pod", "egress", "protocol"})
+	}, []string{"namespace", "pod", "egress"})
 
 	NfTableMasqueradePackets = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: constants.MetricsNS,
