@@ -37,8 +37,8 @@ func init() {
 
 	// +kubebuilder:scaffold:scheme
 
-	metrics.Registry.MustRegister(egressMetrics.NfConnctackCount)
-	metrics.Registry.MustRegister(egressMetrics.NfConnctackLimit)
+	metrics.Registry.MustRegister(egressMetrics.NfConnctrackCount)
+	metrics.Registry.MustRegister(egressMetrics.NfConnctrackLimit)
 	metrics.Registry.MustRegister(egressMetrics.NfTableMasqueradeBytes)
 	metrics.Registry.MustRegister(egressMetrics.NfTableMasqueradePackets)
 	metrics.Registry.MustRegister(egressMetrics.NfTableInvalidBytes)

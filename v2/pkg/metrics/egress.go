@@ -20,14 +20,14 @@ const (
 )
 
 var (
-	NfConnctackCount = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	NfConnctrackCount = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: constants.MetricsNS,
 		Subsystem: "egress",
 		Name:      "nf_conntrack_entries_count",
 		Help:      "the number of entries in the nf_conntrack table",
 	}, []string{"namespace", "pod", "egress"})
 
-	NfConnctackLimit = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	NfConnctrackLimit = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: constants.MetricsNS,
 		Subsystem: "egress",
 		Name:      "nf_conntrack_entries_limit",
@@ -64,10 +64,10 @@ var (
 )
 
 type egressCollector struct {
-	conn             *nftables.Conn
-	nfConnctackCount prometheus.Gauge
-	nfConnctackLimit prometheus.Gauge
-	perProtocol      map[string]*nfTablesPerProtocolMetrics
+	conn              *nftables.Conn
+	nfConnctrackCount prometheus.Gauge
+	nfConnctrackLimit prometheus.Gauge
+	perProtocol       map[string]*nfTablesPerProtocolMetrics
 }
 
 type nfTablesPerProtocolMetrics struct {
@@ -87,8 +87,8 @@ func newNfTablesPerProtocolMetrics(ns, pod, egress, protocol string) *nfTablesPe
 }
 
 func NewEgressCollector(ns, pod, egress string, protocols []string) (Collector, error) {
-	NfConnctackCount.Reset()
-	NfConnctackLimit.Reset()
+	NfConnctrackCount.Reset()
+	NfConnctrackLimit.Reset()
 	NfTableMasqueradeBytes.Reset()
 	NfTableMasqueradePackets.Reset()
 	NfTableInvalidPackets.Reset()
@@ -105,10 +105,10 @@ func NewEgressCollector(ns, pod, egress string, protocols []string) (Collector, 
 	}
 
 	return &egressCollector{
-		conn:             c,
-		nfConnctackCount: NfConnctackCount.WithLabelValues(ns, pod, egress),
-		nfConnctackLimit: NfConnctackLimit.WithLabelValues(ns, pod, egress),
-		perProtocol:      perProtocols,
+		conn:              c,
+		nfConnctrackCount: NfConnctrackCount.WithLabelValues(ns, pod, egress),
+		nfConnctrackLimit: NfConnctrackLimit.WithLabelValues(ns, pod, egress),
+		perProtocol:       perProtocols,
 	}, nil
 }
 
@@ -122,13 +122,13 @@ func (c *egressCollector) Update(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.nfConnctackCount.Set(float64(val))
+	c.nfConnctrackCount.Set(float64(val))
 
 	val, err = readUintFromFile(NF_CONNTRACK_LIMIT_PATH)
 	if err != nil {
 		return err
 	}
-	c.nfConnctackLimit.Set(float64(val))
+	c.nfConnctrackLimit.Set(float64(val))
 
 	for protocol, nfTablesMetrics := range c.perProtocol {
 		natPackets, natBytes, err := c.getNfTablesNATCounter(protocol)
