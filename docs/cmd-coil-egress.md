@@ -84,7 +84,7 @@ This value is from the result of `iptables -t nat -L POSTROUTING -vn`.
 | `namespace` | The egress resource namespace |
 | `egress`    | The egress resource name      |
 | `pod`       | The pod name                  |
-| `protocol`  | Protocol name                 |
+| `protocol`  | The protocol name                 |
 
 ### `coil_egress_nftables_masqueraded_bytes_total`
 
@@ -96,7 +96,7 @@ This value is from the result of `iptables -t nat -L POSTROUTING -vn`.
 | `namespace` | The egress resource namespace |
 | `egress`    | The egress resource name      |
 | `pod`       | The pod name                  |
-| `protocol`  | Protocol name                 |
+| `protocol`  | The protocol name                 |
 
 ### `coil_egress_nftables_invalid_packets_total`
 
@@ -108,7 +108,7 @@ This value is from the result of `iptables -t filter -L -vn`.
 | `namespace` | The egress resource namespace |
 | `egress`    | The egress resource name      |
 | `pod`       | The pod name                  |
-| `protocol`  | Protocol name                 |
+| `protocol`  | The protocol name                 |
 
 ### `coil_egress_nftables_invalid_bytes_total`
 
@@ -120,5 +120,5 @@ This value is from the result of `iptables -t filter -L -vn`.
 | `namespace` | The egress resource namespace |
 | `egress`    | The egress resource name      |
 | `pod`       | The pod name                  |
-| `protocol`  | Protocol name                 |
+| `protocol`  | The protocol name                 |
 

@@ -90,3 +90,9 @@ const MetricsNS = "coil"
 const (
 	DefaultPool = "default"
 )
+
+// Layer 3 families
+const (
+	FamilyIPv4 = "ipv4"
+	FamilyIPv6 = "ipv6"
+)

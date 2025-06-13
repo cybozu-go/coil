@@ -37,8 +37,8 @@ func init() {
 
 	// +kubebuilder:scaffold:scheme
 
-	metrics.Registry.MustRegister(egressMetrics.NfConnctrackCount)
-	metrics.Registry.MustRegister(egressMetrics.NfConnctrackLimit)
+	metrics.Registry.MustRegister(egressMetrics.NfConntrackCount)
+	metrics.Registry.MustRegister(egressMetrics.NfConntrackLimit)
 	metrics.Registry.MustRegister(egressMetrics.NfTableMasqueradeBytes)
 	metrics.Registry.MustRegister(egressMetrics.NfTableMasqueradePackets)
 	metrics.Registry.MustRegister(egressMetrics.NfTableInvalidBytes)
@@ -71,10 +71,10 @@ func subMain() error {
 		}
 		if n4 := n.To4(); n4 != nil {
 			ipv4 = n4
-			protocolMap["ipv4"] = struct{}{}
+			protocolMap[constants.FamilyIPv4] = struct{}{}
 		} else {
 			ipv6 = n
-			protocolMap["ipv6"] = struct{}{}
+			protocolMap[constants.FamilyIPv6] = struct{}{}
 		}
 	}
 
