@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -19,14 +20,14 @@ const (
 )
 
 var (
-	NfConnctackCount = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	NfConntrackCount = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: constants.MetricsNS,
 		Subsystem: "egress",
 		Name:      "nf_conntrack_entries_count",
 		Help:      "the number of entries in the nf_conntrack table",
 	}, []string{"namespace", "pod", "egress"})
 
-	NfConnctackLimit = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	NfConntrackLimit = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: constants.MetricsNS,
 		Subsystem: "egress",
 		Name:      "nf_conntrack_entries_limit",
@@ -38,43 +39,56 @@ var (
 		Subsystem: "egress",
 		Name:      "nftables_masqueraded_packets_total",
 		Help:      "the number of packets that are masqueraded by nftables",
-	}, []string{"namespace", "pod", "egress"})
+	}, []string{"namespace", "pod", "egress", "protocol"})
 
 	NfTableMasqueradeBytes = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: constants.MetricsNS,
 		Subsystem: "egress",
 		Name:      "nftables_masqueraded_bytes_total",
 		Help:      "the number of bytes that are masqueraded by nftables",
-	}, []string{"namespace", "pod", "egress"})
+	}, []string{"namespace", "pod", "egress", "protocol"})
 
 	NfTableInvalidPackets = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: constants.MetricsNS,
 		Subsystem: "egress",
 		Name:      "nftables_invalid_packets_total",
 		Help:      "the number of packets that are dropped as invalid packets by nftables",
-	}, []string{"namespace", "pod", "egress"})
+	}, []string{"namespace", "pod", "egress", "protocol"})
 
 	NfTableInvalidBytes = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: constants.MetricsNS,
 		Subsystem: "egress",
 		Name:      "nftables_invalid_bytes_total",
 		Help:      "the number of bytes that are dropped as invalid packets by nftables",
-	}, []string{"namespace", "pod", "egress"})
+	}, []string{"namespace", "pod", "egress", "protocol"})
 )
 
 type egressCollector struct {
-	conn                   *nftables.Conn
-	nfConnctackCount       prometheus.Gauge
-	nfConnctackLimit       prometheus.Gauge
-	nfTablesNATPackets     prometheus.Gauge
-	nfTablesNATBytes       prometheus.Gauge
-	nfTablesInvalidPackets prometheus.Gauge
-	nfTablesInvalidBytes   prometheus.Gauge
+	conn             *nftables.Conn
+	nfConntrackCount prometheus.Gauge
+	nfConntrackLimit prometheus.Gauge
+	perProtocol      map[string]*nfTablesPerProtocolMetrics
 }
 
-func NewEgressCollector(ns, pod, egress string) (Collector, error) {
-	NfConnctackCount.Reset()
-	NfConnctackLimit.Reset()
+type nfTablesPerProtocolMetrics struct {
+	NATPackets     prometheus.Gauge
+	NATBytes       prometheus.Gauge
+	InvalidPackets prometheus.Gauge
+	InvalidBytes   prometheus.Gauge
+}
+
+func newNfTablesPerProtocolMetrics(ns, pod, egress, protocol string) *nfTablesPerProtocolMetrics {
+	return &nfTablesPerProtocolMetrics{
+		NATPackets:     NfTableMasqueradePackets.WithLabelValues(ns, pod, egress, protocol),
+		NATBytes:       NfTableMasqueradeBytes.WithLabelValues(ns, pod, egress, protocol),
+		InvalidPackets: NfTableInvalidPackets.WithLabelValues(ns, pod, egress, protocol),
+		InvalidBytes:   NfTableInvalidBytes.WithLabelValues(ns, pod, egress, protocol),
+	}
+}
+
+func NewEgressCollector(ns, pod, egress string, protocols []string) (Collector, error) {
+	NfConntrackCount.Reset()
+	NfConntrackLimit.Reset()
 	NfTableMasqueradeBytes.Reset()
 	NfTableMasqueradePackets.Reset()
 	NfTableInvalidPackets.Reset()
@@ -85,14 +99,16 @@ func NewEgressCollector(ns, pod, egress string) (Collector, error) {
 		return nil, err
 	}
 
+	perProtocols := make(map[string]*nfTablesPerProtocolMetrics)
+	for _, protocol := range protocols {
+		perProtocols[protocol] = newNfTablesPerProtocolMetrics(ns, pod, egress, protocol)
+	}
+
 	return &egressCollector{
-		conn:                   c,
-		nfConnctackCount:       NfConnctackCount.WithLabelValues(ns, pod, egress),
-		nfConnctackLimit:       NfConnctackLimit.WithLabelValues(ns, pod, egress),
-		nfTablesNATPackets:     NfTableMasqueradePackets.WithLabelValues(ns, pod, egress),
-		nfTablesNATBytes:       NfTableMasqueradeBytes.WithLabelValues(ns, pod, egress),
-		nfTablesInvalidPackets: NfTableInvalidPackets.WithLabelValues(ns, pod, egress),
-		nfTablesInvalidBytes:   NfTableInvalidBytes.WithLabelValues(ns, pod, egress),
+		conn:             c,
+		nfConntrackCount: NfConntrackCount.WithLabelValues(ns, pod, egress),
+		nfConntrackLimit: NfConntrackLimit.WithLabelValues(ns, pod, egress),
+		perProtocol:      perProtocols,
 	}, nil
 }
 
@@ -106,33 +122,40 @@ func (c *egressCollector) Update(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.nfConnctackCount.Set(float64(val))
+	c.nfConntrackCount.Set(float64(val))
 
 	val, err = readUintFromFile(NF_CONNTRACK_LIMIT_PATH)
 	if err != nil {
 		return err
 	}
-	c.nfConnctackLimit.Set(float64(val))
+	c.nfConntrackLimit.Set(float64(val))
 
-	natPackets, natBytes, err := c.getNfTablesNATCounter()
-	if err != nil {
-		return err
-	}
-	c.nfTablesNATPackets.Set(float64(natPackets))
-	c.nfTablesNATBytes.Set(float64(natBytes))
+	for protocol, nfTablesMetrics := range c.perProtocol {
+		natPackets, natBytes, err := c.getNfTablesNATCounter(protocol)
+		if err != nil {
+			return err
+		}
+		nfTablesMetrics.NATPackets.Set(float64(natPackets))
+		nfTablesMetrics.NATBytes.Set(float64(natBytes))
 
-	invalidPackets, invalidBytes, err := c.getNfTablesInvalidCounter()
-	if err != nil {
-		return err
+		invalidPackets, invalidBytes, err := c.getNfTablesInvalidCounter(protocol)
+		if err != nil {
+			return err
+		}
+		nfTablesMetrics.InvalidPackets.Set(float64(invalidPackets))
+		nfTablesMetrics.InvalidBytes.Set(float64(invalidBytes))
+
 	}
-	c.nfTablesInvalidPackets.Set(float64(invalidPackets))
-	c.nfTablesInvalidBytes.Set(float64(invalidBytes))
 
 	return nil
 }
 
-func (c *egressCollector) getNfTablesNATCounter() (uint64, uint64, error) {
-	table := &nftables.Table{Family: nftables.TableFamilyIPv4, Name: "nat"}
+func (c *egressCollector) getNfTablesNATCounter(protocol string) (uint64, uint64, error) {
+	family, err := stringToTableFamily(protocol)
+	if err != nil {
+		return 0, 0, err
+	}
+	table := &nftables.Table{Family: family, Name: "nat"}
 	rules, err := c.conn.GetRules(table, &nftables.Chain{
 		Name:    "POSTROUTING",
 		Type:    nftables.ChainTypeNAT,
@@ -153,8 +176,12 @@ func (c *egressCollector) getNfTablesNATCounter() (uint64, uint64, error) {
 	return 0, 0, errors.New("a masquerade rule is not found")
 }
 
-func (c *egressCollector) getNfTablesInvalidCounter() (uint64, uint64, error) {
-	table := &nftables.Table{Family: nftables.TableFamilyIPv4, Name: "filter"}
+func (c *egressCollector) getNfTablesInvalidCounter(protocol string) (uint64, uint64, error) {
+	family, err := stringToTableFamily(protocol)
+	if err != nil {
+		return 0, 0, err
+	}
+	table := &nftables.Table{Family: family, Name: "filter"}
 	rules, err := c.conn.GetRules(table, &nftables.Chain{
 		Name:    "FORWARD",
 		Type:    nftables.ChainTypeFilter,
@@ -185,4 +212,15 @@ func readUintFromFile(path string) (uint64, error) {
 		return 0, err
 	}
 	return val, nil
+}
+
+func stringToTableFamily(protocol string) (nftables.TableFamily, error) {
+	switch protocol {
+	case constants.FamilyIPv4:
+		return nftables.TableFamilyIPv4, nil
+	case constants.FamilyIPv6:
+		return nftables.TableFamilyIPv6, nil
+	default:
+		return nftables.TableFamilyUnspecified, fmt.Errorf("unsupported family type: %s", protocol)
+	}
 }
