@@ -37,8 +37,8 @@ func init() {
 
 	// +kubebuilder:scaffold:scheme
 
-	metrics.Registry.MustRegister(egressMetrics.NfConnctackCount)
-	metrics.Registry.MustRegister(egressMetrics.NfConnctackLimit)
+	metrics.Registry.MustRegister(egressMetrics.NfConntrackCount)
+	metrics.Registry.MustRegister(egressMetrics.NfConntrackLimit)
 	metrics.Registry.MustRegister(egressMetrics.NfTableMasqueradeBytes)
 	metrics.Registry.MustRegister(egressMetrics.NfTableMasqueradePackets)
 	metrics.Registry.MustRegister(egressMetrics.NfTableInvalidBytes)
@@ -63,6 +63,7 @@ func subMain() error {
 		return errors.New(constants.EnvAddresses + " environment variable must be set")
 	}
 	var ipv4, ipv6 net.IP
+	protocolMap := make(map[string]struct{})
 	for _, addr := range myAddresses {
 		n := net.ParseIP(addr)
 		if n == nil {
@@ -70,9 +71,16 @@ func subMain() error {
 		}
 		if n4 := n.To4(); n4 != nil {
 			ipv4 = n4
+			protocolMap[constants.FamilyIPv4] = struct{}{}
 		} else {
 			ipv6 = n
+			protocolMap[constants.FamilyIPv6] = struct{}{}
 		}
+	}
+
+	protocols := make([]string, 0)
+	for protocol := range protocolMap {
+		protocols = append(protocols, protocol)
 	}
 
 	setupLog.Info("detected local IP addresses", "ipv4", ipv4.String(), "ipv6", ipv6.String())
@@ -117,7 +125,7 @@ func subMain() error {
 
 	setupLog.Info("setup egress metrics collector")
 	runner := egressMetrics.NewRunner()
-	egressCollector, err := egressMetrics.NewEgressCollector(myNS, os.Getenv("HOSTNAME"), myName)
+	egressCollector, err := egressMetrics.NewEgressCollector(myNS, os.Getenv("HOSTNAME"), myName, protocols)
 	if err != nil {
 		return err
 	}
