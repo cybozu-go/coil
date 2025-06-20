@@ -5,6 +5,23 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.11.0] - 2025-06-18
+
+Coil Egress now offers dual-stack support, enabling it to handle both IPv4 and IPv6 traffic within a single Egress. We have also implemented a new iptables rule in Egress pods (which are managed by the Egress resource and function as gateways to external networks) to drop invalid packets. Additionally, Egress-related metrics have been updated:
+
+- New metrics have been added to count invalid packets dropped by this new iptables rule.
+- The coil_egress_nftables_masqueraded_packets and coil_egress_nftables_masqueraded_bytes metrics have been updated to include support for IPv6.
+
+This release doesn't have any breaking changes.
+
+### Added
+
+- DualStack support for egress (#238)
+- egress: Add new iptabels rule for dropping invalid packets (#329)
+- Introduce egress metrics to count invalid packets and bytes (#331)
+- Support k8s 1.32 (#332)
+- Support IPv6 for egress metrics (#333)
+
 ## [2.10.1] - 2025-04-18
 
 ### Changed
@@ -365,7 +382,8 @@ The following `coil-controller` related resources are no longer needed, and you 
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.10.1...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.11.0...HEAD
+[2.11.0]: https://github.com/cybozu-go/coil/compare/v2.10.1...v2.11.0
 [2.10.1]: https://github.com/cybozu-go/coil/compare/v2.10.0...v2.10.1
 [2.10.0]: https://github.com/cybozu-go/coil/compare/v2.9.1...v2.10.0
 [2.9.1]: https://github.com/cybozu-go/coil/compare/v2.9.0...v2.9.1
