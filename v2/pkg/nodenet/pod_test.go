@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -174,6 +175,10 @@ func TestPodNetwork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Wait for Coil to add routes to routing table
+	// This problem surfaced only after upgrading github.com/vishvananda/netlink to v1.3.1
+	time.Sleep(5 * time.Second)
 
 	// test routing between pod <-> host
 	err = exec.Command("ip", "netns", "exec", "pod1", "curl", "-s", "http://10.100.0.1:8000").Run()

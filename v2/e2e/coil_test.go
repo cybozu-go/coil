@@ -698,34 +698,22 @@ func testNAT(data []byte, clientPod, fakeURL string, natAddresses []string, ipam
 }
 
 func getNATAddresses(name string) []string {
-	eps := &corev1.Endpoints{}
 	svc := &corev1.Service{}
 	epslices := &discoveryv1.EndpointSliceList{}
 	natAddresses := []string{}
 
-	if enableIPv4Tests && enableIPv6Tests {
-		err := getResource("internet", "service", name, "", svc)
-		Expect(err).ToNot(HaveOccurred())
-		err = getResource("internet", "endpointslices", "", "", epslices)
-		Expect(err).ToNot(HaveOccurred())
+	err := getResource("internet", "service", name, "", svc)
+	Expect(err).ToNot(HaveOccurred())
+	err = getResource("internet", "endpointslices", "", "", epslices)
+	Expect(err).ToNot(HaveOccurred())
 
-		for _, eps := range epslices.Items {
-			for _, or := range eps.ObjectMeta.OwnerReferences {
-				if or.UID == svc.UID {
-					for _, ep := range eps.Endpoints {
-						natAddresses = append(natAddresses, ep.Addresses...)
-					}
-					break
+	for _, eps := range epslices.Items {
+		for _, or := range eps.ObjectMeta.OwnerReferences {
+			if or.UID == svc.UID {
+				for _, ep := range eps.Endpoints {
+					natAddresses = append(natAddresses, ep.Addresses...)
 				}
-			}
-		}
-	} else {
-		err := getResource("internet", "endpoints", name, "", eps)
-		Expect(err).ToNot(HaveOccurred())
-
-		for _, s := range eps.Subsets {
-			for _, a := range s.Addresses {
-				natAddresses = append(natAddresses, a.IP)
+				break
 			}
 		}
 	}
