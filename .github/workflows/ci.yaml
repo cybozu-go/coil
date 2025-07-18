@@ -8,7 +8,7 @@ defaults:
   run:
     working-directory: v2
 env:
-  go-version: "1.24"
+  go-version: "1.24.5"
   cache-version: 1
 jobs:
   test:
