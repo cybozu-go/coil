@@ -3,12 +3,10 @@ package nodenet
 import (
 	"encoding/json"
 	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
-	"time"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -146,15 +144,6 @@ func TestPodNetwork(t *testing.T) {
 		}
 	}
 
-	// run a test HTTP server
-	go func() {
-		serv := &http.Server{
-			Addr:    ":8000",
-			Handler: http.NotFoundHandler(),
-		}
-		serv.ListenAndServe()
-	}()
-
 	err := exec.Command("ip", "link", "add", "foo", "type", "dummy").Run()
 	if err != nil {
 		t.Fatal(err)
@@ -176,18 +165,14 @@ func TestPodNetwork(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Wait for Coil to add routes to routing table
-	// This problem surfaced only after upgrading github.com/vishvananda/netlink to v1.3.1
-	time.Sleep(5 * time.Second)
-
 	// test routing between pod <-> host
-	err = exec.Command("ip", "netns", "exec", "pod1", "curl", "-s", "http://10.100.0.1:8000").Run()
+	err = exec.Command("ip", "netns", "exec", "pod1", "ping", "-c", "3", "-i", "0.2", "10.100.0.1").Run()
 	if err != nil {
-		t.Error("curl to host over IPv4 failed")
+		t.Error("ping to host over IPv4 failed")
 	}
-	err = exec.Command("ip", "netns", "exec", "pod1", "curl", "-s", "http://[fd02::100]:8000").Run()
+	err = exec.Command("ip", "netns", "exec", "pod1", "ping", "-c", "3", "-i", "0.2", "fd02::100").Run()
 	if err != nil {
-		t.Error("curl to host over IPv6 failed")
+		t.Error("ping to host over IPv6 failed")
 	}
 
 	// test routing between pod2 over IPv4
