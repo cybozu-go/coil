@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	current "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/containernetworking/plugins/pkg/ip"
@@ -272,7 +273,9 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 				netlink.LinkDel(cLink)
 				return fmt.Errorf("netlink: failed to add an address: %w", err)
 			}
-			ip.SettleAddresses(conf.IFace, 10)
+			if err = ip.SettleAddresses(conf.IFace, 10*time.Second); err != nil {
+				return fmt.Errorf("netlink: failed to settle an address: %w", err)
+			}
 			result.IPs = append(result.IPs, &current.IPConfig{
 				Address:   *ipnet,
 				Interface: &idx,
@@ -317,14 +320,15 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 
 	// setup routing on the host side
 	if conf.IPv6 != nil {
-		ip.SettleAddresses(hName, 10)
-
 		err = netlink.AddrAdd(hLink, &netlink.Addr{
 			IPNet: netlink.NewIPNet(pn.hostIPv6),
 			Scope: unix.RT_SCOPE_UNIVERSE,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("netlink: failed to add a host IPv6 address: %w", err)
+		}
+		if err = ip.SettleAddresses(hName, 10*time.Second); err != nil {
+			return nil, fmt.Errorf("netlink: failed to settle a host IPv6 address: %w", err)
 		}
 
 		v6Addrs, err := netlink.AddrList(hLink, netlink.FAMILY_V6)

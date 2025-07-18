@@ -69,18 +69,15 @@ func testFoUDual(t *testing.T) {
 		}
 
 		fous, err := netlink.FouList(0)
-		// On GitHub Actions, netlink.FouList fails with ErrAttrBodyTruncated
-		if err != nil && err != netlink.ErrAttrBodyTruncated {
+		if err != nil {
 			return fmt.Errorf("failed to list fou links: %w", err)
 		}
-		if err == nil {
-			if len(fous) != 2 {
-				return fmt.Errorf("unexpected fou list: %+v", fous)
-			}
-			for i, f := range fous {
-				if f.Port != 5555 {
-					return fmt.Errorf("unexpected fous[%d] port number: %d", i, f.Port)
-				}
+		if len(fous) != 2 {
+			return fmt.Errorf("unexpected fou list: %+v", fous)
+		}
+		for i, f := range fous {
+			if f.Port != 5555 {
+				return fmt.Errorf("unexpected fous[%d] port number: %d", i, f.Port)
 			}
 		}
 
@@ -279,18 +276,15 @@ func testFoUV4(t *testing.T) {
 		}
 
 		fous, err := netlink.FouList(0)
-		// On GitHub Actions, netlink.FouList fails with ErrAttrBodyTruncated
-		if err != nil && err != netlink.ErrAttrBodyTruncated {
+		if err != nil {
 			return fmt.Errorf("failed to list fou links: %w", err)
 		}
-		if err == nil {
-			if len(fous) != 1 {
-				return fmt.Errorf("unexpected fou list: %+v", fous)
-			}
-			for i, f := range fous {
-				if f.Port != 5555 {
-					return fmt.Errorf("unexpected fous[%d] port number: %d", i, f.Port)
-				}
+		if len(fous) != 1 {
+			return fmt.Errorf("unexpected fou list: %+v", fous)
+		}
+		for i, f := range fous {
+			if f.Port != 5555 {
+				return fmt.Errorf("unexpected fous[%d] port number: %d", i, f.Port)
 			}
 		}
 
@@ -380,18 +374,15 @@ func testFoUV6(t *testing.T) {
 		}
 
 		fous, err := netlink.FouList(0)
-		// On GitHub Actions, netlink.FouList fails with ErrAttrBodyTruncated
-		if err != nil && err != netlink.ErrAttrBodyTruncated {
+		if err != nil {
 			return fmt.Errorf("failed to list fou links: %w", err)
 		}
-		if err == nil {
-			if len(fous) != 1 {
-				return fmt.Errorf("unexpected fou list: %+v", fous)
-			}
-			for i, f := range fous {
-				if f.Port != 5555 {
-					return fmt.Errorf("unexpected fous[%d] port number: %d", i, f.Port)
-				}
+		if len(fous) != 1 {
+			return fmt.Errorf("unexpected fou list: %+v", fous)
+		}
+		for i, f := range fous {
+			if f.Port != 5555 {
+				return fmt.Errorf("unexpected fous[%d] port number: %d", i, f.Port)
 			}
 		}
 
