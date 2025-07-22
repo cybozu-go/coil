@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.11.1] - 2025-07-22
+
+### Changed
+
+- update dependencies (#335)
+
 ## [2.11.0] - 2025-06-18
 
 Coil Egress now offers dual-stack support, enabling it to handle both IPv4 and IPv6 traffic within a single Egress. We have also implemented a new iptables rule in Egress pods (which are managed by the Egress resource and function as gateways to external networks) to drop invalid packets. Additionally, Egress-related metrics have been updated:
@@ -382,7 +388,8 @@ The following `coil-controller` related resources are no longer needed, and you 
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.11.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.11.1...HEAD
+[2.11.0]: https://github.com/cybozu-go/coil/compare/v2.11.0...v2.11.1
 [2.11.0]: https://github.com/cybozu-go/coil/compare/v2.10.1...v2.11.0
 [2.10.1]: https://github.com/cybozu-go/coil/compare/v2.10.0...v2.10.1
 [2.10.0]: https://github.com/cybozu-go/coil/compare/v2.9.1...v2.10.0
