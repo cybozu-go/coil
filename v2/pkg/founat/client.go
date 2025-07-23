@@ -453,6 +453,14 @@ func configureRoutes(family iptables.Protocol) error {
 	}
 
 	for _, link := range links {
+		hasGlobalIP, err := checkLinkForGlobalScopeIP(link, netlinkFamily)
+		if err != nil {
+			return fmt.Errorf("netlink: failed to check interface %q for non-local IP address: %w", link.Attrs().Name, err)
+		}
+		if !hasGlobalIP {
+			continue
+		}
+
 		linkTable := nonEgressTableID + link.Attrs().Index
 
 		routes, err := netlink.RouteList(link, netlinkFamily)
@@ -486,6 +494,19 @@ func configureRoutes(family iptables.Protocol) error {
 		}
 	}
 	return nil
+}
+
+func checkLinkForGlobalScopeIP(link netlink.Link, family int) (bool, error) {
+	addrs, err := netlink.AddrList(link, family)
+	if err != nil {
+		return false, fmt.Errorf("netlink: failed to list addresses for linl %q: %w", link.Attrs().Name, err)
+	}
+	for _, a := range addrs {
+		if a.Scope == int(netlink.SCOPE_UNIVERSE) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func addFWMarkRule(link netlink.Link, table, family int) error {
