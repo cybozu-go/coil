@@ -6,23 +6,25 @@ Coil is a Kubernetes-native application and can be controlled with `kubectl`.
 
 For installation, read [setup.md](setup.md).
 
-- [Admin role](#admin-role)
-- [Address pools](#address-pools)
-  - [AddressPool custom resource](#addresspool-custom-resource)
-  - [The default pool](#the-default-pool)
-  - [Using non-default pools](#using-non-default-pools)
-  - [Adding addresses to a pool](#adding-addresses-to-a-pool)
-- [Address blocks](#address-blocks)
-  - [Importing address blocks as routes](#importing-address-blocks-as-routes)
-- [Egress NAT](#egress-nat)
-  - [How it works](#how-it-works)
-  - [Egress custom resource](#egress-custom-resource)
-  - [Client Pods](#client-pods)
-  - [Use NetworkPolicy to prohibit NAT usage](#use-networkpolicy-to-prohibit-nat-usage)
-  - [Session affinity](#session-affinity)
-- [Metrics](#metrics)
-  - [How to scrape metrics](#how-to-scrape-metrics)
-  - [Dashboards](#dashboards)
+- [User manual](#user-manual)
+  - [Admin role](#admin-role)
+  - [Address pools](#address-pools)
+    - [AddressPool custom resource](#addresspool-custom-resource)
+    - [The default pool](#the-default-pool)
+    - [Using non-default pools](#using-non-default-pools)
+    - [Adding addresses to a pool](#adding-addresses-to-a-pool)
+  - [Address blocks](#address-blocks)
+    - [Importing address blocks as routes](#importing-address-blocks-as-routes)
+  - [Egress NAT](#egress-nat)
+    - [How it works](#how-it-works)
+    - [Egress custom resource](#egress-custom-resource)
+    - [Client Pods](#client-pods)
+    - [Use NetworkPolicy to prohibit NAT usage](#use-networkpolicy-to-prohibit-nat-usage)
+    - [Session affinity](#session-affinity)
+    - [Use egress only for connections originating on the client](#use-egress-only-for-connections-originating-on-the-client)
+  - [Metrics](#metrics)
+    - [How to scrape metrics](#how-to-scrape-metrics)
+    - [Dashboards](#dashboards)
 
 ## Admin role
 
@@ -201,6 +203,7 @@ spec:
   destinations:
   - 172.20.0.0/16
   - fd04::/64
+  originatingOnly: true
   replicas: 3
   strategy:
     type: RollingUpdate
@@ -242,11 +245,13 @@ You may customize the container of egress Pods as shown in the above example.
 | Field                   | Type                      | Description                                                          |
 | ----------------------- | ------------------------- | -------------------------------------------------------------------- |
 | `destinations`          | `[]string`                | IP subnets where the packets are SNATed and sent.                    |
+| `originatingOnly`       | `bool`                    | If true, only connections originating in the pod will use egress.    |
 | `replicas`              | `int`                     | Copied to Deployment's `spec.replicas`.  Default is 1.               |
 | `strategy`              | [DeploymentStrategy][]    | Copied to Deployment's `spec.strategy`.                              |
 | `template`              | [PodTemplateSpec][]       | Copied to Deployment's `spec.template`.                              |
 | `sessionAffinity`       | `ClusterIP` or `None`     | Copied to Service's `spec.sessionAffinity`.  Default is `ClusterIP`. |
 | `sessionAffinityConfig` | [SessionAffinityConfig][] | Copied to Service's `spec.sessionAffinityConfig`.                    |
+| `podDisruptionBudget`   | `EgressPDBSpec`           | `minAvailable` and `maxUnavailable` are copied to PDB's spec.        |
 | `podDisruptionBudget`   | `EgressPDBSpec`           | `minAvailable` and `maxUnavailable` are copied to PDB's spec.        |
 
 ### Client Pods
@@ -311,6 +316,17 @@ spec:
 ```
 
 The default timeout seconds is 10800 (= 3 hours).
+
+### Use egress only for connections originating on the client
+
+If `originatingOnly` is set `true` in the egress definition, only connections originating on the client 
+or incoming onto `fou` interface will use egress FOU interface to send data. 
+In case of incomming connections, the same interface will be used for egress traffic - 
+e.g. if connection will be estabilished on `eth0`, the traffic will not be routed through `fou`,
+but will be handled by `eth0`.
+
+Please be aware that, in case of multiple `egress` resources attached to the client pod, if at least one
+`egress` will have `originatingOnly: true` set, all the other egresses will inherit this behavior.
 
 ## Metrics
 
