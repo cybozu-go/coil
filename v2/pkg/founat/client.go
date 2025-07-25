@@ -323,7 +323,6 @@ func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet, originati
 			if n.IP.To4() != nil {
 				family = iptables.ProtocolIPv4
 			}
-
 			if err := configureRoutes(family); err != nil {
 				return err
 			}
@@ -510,32 +509,51 @@ func checkLinkForGlobalScopeIP(link netlink.Link, family int) (bool, error) {
 }
 
 func addFWMarkRule(link netlink.Link, table, family int) error {
+	exists, err := checkFWMarkRule(link, table, family)
+	if err != nil {
+		return fmt.Errorf("failed to check FW mark rule existance: %w", err)
+	}
+
+	if !exists {
+		rule := netlink.NewRule()
+		rule.Mark = uint32(link.Attrs().Index)
+		rule.Table = table
+		rule.Family = family
+		if err := netlink.RuleAdd(rule); err != nil {
+			return fmt.Errorf("netlink: failed to add rule %q: %w", rule.String(), err)
+		}
+	}
+
+	return nil
+}
+
+func checkFWMarkRule(link netlink.Link, table, family int) (bool, error) {
 	rules, err := netlink.RuleList(family)
 	if err != nil {
-		return fmt.Errorf("netlink: failed to list rules: %w", err)
+		return false, fmt.Errorf("netlink: failed to list rules: %w", err)
 	}
 
 	for _, r := range rules {
 		if r.Mark == uint32(link.Attrs().Index) && r.Table == table {
-			// rule already exists, do nothing
-			return nil
+			// rule already exists
+			return true, nil
 		}
 	}
+	return false, nil
+}
 
-	rule := netlink.NewRule()
-	rule.Mark = uint32(link.Attrs().Index)
-	rule.Table = table
-	rule.Family = family
-	if err := netlink.RuleAdd(rule); err != nil {
-		return fmt.Errorf("netlink: failed to add rule %q: %w", rule.String(), err)
+func checkIPTRules(ipt *iptables.IPTables, table string, chain string, rulespec ...string) (bool, error) {
+	exists, err := ipt.Exists(table, chain, rulespec...)
+	if err != nil {
+		return false, fmt.Errorf("failed to check %q rule in chain %q - %q: %w", table, chain, rulespec, err)
 	}
-	return nil
+	return exists, nil
 }
 
 func addIPTRule(ipt *iptables.IPTables, table string, chain string, rulespec ...string) error {
-	exists, err := ipt.Exists(table, chain, rulespec...)
+	exists, err := checkIPTRules(ipt, table, chain, rulespec...)
 	if err != nil {
-		return fmt.Errorf("failed to check %q rule in chain %q - %q: %w", table, chain, rulespec, err)
+		return err
 	}
 
 	if !exists {
