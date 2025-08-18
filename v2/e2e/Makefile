@@ -3,6 +3,8 @@ KUBERNETES_VERSION=1.32.5
 KUSTOMIZE_VERSION = 5.6.0
 BINDIR := $(abspath $(PWD)/../bin)
 
+ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
+OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 KIND := $(BINDIR)/kind
 KUBECTL := $(BINDIR)/kubectl
 KUSTOMIZE := $(BINDIR)/kustomize
@@ -154,15 +156,15 @@ enable-certs-rotation:
 
 $(KIND):
 	mkdir -p $(dir $@)
-	curl -sfL -o $@ https://github.com/kubernetes-sigs/kind/releases/download/v$(KIND_VERSION)/kind-linux-amd64
+	curl -sfL -o $@ https://github.com/kubernetes-sigs/kind/releases/download/v$(KIND_VERSION)/kind-$(OS)-$(ARCH)
 	chmod a+x $@
 
 $(KUBECTL):
 	mkdir -p $(dir $@)
-	curl -sfL -o $@ https://dl.k8s.io/release/v$(KUBERNETES_VERSION)/bin/linux/amd64/kubectl
+	curl -sfL -o $@ https://dl.k8s.io/release/v$(KUBERNETES_VERSION)/bin/$(OS)/$(ARCH)/kubectl
 	chmod a+x $@
 
 $(KUSTOMIZE):
 	mkdir -p $(dir $@)
-	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz | tar -xz -C $(BINDIR)
+	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_$(OS)_$(ARCH).tar.gz | tar -xz -C $(BINDIR)
 	chmod a+x $@
