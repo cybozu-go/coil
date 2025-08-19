@@ -45,6 +45,11 @@ spec:
                     type: string
                   minItems: 1
                   type: array
+                enableNFT:
+                  description: |-
+                    EnableNFT indicates that nftables should be used instead of iptables for NAT rules.
+                    The default is false.
+                  type: boolean
                 fouSourcePortAuto:
                   description: |-
                     FouSourcePortAuto indicates that the source port number in foo-over-udp encapsulation

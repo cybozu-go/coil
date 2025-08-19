@@ -167,6 +167,9 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 		if eg.Spec.FouSourcePortAuto {
 			egressContainer.Args = append(egressContainer.Args, "--enable-sport-auto=true")
 		}
+		if eg.Spec.EnableNFT {
+			egressContainer.Args = append(egressContainer.Args, "--enable-nft=true")
+		}
 	}
 	egressContainer.Env = append(egressContainer.Env,
 		corev1.EnvVar{
