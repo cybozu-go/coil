@@ -24,6 +24,7 @@ type EgressWatcher struct {
 	NodeName   string
 	PodNet     nodenet.PodNetwork
 	EgressPort int
+	UseNFT     bool
 }
 
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses,verbs=get;list;watch

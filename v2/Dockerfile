@@ -13,7 +13,7 @@ FROM --platform=$TARGETPLATFORM ghcr.io/cybozu/ubuntu:24.04
 LABEL org.opencontainers.image.source https://github.com/cybozu-go/coil
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends netbase kmod iptables iproute2 conntrack \
+    && apt-get install -y --no-install-recommends netbase kmod iptables nftables iproute2 conntrack \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build-env /workdir/work /usr/local/coil

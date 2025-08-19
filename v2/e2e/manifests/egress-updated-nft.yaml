@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: internet
+---
+apiVersion: coil.cybozu.com/v2
+kind: Egress
+metadata:
+  name: egress
+  namespace: internet
+spec:
+  replicas: 2
+  destinations:
+  - 9.9.9.9/32
+  - 2606:4700:4700::9999/128
+  fouSourcePortAuto: true
+  enableNFT: true
+  template:
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: coil-control-plane
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      containers:
+      - name: egress

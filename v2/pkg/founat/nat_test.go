@@ -61,7 +61,7 @@ func TestNAT(t *testing.T) {
 			return fmt.Errorf("ft.Init on egress failed: %w", err)
 		}
 
-		egress := NewEgress("eth1", net.ParseIP("10.1.2.2"), net.ParseIP("fd01::202"))
+		egress := NewEgress("eth1", net.ParseIP("10.1.2.2"), net.ParseIP("fd01::202"), false)
 		if err := egress.Init(); err != nil {
 			return fmt.Errorf("egress.Init failed: %w", err)
 		}

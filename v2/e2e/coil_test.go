@@ -26,6 +26,7 @@ var (
 	enableIPv6Tests   = false
 	enableIPAMTests   = true
 	enableEgressTests = true
+	enableNFTTests    = false
 )
 
 func ParseEnv() {
@@ -33,6 +34,7 @@ func ParseEnv() {
 	enableIPv6Tests = ParseBool(testIPv6Key)
 	enableIPAMTests = ParseBool(testIPAMKey)
 	enableEgressTests = ParseBool(testEgressKey)
+	enableNFTTests = ParseBool(testNFTKey)
 }
 
 func ParseBool(key string) bool {
@@ -332,7 +334,12 @@ func testEgress() {
 		By("defining Egress in the internet namespace")
 
 		Eventually(func() error {
-			_, err := kubectl(nil, "apply", "-f", "manifests/egress.yaml")
+			var err error
+			if enableNFTTests {
+				_, err = kubectl(nil, "apply", "-f", "manifests/egress-nft.yaml")
+			} else {
+				_, err = kubectl(nil, "apply", "-f", "manifests/egress.yaml")
+			}
 			return err
 		}).WithTimeout(5 * time.Minute).WithPolling(100 * time.Millisecond).ShouldNot(HaveOccurred())
 
@@ -359,7 +366,12 @@ func testEgress() {
 		By("defining Egress with fouSourcePortAuto in the internet namespace")
 
 		Eventually(func() error {
-			_, err := kubectl(nil, "apply", "-f", "manifests/egress-sport-auto.yaml")
+			var err error
+			if enableNFTTests {
+				_, err = kubectl(nil, "apply", "-f", "manifests/egress-sport-auto-nft.yaml")
+			} else {
+				_, err = kubectl(nil, "apply", "-f", "manifests/egress-sport-auto.yaml")
+			}
 			return err
 		}).WithTimeout(5 * time.Minute).WithPolling(100 * time.Millisecond).ShouldNot(HaveOccurred())
 
@@ -391,7 +403,12 @@ func testEgress() {
 		By("defining Egress in the internet namespace")
 
 		Eventually(func() error {
-			_, err := kubectl(nil, "apply", "-f", "manifests/egress.yaml")
+			var err error
+			if enableNFTTests {
+				_, err = kubectl(nil, "apply", "-f", "manifests/egress-nft.yaml")
+			} else {
+				_, err = kubectl(nil, "apply", "-f", "manifests/egress.yaml")
+			}
 			return err
 		}).WithTimeout(5 * time.Minute).WithPolling(100 * time.Millisecond).ShouldNot(HaveOccurred())
 
@@ -418,7 +435,12 @@ func testEgress() {
 		By("defining Egress with fouSourcePortAuto in the internet namespace")
 
 		Eventually(func() error {
-			_, err := kubectl(nil, "apply", "-f", "manifests/egress-sport-auto.yaml")
+			var err error
+			if enableNFTTests {
+				_, err = kubectl(nil, "apply", "-f", "manifests/egress-sport-auto-nft.yaml")
+			} else {
+				_, err = kubectl(nil, "apply", "-f", "manifests/egress-sport-auto.yaml")
+			}
 			return err
 		}).WithTimeout(5 * time.Minute).WithPolling(100 * time.Millisecond).ShouldNot(HaveOccurred())
 
@@ -545,7 +567,11 @@ func testEgress() {
 		kubectlSafe(nil, "apply", "-f", "manifests/dummy_pod.yaml")
 
 		By("updating Egress in the internet namespace")
-		kubectlSafe(nil, "apply", "-f", "manifests/egress-updated.yaml")
+		if enableNFTTests {
+			kubectlSafe(nil, "apply", "-f", "manifests/egress-updated-nft.yaml")
+		} else {
+			kubectlSafe(nil, "apply", "-f", "manifests/egress-updated.yaml")
+		}
 
 		By("waiting for the Egress rollout restart")
 		kubectlSafe(nil, "-n", "internet", "rollout", "status", "deploy", "egress")

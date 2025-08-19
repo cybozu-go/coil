@@ -6,6 +6,7 @@ import (
 	"os"
 
 	v2 "github.com/cybozu-go/coil/v2"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -16,6 +17,7 @@ var config struct {
 	healthAddr      string
 	port            int
 	enableSportAuto bool
+	enableNFT       bool
 	zapOpts         zap.Options
 }
 
@@ -45,6 +47,7 @@ func init() {
 	pf.StringVar(&config.healthAddr, "health-addr", ":8081", "bind address of health/readiness probes")
 	pf.IntVar(&config.port, "fou-port", 5555, "port number for foo-over-udp tunnels")
 	pf.BoolVar(&config.enableSportAuto, "enable-sport-auto", false, "enable automatic source port assignment")
+	pf.BoolVar(&config.enableNFT, "enable-nft", constants.DefaultEnableNFT, "use nftables instead of iptables for NAT rules")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)

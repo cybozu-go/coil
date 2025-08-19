@@ -134,7 +134,7 @@ func subMain() error {
 	if err != nil {
 		return err
 	}
-	server := runners.NewCoildServer(l, mgr, nodeIPAM, podNet, runners.NewNATSetup(cfg.EgressPort), cfg, grpcLogger, runners.ProcessLinkAlias)
+	server := runners.NewCoildServer(l, mgr, nodeIPAM, podNet, runners.NewNATSetup(cfg.EgressPort, cfg.EnableNFT), cfg, grpcLogger, runners.ProcessLinkAlias)
 	if err := mgr.Add(server); err != nil {
 		return err
 	}
@@ -145,6 +145,7 @@ func subMain() error {
 			NodeName:   nodeName,
 			PodNet:     podNet,
 			EgressPort: cfg.EgressPort,
+			UseNFT:     cfg.EnableNFT,
 		}
 		if err := egressWatcher.SetupWithManager(mgr); err != nil {
 			return err
