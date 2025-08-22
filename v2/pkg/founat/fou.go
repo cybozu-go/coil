@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
-	"strconv"
 	"sync"
 
 	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/containernetworking/plugins/pkg/utils/sysctl"
-	"github.com/coreos/go-iptables/iptables"
 	"github.com/vishvananda/netlink"
 )
 
@@ -118,18 +116,6 @@ func (t *fouTunnel) Init() error {
 		if err := ip.EnableIP4Forward(); err != nil {
 			return fmt.Errorf("failed to enable IPv4 forwarding: %w", err)
 		}
-
-		ipt, err := iptables.NewWithProtocol(iptables.ProtocolIPv4)
-		if err != nil {
-			return err
-		}
-		// workaround for kube-proxy's double NAT problem
-		rulespec := []string{
-			"-p", "udp", "--dport", strconv.Itoa(t.port), "-j", "CHECKSUM", "--checksum-fill",
-		}
-		if err := ipt.Insert("mangle", "POSTROUTING", 1, rulespec...); err != nil {
-			return fmt.Errorf("failed to setup mangle table: %w", err)
-		}
 	}
 	if t.local6 != nil {
 		if err := modProbe("fou6"); err != nil {
@@ -146,18 +132,6 @@ func (t *fouTunnel) Init() error {
 		}
 		if err := ip.EnableIP6Forward(); err != nil {
 			return fmt.Errorf("failed to enable IPv6 forwarding: %w", err)
-		}
-
-		ipt, err := iptables.NewWithProtocol(iptables.ProtocolIPv6)
-		if err != nil {
-			return err
-		}
-		// workaround for kube-proxy's double NAT problem
-		rulespec := []string{
-			"-p", "udp", "--dport", strconv.Itoa(t.port), "-j", "CHECKSUM", "--checksum-fill",
-		}
-		if err := ipt.Insert("mangle", "POSTROUTING", 1, rulespec...); err != nil {
-			return fmt.Errorf("failed to setup mangle table: %w", err)
 		}
 
 		// avoid any existing DROP rule by rpfilter extension.
