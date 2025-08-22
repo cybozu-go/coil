@@ -118,7 +118,7 @@ test: setup-echotest
 
 .PHONY: setup-echotest
 setup-echotest:
-	CGO_ENABLED=0 go build -o echotest ./echo-server
+	CGO_ENABLED=0 GOARCH=$(ARCH) GOOS=linux go build -o echotest ./echo-server
 	docker cp echotest coil-control-plane:/usr/local/bin
 	rm echotest
 
