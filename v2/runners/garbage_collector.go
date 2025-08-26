@@ -48,6 +48,10 @@ func (gc *garbageCollector) Start(ctx context.Context) error {
 	tick := time.NewTicker(gc.interval)
 	defer tick.Stop()
 
+	if err := gc.do(context.Background()); err != nil {
+		return err
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
