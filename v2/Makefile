@@ -87,8 +87,8 @@ manifests: manifests-ipam manifests-egress
 .PHONY: manifests-egress
 manifests-egress: $(CONTROLLER_GEN) $(ROLES) $(YQ)
 	mkdir -p tmp/egress
-	cp api/v2/egress_webhook.go tmp/egress
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./tmp/egress/..." output:stdout output:crd:artifacts:config=config/crd/bases > config/webhook/egress/manifests.yaml
+	cp api/v2/egress_webhook.go api/v2/egress_types.go api/v2/groupversion_info.go tmp/egress
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./tmp/egress/..." output:webhook:stdout output:crd:artifacts:config=config/crd/bases > config/webhook/egress/manifests.yaml
 	sed -i 's/webhook-/egress-webhook-/g' config/webhook/egress/manifests.yaml
 	# Reduce the size of Egress CRD by deleting `description` fields below the pod's template because it exceeds the limit of `metadata.annotations` length when it's applied with client-side mode.
 	$(YQ) -i 'del(.spec.versions.[].schema.openAPIV3Schema.properties.spec.properties.template | ..  |select(key == "description"))' config/crd/bases/coil.cybozu.com_egresses.yaml
@@ -97,8 +97,8 @@ manifests-egress: $(CONTROLLER_GEN) $(ROLES) $(YQ)
 .PHONY: manifests-ipam
 manifests-ipam: $(CONTROLLER_GEN) $(ROLES) $(YQ)
 	mkdir -p tmp/ipam
-	cp api/v2/addresspool_webhook.go tmp/ipam
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./tmp/ipam/..." output:stdout output:crd:artifacts:config=config/crd/bases > config/webhook/ipam/manifests.yaml
+	cp api/v2/addresspool_webhook.go api/v2/addresspool_types.go api/v2/addressblock_types.go api/v2/blockrequest_types.go api/v2/groupversion_info.go tmp/ipam
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./tmp/ipam/..." output:webhook:stdout output:crd:artifacts:config=config/crd/bases > config/webhook/ipam/manifests.yaml
 	sed -i 's/webhook-/ipam-webhook-/g' config/webhook/ipam/manifests.yaml
 	rm -rf tmp 2> /dev/null
 
