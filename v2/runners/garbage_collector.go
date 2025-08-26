@@ -45,21 +45,18 @@ func (*garbageCollector) NeedLeaderElection() bool {
 
 // Start starts this runner.  This implements manager.Runnable
 func (gc *garbageCollector) Start(ctx context.Context) error {
-	tick := time.NewTicker(gc.interval)
-	defer tick.Stop()
-
-	if err := gc.do(context.Background()); err != nil {
-		return err
-	}
+	timer := time.NewTimer(0)
+	defer timer.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-tick.C:
+		case <-timer.C:
 			if err := gc.do(context.Background()); err != nil {
 				return err
 			}
+			timer.Reset(gc.interval)
 		}
 	}
 }
