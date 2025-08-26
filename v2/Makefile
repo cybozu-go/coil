@@ -7,6 +7,8 @@ PROTOC_VERSION=31.1
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
 PROTOC_GEN_GO_GRPC_VERSON=1.5.1
 PROTOC_GEN_DOC_VERSION=1.5.1
+ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
+OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 YQ_VERSION=4.45.4
 
 ## DON'T EDIT BELOW THIS LINE
@@ -104,8 +106,9 @@ manifests-ipam: $(CONTROLLER_GEN) $(ROLES) $(YQ)
 
 
 $(YQ):
-	$(WGET) -O yq.tar.gz https://github.com/mikefarah/yq/releases/download/v$(YQ_VERSION)/yq_linux_amd64.tar.gz
-	tar -C $(shell pwd)/bin/ -zxf yq.tar.gz ./yq_linux_amd64 -O > $@
+	$(WGET) -O yq.tar.gz https://github.com/mikefarah/yq/releases/download/v$(YQ_VERSION)/yq_$(OS)_$(ARCH).tar.gz
+	tar -C $(shell pwd)/bin/ -zxf yq.tar.gz ./yq_$(OS)_$(ARCH)
+	mv $(shell pwd)/bin/yq_$(OS)_$(ARCH) $@
 	rm -f yq.tar.gz
 	chmod +x $@
 
