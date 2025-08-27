@@ -145,7 +145,6 @@ func subMain() error {
 			NodeName:   nodeName,
 			PodNet:     podNet,
 			EgressPort: cfg.EgressPort,
-			UseNFT:     cfg.EnableNFT,
 		}
 		if err := egressWatcher.SetupWithManager(mgr); err != nil {
 			return err
