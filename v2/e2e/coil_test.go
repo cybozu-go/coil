@@ -21,6 +21,10 @@ import (
 	policyv1 "k8s.io/api/policy/v1"
 )
 
+const (
+	testNFTKey = "TEST_NFT"
+)
+
 var (
 	enableIPv4Tests   = true
 	enableIPv6Tests   = false

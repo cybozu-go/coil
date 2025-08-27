@@ -31,7 +31,6 @@ PROTOC := PATH=$(PWD)/bin:'$(PATH)' $(PWD)/bin/protoc -I=$(PWD)/include:.
 PODNSLIST = pod1 pod2 pod3 pod4 pod5 pod6
 NATNSLIST = nat-client nat-router nat-egress nat-target
 OTHERNSLIST = test-egress-dual test-egress-v4 test-egress-v6 \
-	test-egress-nft-dual test-egress-nft-v4 test-egress-nft-v6 \
 	test-client-dual test-client-v4 test-client-v6 test-client-custom \
 	test-fou-dual test-fou-v4 test-fou-v6
 WGET_OPTIONS := --retry-on-http-error=503 --retry-connrefused --no-verbose
@@ -315,3 +314,6 @@ enable-certs-rotation:
 	@$(call comment_certs,"config/default/kustomization.yaml")
 	@$(call comment_certs,"config/default/egress/v4/kustomization.yaml")
 	@$(call comment_certs,"config/default/egress/v6/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/nft-v4/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/nft-v6/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/nft-dualstack/kustomization.yaml")
