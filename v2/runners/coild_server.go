@@ -49,7 +49,7 @@ type NATSetup interface {
 
 // NewNATSetup creates a NATSetup using founat package.
 // `port` is the UDP port number to accept Foo-over-UDP packets.
-func NewNATSetup(port int, useNFT bool) NATSetup {
+func NewNATSetup(port int) NATSetup {
 	return natSetup{port: port}
 }
 

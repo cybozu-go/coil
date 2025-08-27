@@ -149,6 +149,11 @@ func testEgressDual(t *testing.T) {
 			return fmt.Errorf("unexpected routes for IPv6: %v", routes)
 		}
 
+		// Clean up dummy interface
+		if cleanupLink, cleanupErr := netlink.LinkByName("dummy1"); cleanupErr == nil {
+			netlink.LinkDel(cleanupLink)
+		}
+
 		return nil
 	})
 
@@ -230,12 +235,12 @@ func testEgressDual(t *testing.T) {
 		}
 
 		attrs := netlink.NewLinkAttrs()
-		attrs.Name = "dummy1"
+		attrs.Name = "dummy1-nft"
 		attrs.Flags = net.FlagUp
 		if err := netlink.LinkAdd(&netlink.Dummy{LinkAttrs: attrs}); err != nil {
 			return err
 		}
-		link, err := netlink.LinkByName("dummy1")
+		link, err := netlink.LinkByName("dummy1-nft")
 		if err != nil {
 			return err
 		}
@@ -351,6 +356,11 @@ func testEgressV4(t *testing.T) {
 			return fmt.Errorf("unexpected error: %T", err)
 		}
 
+		// Clean up dummy interface
+		if cleanupLink, cleanupErr := netlink.LinkByName("dummy1"); cleanupErr == nil {
+			netlink.LinkDel(cleanupLink)
+		}
+
 		return nil
 	})
 
@@ -403,12 +413,12 @@ func testEgressV4(t *testing.T) {
 		}
 
 		attrs := netlink.NewLinkAttrs()
-		attrs.Name = "dummy1"
+		attrs.Name = "dummy1-nft"
 		attrs.Flags = net.FlagUp
 		if err := netlink.LinkAdd(&netlink.Dummy{LinkAttrs: attrs}); err != nil {
 			return err
 		}
-		link, err := netlink.LinkByName("dummy1")
+		link, err := netlink.LinkByName("dummy1-nft")
 		if err != nil {
 			return err
 		}
@@ -521,6 +531,11 @@ func testEgressV6(t *testing.T) {
 			return fmt.Errorf("failed to call AddClient with fd02::1: %w", err)
 		}
 
+		// Clean up dummy interface
+		if cleanupLink, cleanupErr := netlink.LinkByName("dummy1"); cleanupErr == nil {
+			netlink.LinkDel(cleanupLink)
+		}
+
 		return nil
 	})
 
@@ -573,12 +588,12 @@ func testEgressV6(t *testing.T) {
 		}
 
 		attrs := netlink.NewLinkAttrs()
-		attrs.Name = "dummy1"
+		attrs.Name = "dummy1-nft"
 		attrs.Flags = net.FlagUp
 		if err := netlink.LinkAdd(&netlink.Dummy{LinkAttrs: attrs}); err != nil {
 			return err
 		}
-		link, err := netlink.LinkByName("dummy1")
+		link, err := netlink.LinkByName("dummy1-nft")
 		if err != nil {
 			return err
 		}
