@@ -258,16 +258,10 @@ func (e *egress) Init() error {
 			if err := e.addNFTablesRules(conn, nftables.TableFamilyIPv4, e.ipv4); err != nil {
 				return err
 			}
-			if err := e.addEgressRule(netlink.FAMILY_V4); err != nil {
-				return err
-			}
 		}
 
 		if e.ipv6 != nil {
 			if err := e.addNFTablesRules(conn, nftables.TableFamilyIPv6, e.ipv6); err != nil {
-				return err
-			}
-			if err := e.addEgressRule(netlink.FAMILY_V6); err != nil {
 				return err
 			}
 		}
@@ -280,17 +274,22 @@ func (e *egress) Init() error {
 			if err := e.addIPTablesRules(iptables.ProtocolIPv4, e.ipv4); err != nil {
 				return err
 			}
-			if err := e.addEgressRule(netlink.FAMILY_V4); err != nil {
-				return err
-			}
 		}
 		if e.ipv6 != nil {
 			if err := e.addIPTablesRules(iptables.ProtocolIPv6, e.ipv6); err != nil {
 				return err
 			}
-			if err := e.addEgressRule(netlink.FAMILY_V6); err != nil {
-				return err
-			}
+		}
+	}
+
+	if e.ipv4 != nil {
+		if err := e.addEgressRule(netlink.FAMILY_V4); err != nil {
+			return err
+		}
+	}
+	if e.ipv6 != nil {
+		if err := e.addEgressRule(netlink.FAMILY_V6); err != nil {
+			return err
 		}
 	}
 
