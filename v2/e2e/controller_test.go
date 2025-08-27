@@ -17,7 +17,6 @@ const (
 	testIPv4Key   = "TEST_IPV4"
 	testIPAMKey   = "TEST_IPAM"
 	testEgressKey = "TEST_EGRESS"
-	testNFTKey    = "TEST_NFT"
 )
 
 var _ = Describe("coil controllers", func() {
