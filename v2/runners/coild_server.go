@@ -50,12 +50,11 @@ type NATSetup interface {
 // NewNATSetup creates a NATSetup using founat package.
 // `port` is the UDP port number to accept Foo-over-UDP packets.
 func NewNATSetup(port int, useNFT bool) NATSetup {
-	return natSetup{port: port, useNFT: useNFT}
+	return natSetup{port: port}
 }
 
 type natSetup struct {
-	port   int
-	useNFT bool
+	port int
 }
 
 func (n natSetup) Hook(l []GWNets, log *zap.Logger) func(ipv4, ipv6 net.IP) error {
