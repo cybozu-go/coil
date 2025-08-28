@@ -48,7 +48,6 @@ jobs:
         ipv4: ["false", "true"]
         ipv6: ["false", "true"]
         ipv6-primary: ["false", "true"]
-        use-nftables: ["false", "true"]
         exclude:
         - ipv4: "false"
           ipv6: "false"
@@ -86,24 +85,15 @@ jobs:
       if: matrix.with-ipam == 'true'
       working-directory: v2/e2e
     - run: make install-coil-egress-v4
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'false' && matrix.use-nftables == 'false'
+      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'false'
       working-directory: v2/e2e
     - run: make install-coil-egress-v6
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'false' && matrix.ipv6 == 'true' && matrix.use-nftables == 'false'
+      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'false' && matrix.ipv6 == 'true'
       working-directory: v2/e2e
     - run: make install-coil-egress-dualstack
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'true' && matrix.use-nftables == 'false'
+      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'true'
       working-directory: v2/e2e
-    - run: make install-coil-egress-v4-nft
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'false' && matrix.use-nftables == 'true'
-      working-directory: v2/e2e
-    - run: make install-coil-egress-v6-nft
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'false' && matrix.ipv6 == 'true' && matrix.use-nftables == 'true'
-      working-directory: v2/e2e
-    - run: make install-coil-egress-dualstack-nft
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'true' && matrix.use-nftables == 'true'
-      working-directory: v2/e2e
-    - run: make test TEST_IPAM=${{ matrix.with-ipam }} TEST_EGRESS=true TEST_IPV4=${{ matrix.ipv4 }} TEST_IPV6=${{ matrix.ipv6 }} TEST_NFT=${{ matrix.use-nftables }}
+    - run: make test TEST_IPAM=${{ matrix.with-ipam }} TEST_EGRESS=true TEST_IPV4=${{ matrix.ipv4 }} TEST_IPV6=${{ matrix.ipv6 }}
       working-directory: v2/e2e
     - run: make logs
       working-directory: v2/e2e
@@ -111,7 +101,7 @@ jobs:
     - uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: logs-ipv4-${{ matrix.ipv4 }}-ipv6-${{ matrix.ipv6 }}-use-nftables-${{ matrix.use-nftables }}-with-ipam-${{ matrix.with-ipam }}-ipv6-primary-${{ matrix.ipv6-primary }}-${{ matrix.kindest-node }}.tar.gz
+        name: logs-ipv4-${{ matrix.ipv4 }}-ipv6-${{ matrix.ipv6 }}-with-ipam-${{ matrix.with-ipam }}-ipv6-primary-${{ matrix.ipv6-primary }}-${{ matrix.kindest-node }}.tar.gz
         path: v2/e2e/logs.tar.gz
   certs-generation:
     name: Cert generation test

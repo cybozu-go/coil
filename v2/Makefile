@@ -314,6 +314,3 @@ enable-certs-rotation:
 	@$(call comment_certs,"config/default/kustomization.yaml")
 	@$(call comment_certs,"config/default/egress/v4/kustomization.yaml")
 	@$(call comment_certs,"config/default/egress/v6/kustomization.yaml")
-	@$(call comment_certs,"config/default/egress/nft-v4/kustomization.yaml")
-	@$(call comment_certs,"config/default/egress/nft-v6/kustomization.yaml")
-	@$(call comment_certs,"config/default/egress/nft-dualstack/kustomization.yaml")

@@ -6,7 +6,7 @@ metadata:
 apiVersion: coil.cybozu.com/v2
 kind: Egress
 metadata:
-  name: egress-sport-auto
+  name: egress-sport-auto-nft
   namespace: internet
 spec:
   replicas: 2
