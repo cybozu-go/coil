@@ -101,52 +101,39 @@ func (e *egress) addNFTablesRules(conn *nftables.Conn, family nftables.TableFami
 	}
 	conn.AddChain(postRoutingChain)
 
-	var masqExprs []expr.Any
-	if family == nftables.TableFamilyIPv4 {
-		masqExprs = []expr.Any{
-			&expr.Payload{
-				DestRegister: nftRegister,
-				Base:         expr.PayloadBaseNetworkHeader,
-				Offset:       ipv4SrcOffset,
-				Len:          ipv4SrcLen,
-			},
-			&expr.Bitwise{
-				SourceRegister: nftRegister,
-				DestRegister:   nftRegister,
-				Len:            ipv4SrcLen,
-				Mask:           ipNetParsed.Mask,
-				Xor:            binaryutil.NativeEndian.PutUint32(0),
-			},
-			&expr.Cmp{
-				Op:       expr.CmpOpNeq,
-				Register: nftRegister,
-				Data:     ipNetParsed.IP.To4(),
-			},
-		}
+	var offset, length uint32
+	var xor, ipData []byte
+	if family == nftables.TableFamilyIPv6 {
+		offset = ipv6SrcOffset
+		length = ipv6SrcLen
+		xor = make([]byte, ipv6SrcLen)
+		ipData = ipNetParsed.IP.To16()
 	} else {
-		masqExprs = []expr.Any{
-			&expr.Payload{
-				DestRegister: nftRegister,
-				Base:         expr.PayloadBaseNetworkHeader,
-				Offset:       ipv6SrcOffset,
-				Len:          ipv6SrcLen,
-			},
-			&expr.Bitwise{
-				SourceRegister: nftRegister,
-				DestRegister:   nftRegister,
-				Len:            ipv6SrcLen,
-				Mask:           ipNetParsed.Mask,
-				Xor:            make([]byte, ipv6SrcLen),
-			},
-			&expr.Cmp{
-				Op:       expr.CmpOpNeq,
-				Register: nftRegister,
-				Data:     ipNetParsed.IP.To16(),
-			},
-		}
+		offset = ipv4SrcOffset
+		length = ipv4SrcLen
+		xor = binaryutil.NativeEndian.PutUint32(0)
+		ipData = ipNetParsed.IP.To4()
 	}
 
-	masqExprs = append(masqExprs,
+	masqExprs := []expr.Any{
+		&expr.Payload{
+			DestRegister: nftRegister,
+			Base:         expr.PayloadBaseNetworkHeader,
+			Offset:       offset,
+			Len:          length,
+		},
+		&expr.Bitwise{
+			SourceRegister: nftRegister,
+			DestRegister:   nftRegister,
+			Len:            length,
+			Mask:           ipNetParsed.Mask,
+			Xor:            xor,
+		},
+		&expr.Cmp{
+			Op:       expr.CmpOpNeq,
+			Register: nftRegister,
+			Data:     ipData,
+		},
 		&expr.Meta{
 			Key:      expr.MetaKeyOIFNAME,
 			Register: nftRegister,
@@ -158,7 +145,7 @@ func (e *egress) addNFTablesRules(conn *nftables.Conn, family nftables.TableFami
 		},
 		&expr.Counter{},
 		&expr.Masq{},
-	)
+	}
 
 	masqRule := &nftables.Rule{
 		Table: natTable,
@@ -179,6 +166,7 @@ func (e *egress) addNFTablesRules(conn *nftables.Conn, family nftables.TableFami
 	}
 	conn.AddChain(forwardChain)
 
+	// Drop invalid or malformed packets from passing through the network.
 	dropRule := &nftables.Rule{
 		Table: filterTable,
 		Chain: forwardChain,

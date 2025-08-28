@@ -599,6 +599,7 @@ func testEgressWithBackend(tc egressTestCase) {
 		By("creating a dummy pod don't use egress")
 		// dummy pod must be created after creating a net-client pod
 		kubectlSafe(nil, "apply", "-f", tc.dummyPodManifest)
+
 		By(fmt.Sprintf("updating Egress in the internet namespace using %s", tc.name))
 		kubectlSafe(nil, "apply", "-f", tc.egressUpdatedManifest)
 
