@@ -1,10 +1,13 @@
 package founat
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"sync"
+	"syscall"
 
+	"github.com/coreos/go-iptables/iptables"
 	"github.com/vishvananda/netlink"
 )
 
@@ -14,7 +17,8 @@ const (
 	ncNarrowTableID = 117
 	ncWideTableID   = 118
 
-	mainTableID = 254
+	mainTableID      = 254
+	nonEgressTableID = 1000
 )
 
 // rule priorities
@@ -47,7 +51,7 @@ var (
 type NatClient interface {
 	Init() error
 	IsInitialized() (bool, error)
-	AddEgress(link netlink.Link, subnets []*net.IPNet) error
+	AddEgress(link netlink.Link, subnets []*net.IPNet, originatingOnly bool) error
 }
 
 // NewNatClient creates a NatClient.
@@ -285,7 +289,7 @@ func (c *natClient) IsInitialized() (bool, error) {
 	return true, nil
 }
 
-func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet) error {
+func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet, originatingOnly bool) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -312,6 +316,16 @@ func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet) error {
 	for _, n := range adds {
 		if err := c.addEgress1(link, n); err != nil {
 			return err
+		}
+
+		if originatingOnly {
+			family := iptables.ProtocolIPv6
+			if n.IP.To4() != nil {
+				family = iptables.ProtocolIPv4
+			}
+			if err := configureRoutes(family); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -418,5 +432,135 @@ func (c *natClient) addEgress1(link netlink.Link, n *net.IPNet) error {
 	if err != nil {
 		return fmt.Errorf("netlink: failed to add route(table %d) to %s: %w", ncWideTableID, n.String(), err)
 	}
+	return nil
+}
+
+func configureRoutes(family iptables.Protocol) error {
+	netlinkFamily := netlink.FAMILY_V4
+	if family == iptables.ProtocolIPv6 {
+		netlinkFamily = netlink.FAMILY_V6
+	}
+
+	links, err := netlink.LinkList()
+	if err != nil {
+		return fmt.Errorf("netlink: failed to list links: %w", err)
+	}
+
+	ipt, err := iptables.New(iptables.IPFamily(family))
+	if err != nil {
+		return err
+	}
+
+	for _, link := range links {
+		hasGlobalIP, err := checkLinkForGlobalScopeIP(link, netlinkFamily)
+		if err != nil {
+			return fmt.Errorf("netlink: failed to check interface %q for non-local IP address: %w", link.Attrs().Name, err)
+		}
+		if !hasGlobalIP {
+			continue
+		}
+
+		linkTable := nonEgressTableID + link.Attrs().Index
+
+		routes, err := netlink.RouteList(link, netlinkFamily)
+		if err != nil {
+			return fmt.Errorf("netlink: failed to list routes for interface %q: %w", link.Attrs().Name, err)
+		}
+
+		if len(routes) > 0 {
+			for i := range routes {
+				routes[i].Table = linkTable
+				if err := netlink.RouteAdd(&routes[i]); err != nil && !errors.Is(err, syscall.EEXIST) {
+					return fmt.Errorf("netlink: failed to add route %q, link: %s, state: %s - %w",
+						routes[i].String(), link.Attrs().Name, link.Attrs().OperState.String(), err)
+				}
+			}
+
+			if err := addFWMarkRule(link, linkTable, netlinkFamily); err != nil {
+				return fmt.Errorf("failed to add FWMark rule: %w", err)
+			}
+
+			if err := addIPTRule(ipt, "mangle", "INPUT",
+				"-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j", "CONNMARK",
+				"-i", link.Attrs().Name, "--set-mark", fmt.Sprintf("%d", link.Attrs().Index)); err != nil {
+				return fmt.Errorf("failed to configure IPTables: %w", err)
+			}
+
+			if err := addIPTRule(ipt, "mangle", "OUTPUT", "-j", "CONNMARK", "-m", "connmark",
+				"--mark", fmt.Sprintf("%d", link.Attrs().Index), "--restore-mark"); err != nil {
+				return fmt.Errorf("failed to configure IPTables: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+func checkLinkForGlobalScopeIP(link netlink.Link, family int) (bool, error) {
+	addrs, err := netlink.AddrList(link, family)
+	if err != nil {
+		return false, fmt.Errorf("netlink: failed to list addresses for linl %q: %w", link.Attrs().Name, err)
+	}
+	for _, a := range addrs {
+		if a.Scope == int(netlink.SCOPE_UNIVERSE) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func addFWMarkRule(link netlink.Link, table, family int) error {
+	exists, err := checkFWMarkRule(link, table, family)
+	if err != nil {
+		return fmt.Errorf("failed to check FW mark rule existance: %w", err)
+	}
+
+	if !exists {
+		rule := netlink.NewRule()
+		rule.Mark = uint32(link.Attrs().Index)
+		rule.Table = table
+		rule.Family = family
+		if err := netlink.RuleAdd(rule); err != nil {
+			return fmt.Errorf("netlink: failed to add rule %q: %w", rule.String(), err)
+		}
+	}
+
+	return nil
+}
+
+func checkFWMarkRule(link netlink.Link, table, family int) (bool, error) {
+	rules, err := netlink.RuleList(family)
+	if err != nil {
+		return false, fmt.Errorf("netlink: failed to list rules: %w", err)
+	}
+
+	for _, r := range rules {
+		if r.Mark == uint32(link.Attrs().Index) && r.Table == table {
+			// rule already exists
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func checkIPTRules(ipt *iptables.IPTables, table string, chain string, rulespec ...string) (bool, error) {
+	exists, err := ipt.Exists(table, chain, rulespec...)
+	if err != nil {
+		return false, fmt.Errorf("failed to check %q rule in chain %q - %q: %w", table, chain, rulespec, err)
+	}
+	return exists, nil
+}
+
+func addIPTRule(ipt *iptables.IPTables, table string, chain string, rulespec ...string) error {
+	exists, err := checkIPTRules(ipt, table, chain, rulespec...)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		if err := ipt.Append(table, chain, rulespec...); err != nil {
+			return fmt.Errorf("failed to append %q rule in chain %q - %q: %w", table, chain, rulespec, err)
+		}
+	}
+
 	return nil
 }
