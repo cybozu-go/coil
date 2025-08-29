@@ -325,6 +325,17 @@ func testIPAM() {
 			return fmt.Errorf("the number of AddressPool must be 1")
 		}).Should(Succeed())
 	})
+
+	It("should cleanup network state", func() {
+		By("ensuring complete cleanup after IPAM tests")
+
+		kubectlSafe(nil, "delete", "addressblock", "--all", "--ignore-not-found=true")
+		kubectlSafe(nil, "delete", "blockrequest", "--all", "--ignore-not-found=true")
+
+		runOnNode("coil-worker", "ip", "route", "flush", "table", "119")
+		runOnNode("coil-worker2", "ip", "route", "flush", "table", "119")
+		runOnNode("coil-control-plane", "ip", "route", "flush", "table", "all")
+	})
 }
 
 type egressTestCase struct {
@@ -735,7 +746,11 @@ func testEgressWithBackend(tc egressTestCase) {
 
 		By("cleaning up dummy-fake network interface")
 		runOnNode("coil-control-plane", "ip", "link", "delete", "dummy-fake")
+		runOnNode("coil-control-plane", "ip", "route", "flush", "table", "all")
 
+		By("ensuring complete cleanup between test cases")
+		kubectlSafe(nil, "delete", "addressblock", "--all", "--ignore-not-found=true")
+		kubectlSafe(nil, "delete", "blockrequest", "--all", "--ignore-not-found=true")
 	})
 }
 
