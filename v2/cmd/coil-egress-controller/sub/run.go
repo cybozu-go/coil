@@ -121,12 +121,18 @@ func setupManager(mgr ctrl.Manager, certCompleted chan struct{}) error {
 	if err != nil {
 		return err
 	}
+
+	backend := config.backend
+	if backend == "" {
+		backend = constants.DefaultBackend
+	}
+
 	egressctrl := controllers.EgressReconciler{
 		Client:  mgr.GetClient(),
 		Scheme:  scheme,
 		Image:   img,
 		Port:    config.egressPort,
-		Backend: config.backend,
+		Backend: backend,
 	}
 	if err := egressctrl.SetupWithManager(mgr); err != nil {
 		return err

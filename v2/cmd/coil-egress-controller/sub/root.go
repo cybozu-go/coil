@@ -30,6 +30,13 @@ var rootCmd = &cobra.Command{
 	Short:   "controller for coil egress related custom resources",
 	Long:    `coil-egress-controller is a Kubernetes controller for coil egress related custom resources.`,
 	Version: v2.Version(),
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if config.backend != constants.BackendIPTables && config.backend != constants.BackendNFTables {
+			return fmt.Errorf("invalid backend: %s (must be either %s or %s)",
+				config.backend, constants.BackendIPTables, constants.BackendNFTables)
+		}
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cmd.SilenceUsage = true
 		return subMain()
