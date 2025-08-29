@@ -26,6 +26,13 @@ var rootCmd = &cobra.Command{
 	Short:   "manage foo-over-udp tunnels in egress pods",
 	Long:    `coil-egress manages Foo-over-UDP tunnels in pods created by Egress.`,
 	Version: v2.Version(),
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if config.backend != constants.BackendIPTables && config.backend != constants.BackendNFTables {
+			return fmt.Errorf("invalid backend: %s (must be either %s or %s)",
+				config.backend, constants.BackendIPTables, constants.BackendNFTables)
+		}
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cmd.SilenceUsage = true
 		return subMain()
