@@ -116,6 +116,7 @@ func (e *egress) addNFTablesRules(conn *nftables.Conn, family nftables.TableFami
 		ipData = ipNetParsed.IP.To4()
 	}
 
+	// ex. nft add rule ip nat POSTROUTING ip saddr != 10.0.0.0/24 oifname "eth0" counter masquerade
 	masqExprs := []expr.Any{
 		&expr.Payload{
 			DestRegister: nftRegister,
@@ -158,6 +159,7 @@ func (e *egress) addNFTablesRules(conn *nftables.Conn, family nftables.TableFami
 	filterTable := &nftables.Table{Family: family, Name: "filter"}
 	conn.AddTable(filterTable)
 
+	// ex. nft add chain ip filter FORWARD { type filter hook forward priority filter \; }
 	forwardChain := &nftables.Chain{
 		Name:     "FORWARD",
 		Table:    filterTable,
@@ -168,6 +170,7 @@ func (e *egress) addNFTablesRules(conn *nftables.Conn, family nftables.TableFami
 	conn.AddChain(forwardChain)
 
 	// Drop invalid or malformed packets from passing through the network.
+	// ex. nft add rule ip filter FORWARD oifname "eth0" ct state invalid counter drop
 	dropRule := &nftables.Rule{
 		Table: filterTable,
 		Chain: forwardChain,
