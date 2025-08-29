@@ -46,7 +46,7 @@ spec:
         command: ["coil-egress-controller"]
         args:
           - --zap-stacktrace-level=panic
-          - --backend=iptables
+          - --backend=nftables
         env:
         - name: "COIL_POD_NAMESPACE"
           valueFrom:

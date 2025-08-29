@@ -64,11 +64,6 @@ type EgressSpec struct {
 	// +optional
 	FouSourcePortAuto bool `json:"fouSourcePortAuto,omitempty"`
 
-	// EnableNFT indicates that nftables should be used instead of iptables for NAT rules.
-	// The default is false.
-	// +optional
-	EnableNFT bool `json:"enableNFT,omitempty"`
-
 	// PodDisruptionBudget is an optional PodDisruptionBudget for Egress NAT pods.
 	// +optional
 	PodDisruptionBudget *EgressPDBSpec `json:"podDisruptionBudget,omitempty"`

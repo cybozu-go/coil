@@ -9,15 +9,16 @@ import (
 	"time"
 
 	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 )
 
 func TestNAT(t *testing.T) {
 	t.Parallel()
 
-	for _, useNFT := range []bool{false, true} {
-		useNFT := useNFT
+	for _, backend := range []string{constants.BackendIPTables, constants.BackendNFTables} {
+		backend := backend
 
-		t.Logf("Testing with useNFT=%t", useNFT)
+		t.Logf("Testing with backend=%s", backend)
 
 		cNS := getNS(nsClient)
 		defer cNS.Close()
@@ -67,7 +68,7 @@ func TestNAT(t *testing.T) {
 				return fmt.Errorf("ft.Init on egress failed: %w", err)
 			}
 
-			egress := NewEgress("eth1", net.ParseIP("10.1.2.2"), net.ParseIP("fd01::202"), useNFT)
+			egress := NewEgress("eth1", net.ParseIP("10.1.2.2"), net.ParseIP("fd01::202"), backend)
 			if err := egress.Init(); err != nil {
 				return fmt.Errorf("egress.Init failed: %w", err)
 			}
@@ -96,7 +97,7 @@ func TestNAT(t *testing.T) {
 
 		go targetNS.Do(func(_ ns.NetNS) error {
 			s := &http.Server{}
-			t.Logf("httpd running in the target network namespace (useNFT=%t)", useNFT)
+			t.Logf("httpd running in the target network namespace (backend=%s)", backend)
 			s.ListenAndServe()
 			return nil
 		})
@@ -105,11 +106,11 @@ func TestNAT(t *testing.T) {
 		err = cNS.Do(func(ns.NetNS) error {
 			out, err := exec.Command("curl", "http://10.1.3.1").CombinedOutput()
 			if err != nil {
-				return fmt.Errorf("curl over fou IPv4 failed (useNFT=%t): %s, %w", useNFT, string(out), err)
+				return fmt.Errorf("curl over fou IPv4 failed (backend=%s): %s, %w", backend, string(out), err)
 			}
 			out, err = exec.Command("curl", "http://[fd01::301]").CombinedOutput()
 			if err != nil {
-				return fmt.Errorf("curl over fou IPv6 failed (useNFT=%t): %s, %w", useNFT, string(out), err)
+				return fmt.Errorf("curl over fou IPv6 failed (backend=%s): %s, %w", backend, string(out), err)
 			}
 
 			return nil

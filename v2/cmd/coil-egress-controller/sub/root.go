@@ -18,6 +18,7 @@ var config struct {
 	webhookAddr string
 	certDir     string
 	egressPort  int32
+	backend     string
 	zapOpts     zap.Options
 
 	enableCertRotation         bool
@@ -51,6 +52,7 @@ func init() {
 	pf.StringVar(&config.webhookAddr, "webhook-addr", ":9444", "bind address of admission webhook")
 	pf.StringVar(&config.certDir, "cert-dir", "/certs", "directory to locate TLS certs for webhook")
 	pf.Int32Var(&config.egressPort, "egress-port", 5555, "UDP port number used by coil-egress")
+	pf.StringVar(&config.backend, "backend", constants.DefaultBackend, "Backend for egress NAT rules: iptables or nftables (default: iptables)")
 	pf.BoolVar(&config.enableCertRotation, "enable-cert-rotation", constants.DefaultEnableCertRotation, "enables webhook's certificate generation")
 	pf.BoolVar(&config.enableRestartOnCertRefresh, "enable-restart-on-cert-refresh", constants.DefaultEnableRestartOnCertRefresh, "enables pod's restart on webhook certificate refresh")
 

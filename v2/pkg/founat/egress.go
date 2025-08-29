@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/coreos/go-iptables/iptables"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
@@ -37,7 +38,7 @@ type Egress interface {
 }
 
 // NewEgress creates an Egress
-func NewEgress(iface string, ipv4, ipv6 net.IP, useNFT bool) Egress {
+func NewEgress(iface string, ipv4, ipv6 net.IP, backend string) Egress {
 	if ipv4 != nil && ipv4.To4() == nil {
 		panic("invalid IPv4 address")
 	}
@@ -45,18 +46,18 @@ func NewEgress(iface string, ipv4, ipv6 net.IP, useNFT bool) Egress {
 		panic("invalid IPv6 address")
 	}
 	return &egress{
-		iface:  iface,
-		ipv4:   ipv4,
-		ipv6:   ipv6,
-		useNFT: useNFT,
+		iface:   iface,
+		ipv4:    ipv4,
+		ipv6:    ipv6,
+		backend: backend,
 	}
 }
 
 type egress struct {
-	iface  string
-	ipv4   net.IP
-	ipv6   net.IP
-	useNFT bool
+	iface   string
+	ipv4    net.IP
+	ipv6    net.IP
+	backend string
 
 	mu sync.Mutex
 }
@@ -236,7 +237,7 @@ func (e *egress) Init() error {
 		return err
 	}
 
-	if e.useNFT {
+	if e.backend == constants.BackendNFTables {
 		conn, err := nftables.New()
 		if err != nil {
 			return fmt.Errorf("failed to create nftables connection: %w", err)

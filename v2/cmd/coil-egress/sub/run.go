@@ -112,8 +112,8 @@ func subMain() error {
 		return err
 	}
 
-	setupLog.Info("initialize Egress", "ipv4", ipv4.String(), "ipv6", ipv6.String(), "useNFT", config.enableNFT)
-	eg := founat.NewEgress("eth0", ipv4, ipv6, config.enableNFT)
+	setupLog.Info("initialize Egress", "ipv4", ipv4.String(), "ipv6", ipv6.String(), "backend", config.backend)
+	eg := founat.NewEgress("eth0", ipv4, ipv6, config.backend)
 	if err := eg.Init(); err != nil {
 		return err
 	}

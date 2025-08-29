@@ -325,77 +325,21 @@ func testIPAM() {
 			return fmt.Errorf("the number of AddressPool must be 1")
 		}).Should(Succeed())
 	})
-
-	It("should cleanup network state", func() {
-		By("ensuring complete cleanup after IPAM tests")
-
-		kubectlSafe(nil, "delete", "addressblock", "--all", "--ignore-not-found=true")
-		kubectlSafe(nil, "delete", "blockrequest", "--all", "--ignore-not-found=true")
-
-		runOnNode("coil-worker", "ip", "route", "flush", "table", "119")
-		runOnNode("coil-worker2", "ip", "route", "flush", "table", "119")
-		runOnNode("coil-control-plane", "ip", "route", "flush", "table", "all")
-	})
-}
-
-type egressTestCase struct {
-	name                    string
-	egressManifest          string
-	egressSportManifest     string
-	egressUpdatedManifest   string
-	dummyPodManifest        string
-	natClient               string
-	natClientSportAuto      string
-	egressDeploymentName    string
-	sportAutoDeploymentName string
 }
 
 func testEgress() {
-	testCases := []egressTestCase{
-		{
-			name:                    "iptables",
-			egressManifest:          "manifests/egress.yaml",
-			egressSportManifest:     "manifests/egress-sport-auto.yaml",
-			egressUpdatedManifest:   "manifests/egress-updated.yaml",
-			dummyPodManifest:        "manifests/dummy_pod.yaml",
-			natClient:               "manifests/nat-client.yaml",
-			natClientSportAuto:      "manifests/nat-client-sport-auto.yaml",
-			egressDeploymentName:    "egress",
-			sportAutoDeploymentName: "egress-sport-auto",
-		},
-		{
-			name:                    "nftables",
-			egressManifest:          "manifests/egress-nft.yaml",
-			egressSportManifest:     "manifests/egress-sport-auto-nft.yaml",
-			egressUpdatedManifest:   "manifests/egress-updated-nft.yaml",
-			dummyPodManifest:        "manifests/dummy_pod-nft.yaml",
-			natClient:               "manifests/nat-client-nft.yaml",
-			natClientSportAuto:      "manifests/nat-client-sport-auto-nft.yaml",
-			egressDeploymentName:    "egress-nft",
-			sportAutoDeploymentName: "egress-sport-auto-nft",
-		},
-	}
-
-	for _, tc := range testCases {
-		Context(fmt.Sprintf("with %s", tc.name), func() {
-			testEgressWithBackend(tc)
-		})
-	}
-}
-
-func testEgressWithBackend(tc egressTestCase) {
 	It("should be able to run Egress pods", func() {
-		By(fmt.Sprintf("defining Egress in the internet namespace using %s", tc.name))
+		By("defining Egress in the internet namespace")
 
 		Eventually(func() error {
-			_, err := kubectl(nil, "apply", "-f", tc.egressManifest)
+			_, err := kubectl(nil, "apply", "-f", "manifests/egress.yaml")
 			return err
 		}).WithTimeout(5 * time.Minute).WithPolling(100 * time.Millisecond).ShouldNot(HaveOccurred())
 
 		By("checking pod deployments")
 		Eventually(func() int {
 			depl := &appsv1.Deployment{}
-			err := getResource("internet", "deployments", tc.egressDeploymentName, "", depl)
+			err := getResource("internet", "deployments", "egress", "", depl)
 			if err != nil {
 				return 0
 			}
@@ -405,7 +349,7 @@ func testEgressWithBackend(tc egressTestCase) {
 		By("checking PDB")
 		Eventually(func() error {
 			pdb := &policyv1.PodDisruptionBudget{}
-			err := getResource("internet", "pdb", tc.egressDeploymentName, "", pdb)
+			err := getResource("internet", "pdb", "egress", "", pdb)
 			if err != nil {
 				return err
 			}
@@ -415,14 +359,14 @@ func testEgressWithBackend(tc egressTestCase) {
 		By("defining Egress with fouSourcePortAuto in the internet namespace")
 
 		Eventually(func() error {
-			_, err := kubectl(nil, "apply", "-f", tc.egressSportManifest)
+			_, err := kubectl(nil, "apply", "-f", "manifests/egress-sport-auto.yaml")
 			return err
 		}).WithTimeout(5 * time.Minute).WithPolling(100 * time.Millisecond).ShouldNot(HaveOccurred())
 
 		By("checking pod deployments for fouSourcePortAuto")
 		Eventually(func() int {
 			depl := &appsv1.Deployment{}
-			err := getResource("internet", "deployments", tc.sportAutoDeploymentName, "", depl)
+			err := getResource("internet", "deployments", "egress-sport-auto", "", depl)
 			if err != nil {
 				return 0
 			}
@@ -430,33 +374,29 @@ func testEgressWithBackend(tc egressTestCase) {
 		}).Should(Equal(2))
 
 		By("deleting Egress")
-		kubectlSafe(nil, "delete", "egress", "-n", "internet", tc.egressDeploymentName)
+		kubectlSafe(nil, "delete", "egress", "-n", "internet", "egress")
 
 		By("checking PDB deletion")
 		Eventually(func() error {
 			pdb := &policyv1.PodDisruptionBudget{}
-			err := getResource("internet", "pdb", tc.egressDeploymentName, "", pdb)
+			err := getResource("internet", "pdb", "egress", "", pdb)
 			if err != nil {
 				return err
 			}
 			return nil
 		}).ShouldNot(Succeed())
-
-		// Clean up for next test
-		By("cleaning up egress-sport-auto")
-		kubectlSafe(nil, "delete", "egress", "-n", "internet", tc.sportAutoDeploymentName)
 	})
 
 	It("should be able to run NAT client pods", func() {
-		By(fmt.Sprintf("defining Egress in the internet namespace using %s", tc.name))
+		By("defining Egress in the internet namespace")
 
 		Eventually(func() error {
-			_, err := kubectl(nil, "apply", "-f", tc.egressManifest)
+			_, err := kubectl(nil, "apply", "-f", "manifests/egress.yaml")
 			return err
 		}).WithTimeout(5 * time.Minute).WithPolling(100 * time.Millisecond).ShouldNot(HaveOccurred())
 
 		By("creating a NAT client pod")
-		kubectlSafe(nil, "apply", "-f", tc.natClient)
+		kubectlSafe(nil, "apply", "-f", "manifests/nat-client.yaml")
 
 		By("checking the pod status")
 		Eventually(func() error {
@@ -478,12 +418,12 @@ func testEgressWithBackend(tc egressTestCase) {
 		By("defining Egress with fouSourcePortAuto in the internet namespace")
 
 		Eventually(func() error {
-			_, err := kubectl(nil, "apply", "-f", tc.egressSportManifest)
+			_, err := kubectl(nil, "apply", "-f", "manifests/egress-sport-auto.yaml")
 			return err
 		}).WithTimeout(5 * time.Minute).WithPolling(100 * time.Millisecond).ShouldNot(HaveOccurred())
 
 		By("creating a NAT client pod for fouSourcePortAuto")
-		kubectlSafe(nil, "apply", "-f", tc.natClientSportAuto)
+		kubectlSafe(nil, "apply", "-f", "manifests/nat-client-sport-auto.yaml")
 
 		By("checking the pod status for fouSourcePortAuto")
 		Eventually(func() error {
@@ -523,30 +463,23 @@ func testEgressWithBackend(tc egressTestCase) {
 		}
 
 		By("setting a fake global address to coil-control-plane")
-		// Check if dummy-fake already exists and skip if it does
-		_, err := runOnNode("coil-control-plane", "ip", "link", "show", "dummy-fake")
-		if err != nil {
-			_, err = runOnNode("coil-control-plane", "ip", "link", "add", "dummy-fake", "type", "dummy")
-			Expect(err).NotTo(HaveOccurred())
-			_, err = runOnNode("coil-control-plane", "ip", "link", "set", "dummy-fake", "up")
-			Expect(err).NotTo(HaveOccurred())
+		_, err := runOnNode("coil-control-plane", "ip", "link", "add", "dummy-fake", "type", "dummy")
+		Expect(err).NotTo(HaveOccurred())
+		_, err = runOnNode("coil-control-plane", "ip", "link", "set", "dummy-fake", "up")
+		Expect(err).NotTo(HaveOccurred())
 
-			for _, o := range opts {
-				if strings.Contains(o.ipOpt, "4") {
-					_, err = runOnNode("coil-control-plane", "ip", "address", "add", o.fakeIP+"/32", "dev", "dummy-fake")
-				} else {
-					_, err = runOnNode("coil-control-plane", "ip", "address", "add", o.fakeIP+"/128", "dev", "dummy-fake", "nodad")
-				}
-				// Ignore error if address already exists
-				if err != nil && !strings.Contains(err.Error(), "File exists") {
-					Expect(err).NotTo(HaveOccurred())
-				}
+		for _, o := range opts {
+			if strings.Contains(o.ipOpt, "4") {
+				_, err = runOnNode("coil-control-plane", "ip", "address", "add", o.fakeIP+"/32", "dev", "dummy-fake")
+			} else {
+				_, err = runOnNode("coil-control-plane", "ip", "address", "add", o.fakeIP+"/128", "dev", "dummy-fake", "nodad")
 			}
+			Expect(err).NotTo(HaveOccurred())
 		}
 
 		natAddresses := []string{}
 		if !enableIPAMTests {
-			natAddresses = getNATAddresses(tc.egressDeploymentName)
+			natAddresses = getNATAddresses("egress")
 		}
 
 		By("running HTTP server on coil-control-plane")
@@ -569,7 +502,7 @@ func testEgressWithBackend(tc egressTestCase) {
 				}
 			}
 
-			By(fmt.Sprintf("sending and receiving HTTP request from nat-client-sport-auto (%s): %s", tc.name, o.fakeURL))
+			By("sending and receiving HTTP request from nat-client: " + o.fakeURL)
 			data := make([]byte, 1<<20) // 1 MiB
 			testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, enableIPAMTests)
 
@@ -582,7 +515,7 @@ func testEgressWithBackend(tc egressTestCase) {
 
 		natAddresses = []string{}
 		if !enableIPAMTests {
-			natAddresses = getNATAddresses(tc.sportAutoDeploymentName)
+			natAddresses = getNATAddresses("egress-sport-auto")
 		}
 
 		for _, o := range opts {
@@ -609,13 +542,13 @@ func testEgressWithBackend(tc egressTestCase) {
 
 		By("creating a dummy pod don't use egress")
 		// dummy pod must be created after creating a net-client pod
-		kubectlSafe(nil, "apply", "-f", tc.dummyPodManifest)
+		kubectlSafe(nil, "apply", "-f", "manifests/dummy_pod.yaml")
 
-		By(fmt.Sprintf("updating Egress in the internet namespace using %s", tc.name))
-		kubectlSafe(nil, "apply", "-f", tc.egressUpdatedManifest)
+		By("updating Egress in the internet namespace")
+		kubectlSafe(nil, "apply", "-f", "manifests/egress-updated.yaml")
 
 		By("waiting for the Egress rollout restart")
-		kubectlSafe(nil, "-n", "internet", "rollout", "status", "deploy", tc.egressDeploymentName)
+		kubectlSafe(nil, "-n", "internet", "rollout", "status", "deploy", "egress")
 
 		By("checking the NAT setup in the nat-client Pod")
 		type link struct {
@@ -692,7 +625,7 @@ func testEgressWithBackend(tc egressTestCase) {
 		}
 
 		By("confirming that the exact number of fou devices are present in dummy_pod")
-		out, err := kubectl(nil, "exec", "dummy", "-c", "ubuntu", "--", "ip", "-j", "link", "show")
+		out, err := kubectl(nil, "exec", "dummy", "--", "ip", "-j", "link", "show")
 		Expect(err).NotTo(HaveOccurred())
 		var dummyPodLinks []link
 		err = json.Unmarshal(out, &dummyPodLinks)
@@ -711,7 +644,7 @@ func testEgressWithBackend(tc egressTestCase) {
 
 		natAddresses = []string{}
 		if !enableIPAMTests {
-			natAddresses = getNATAddresses(tc.egressDeploymentName)
+			natAddresses = getNATAddresses("egress")
 		}
 
 		for _, o := range opts {
@@ -725,7 +658,7 @@ func testEgressWithBackend(tc egressTestCase) {
 				}
 			}
 
-			By(fmt.Sprintf("sending and receiving HTTP request from nat-client (%s): %s", tc.name, o.fakeURL))
+			By("sending and receiving HTTP request from nat-client: " + o.fakeURL)
 			data := make([]byte, 1<<20) // 1 MiB
 			testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, enableIPAMTests)
 
@@ -736,21 +669,6 @@ func testEgressWithBackend(tc egressTestCase) {
 			}
 		}
 
-		// Clean up at the end
-		By("cleaning up resources")
-		kubectlSafe(nil, "delete", "pod", "nat-client", "--ignore-not-found=true")
-		kubectlSafe(nil, "delete", "pod", "nat-client-sport-auto", "--ignore-not-found=true")
-		kubectlSafe(nil, "delete", "pod", "dummy", "--ignore-not-found=true")
-		kubectlSafe(nil, "delete", "egress", "-n", "internet", tc.egressDeploymentName, "--ignore-not-found=true")
-		kubectlSafe(nil, "delete", "egress", "-n", "internet", tc.sportAutoDeploymentName, "--ignore-not-found=true")
-
-		By("cleaning up dummy-fake network interface")
-		runOnNode("coil-control-plane", "ip", "link", "delete", "dummy-fake")
-		runOnNode("coil-control-plane", "ip", "route", "flush", "table", "all")
-
-		By("ensuring complete cleanup between test cases")
-		kubectlSafe(nil, "delete", "addressblock", "--all", "--ignore-not-found=true")
-		kubectlSafe(nil, "delete", "blockrequest", "--all", "--ignore-not-found=true")
 	})
 }
 
