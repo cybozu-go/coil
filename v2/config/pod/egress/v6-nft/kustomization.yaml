@@ -1,4 +1,7 @@
 resources:
 # [EGRESS] Following line should be uncommented to enable Egress NAT features.
-- ../../coil-egress-controller-nft.yaml
+- ../../coil-egress-controller.yaml
 - ../v6/coild.yaml
+
+patchesStrategicMerge:
+- ../../coil-egress-controller-nft-patch.yaml
