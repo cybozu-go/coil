@@ -75,7 +75,6 @@ const (
 	DefaultCompatCalico           = false
 	DefaultEgressPort             = 5555
 	DefaultRegisterFromMain       = false
-	DefaultEnableNFT              = false
 	DefaultEnableIPAM             = true
 	DefaultEnableEgress           = true
 	DefaultAddressBlockGCInterval = 5 * time.Minute
