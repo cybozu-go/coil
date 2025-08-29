@@ -24,9 +24,10 @@ import (
 // EgressReconciler reconciles a Egress object
 type EgressReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	Image  string
-	Port   int32
+	Scheme  *runtime.Scheme
+	Image   string
+	Port    int32
+	Backend string
 }
 
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses,verbs=get;list;watch
@@ -167,6 +168,7 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 		if eg.Spec.FouSourcePortAuto {
 			egressContainer.Args = append(egressContainer.Args, "--enable-sport-auto=true")
 		}
+		egressContainer.Args = append(egressContainer.Args, "--backend="+r.Backend)
 	}
 	egressContainer.Env = append(egressContainer.Env,
 		corev1.EnvVar{

@@ -86,7 +86,37 @@ install-coil-egress-v6: setup-nodes
 	./kindnet-conf --action set --cni-config 10-coil.conflist --protocol v6
 	rm -rf tmp kindnet-conf
 
-.PHONY: install-coil-egress-v6
+.PHONY: install-coil-egress-v4-nft
+install-coil-egress-v4-nft: setup-nodes
+	rm -rf tmp
+	mkdir tmp 2> /dev/null
+	CGO_ENABLED=0 go build -o kindnet-conf ./kindnet-configurer
+	$(KUBECTL) rollout status daemonset kindnet -n kube-system --timeout 120s
+	./kindnet-conf --action get
+	$(KIND) load docker-image --name coil coil:dev
+	$(KUSTOMIZE) build --load-restrictor=LoadRestrictionsNone configs/egress/v4-nft | $(KUBECTL) apply -f -
+	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
+	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
+	$(KUBECTL) rollout status daemonset coild -n kube-system --timeout=3m
+	./kindnet-conf --action set --cni-config 10-coil.conflist
+	rm -rf tmp kindnet-conf
+
+.PHONY: install-coil-egress-v6-nft
+install-coil-egress-v6-nft: setup-nodes
+	rm -rf tmp
+	mkdir tmp 2> /dev/null
+	$(KUBECTL) rollout status daemonset kindnet -n kube-system --timeout 120s
+	CGO_ENABLED=0 go build -o kindnet-conf ./kindnet-configurer
+	./kindnet-conf --action get --protocol v6
+	$(KIND) load docker-image --name coil coil:dev
+	$(KUSTOMIZE) build --load-restrictor=LoadRestrictionsNone configs/egress/v6-nft | $(KUBECTL) apply -f -
+	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
+	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
+	$(KUBECTL) rollout status daemonset coild -n kube-system --timeout=3m
+	./kindnet-conf --action set --cni-config 10-coil.conflist --protocol v6
+	rm -rf tmp kindnet-conf
+
+.PHONY: install-coil-egress-dualstack
 install-coil-egress-dualstack: setup-nodes
 	rm -rf tmp
 	mkdir tmp 2> /dev/null
@@ -96,6 +126,23 @@ install-coil-egress-dualstack: setup-nodes
 	./kindnet-conf --action get --protocol v6
 	$(KIND) load docker-image --name coil coil:dev
 	$(KUSTOMIZE) build --load-restrictor=LoadRestrictionsNone configs/egress/dualstack | $(KUBECTL) apply -f -
+	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
+	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
+	$(KUBECTL) rollout status daemonset coild -n kube-system --timeout=3m
+	./kindnet-conf --action set --cni-config 10-coil.conflist --protocol v4
+	./kindnet-conf --action set --cni-config 10-coil.conflist --protocol v6
+	rm -rf tmp kindnet-conf
+
+.PHONY: install-coil-egress-dualstack-nft
+install-coil-egress-dualstack-nft: setup-nodes
+	rm -rf tmp
+	mkdir tmp 2> /dev/null
+	$(KUBECTL) rollout status daemonset kindnet -n kube-system --timeout 120s
+	CGO_ENABLED=0 go build -o kindnet-conf ./kindnet-configurer
+	./kindnet-conf --action get --protocol v4
+	./kindnet-conf --action get --protocol v6
+	$(KIND) load docker-image --name coil coil:dev
+	$(KUSTOMIZE) build --load-restrictor=LoadRestrictionsNone configs/egress/dualstack-nft | $(KUBECTL) apply -f -
 	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
 	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
 	$(KUBECTL) rollout status daemonset coild -n kube-system --timeout=3m
@@ -141,6 +188,9 @@ enable-certs-rotation:
 	@sed -i "18,24 {s/^# //}" configs/egress/v4/kustomization.yaml
 	@sed -i "18,24 {s/^# //}" configs/egress/v6/kustomization.yaml
 	@sed -i "18,24 {s/^# //}" configs/egress/dualstack/kustomization.yaml
+	@sed -i "18,24 {s/^# //}" configs/egress/v4-nft/kustomization.yaml
+	@sed -i "18,24 {s/^# //}" configs/egress/v6-nft/kustomization.yaml
+	@sed -i "18,24 {s/^# //}" configs/egress/dualstack-nft/kustomization.yaml
 	@sed -i -E 's/^(- coil-.*controller_role\.yaml)/# \1/g' ../config/rbac/kustomization.yaml
 	@sed -i -E 's/^# (- coil-.*controller-certs_role\.yaml)/\1/g' ../config/rbac/kustomization.yaml
 	@sed -i -E 's/^(- \.\.\/coil-.*controller_role\.yaml)/# \1/g' ../config/rbac/egress/kustomization.yaml
@@ -153,6 +203,8 @@ enable-certs-rotation:
 	@$(call comment_certs,"../config/default/kustomization.yaml")
 	@$(call comment_certs,"../config/default/egress/v4/kustomization.yaml")
 	@$(call comment_certs,"../config/default/egress/v6/kustomization.yaml")
+	@$(call comment_certs,"../config/default/egress/v4-nft/kustomization.yaml")
+	@$(call comment_certs,"../config/default/egress/v6-nft/kustomization.yaml")
 
 $(KIND):
 	mkdir -p $(dir $@)

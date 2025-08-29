@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coil-egress-controller
+  namespace: system
+spec:
+  template:
+    spec:
+      containers:
+      - name: coil-egress-controller
+        args:
+          - --zap-stacktrace-level=panic
+          - --backend=nftables
