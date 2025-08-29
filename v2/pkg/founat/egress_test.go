@@ -8,6 +8,7 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/coreos/go-iptables/iptables"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/google/nftables"
 	"github.com/vishvananda/netlink"
 )
@@ -28,7 +29,7 @@ func testEgressDual(t *testing.T) {
 	defer eNS.Close()
 
 	err = eNS.Do(func(ns.NetNS) error {
-		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), net.ParseIP("::1"), false)
+		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), net.ParseIP("::1"), constants.BackendIPTables)
 		if err := eg.Init(); err != nil {
 			return fmt.Errorf("eg.Init failed: %w", err)
 		}
@@ -170,7 +171,7 @@ func testEgressDual(t *testing.T) {
 	defer eNS.Close()
 
 	err = eNS.Do(func(ns.NetNS) error {
-		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), net.ParseIP("::1"), true)
+		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), net.ParseIP("::1"), constants.BackendNFTables)
 		if err := eg.Init(); err != nil {
 			return fmt.Errorf("eg.Init failed: %w", err)
 		}
@@ -270,7 +271,7 @@ func testEgressV4(t *testing.T) {
 	defer eNS.Close()
 
 	err = eNS.Do(func(ns.NetNS) error {
-		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), nil, false)
+		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), nil, constants.BackendIPTables)
 		if err := eg.Init(); err != nil {
 			return fmt.Errorf("eg.Init failed: %w", err)
 		}
@@ -377,7 +378,7 @@ func testEgressV4(t *testing.T) {
 	defer eNS.Close()
 
 	err = eNS.Do(func(ns.NetNS) error {
-		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), nil, true)
+		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), nil, constants.BackendNFTables)
 		if err := eg.Init(); err != nil {
 			return fmt.Errorf("eg.Init failed: %w", err)
 		}
@@ -445,7 +446,7 @@ func testEgressV6(t *testing.T) {
 	defer eNS.Close()
 
 	err = eNS.Do(func(ns.NetNS) error {
-		eg := NewEgress("lo", nil, net.ParseIP("::1"), false)
+		eg := NewEgress("lo", nil, net.ParseIP("::1"), constants.BackendIPTables)
 		if err := eg.Init(); err != nil {
 			return fmt.Errorf("eg.Init failed: %w", err)
 		}
@@ -552,7 +553,7 @@ func testEgressV6(t *testing.T) {
 	defer eNS.Close()
 
 	err = eNS.Do(func(ns.NetNS) error {
-		eg := NewEgress("lo", nil, net.ParseIP("::1"), true)
+		eg := NewEgress("lo", nil, net.ParseIP("::1"), constants.BackendNFTables)
 		if err := eg.Init(); err != nil {
 			return fmt.Errorf("eg.Init failed: %w", err)
 		}

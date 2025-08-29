@@ -122,10 +122,11 @@ func setupManager(mgr ctrl.Manager, certCompleted chan struct{}) error {
 		return err
 	}
 	egressctrl := controllers.EgressReconciler{
-		Client: mgr.GetClient(),
-		Scheme: scheme,
-		Image:  img,
-		Port:   config.egressPort,
+		Client:  mgr.GetClient(),
+		Scheme:  scheme,
+		Image:   img,
+		Port:    config.egressPort,
+		Backend: config.backend,
 	}
 	if err := egressctrl.SetupWithManager(mgr); err != nil {
 		return err

@@ -97,3 +97,12 @@ const (
 	FamilyIPv4 = "ipv4"
 	FamilyIPv6 = "ipv6"
 )
+
+// Network backend types
+const (
+	BackendIPTables = "iptables"
+	BackendNFTables = "nftables"
+)
+
+// Default backend
+const DefaultBackend = BackendIPTables
