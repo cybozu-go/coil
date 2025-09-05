@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/containernetworking/plugins/pkg/ns"
+
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 )
 
 func TestNAT(t *testing.T) {
 	t.Parallel()
 
-	for _, backend := range []string{constants.BackendIPTables, constants.BackendNFTables} {
+	for _, backend := range []string{constants.EgressBackendIPTables, constants.EgressBackendNFTables} {
 		backend := backend
 
 		t.Logf("Testing with backend=%s", backend)

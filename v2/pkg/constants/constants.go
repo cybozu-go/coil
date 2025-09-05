@@ -99,9 +99,9 @@ const (
 
 // Network backend types
 const (
-	BackendIPTables = "iptables"
-	BackendNFTables = "nftables"
+	EgressBackendIPTables = "iptables"
+	EgressBackendNFTables = "nftables"
 )
 
 // Default backend
-const DefaultBackend = BackendIPTables
+const DefaultEgressBackend = EgressBackendIPTables

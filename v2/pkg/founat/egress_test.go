@@ -29,7 +29,7 @@ func testEgressDual(t *testing.T) {
 	defer eNS.Close()
 
 	err = eNS.Do(func(ns.NetNS) error {
-		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), net.ParseIP("::1"), constants.BackendIPTables)
+		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), net.ParseIP("::1"), constants.EgressBackendIPTables)
 		if err := eg.Init(); err != nil {
 			return fmt.Errorf("eg.Init failed: %w", err)
 		}
@@ -171,7 +171,7 @@ func testEgressDual(t *testing.T) {
 	defer eNS.Close()
 
 	err = eNS.Do(func(ns.NetNS) error {
-		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), net.ParseIP("::1"), constants.BackendNFTables)
+		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), net.ParseIP("::1"), constants.EgressBackendNFTables)
 		if err := eg.Init(); err != nil {
 			return fmt.Errorf("eg.Init failed: %w", err)
 		}
@@ -271,7 +271,7 @@ func testEgressV4(t *testing.T) {
 	defer eNS.Close()
 
 	err = eNS.Do(func(ns.NetNS) error {
-		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), nil, constants.BackendIPTables)
+		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), nil, constants.EgressBackendIPTables)
 		if err := eg.Init(); err != nil {
 			return fmt.Errorf("eg.Init failed: %w", err)
 		}
@@ -378,7 +378,7 @@ func testEgressV4(t *testing.T) {
 	defer eNS.Close()
 
 	err = eNS.Do(func(ns.NetNS) error {
-		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), nil, constants.BackendNFTables)
+		eg := NewEgress("lo", net.ParseIP("127.0.0.1"), nil, constants.EgressBackendNFTables)
 		if err := eg.Init(); err != nil {
 			return fmt.Errorf("eg.Init failed: %w", err)
 		}
@@ -446,7 +446,7 @@ func testEgressV6(t *testing.T) {
 	defer eNS.Close()
 
 	err = eNS.Do(func(ns.NetNS) error {
-		eg := NewEgress("lo", nil, net.ParseIP("::1"), constants.BackendIPTables)
+		eg := NewEgress("lo", nil, net.ParseIP("::1"), constants.EgressBackendIPTables)
 		if err := eg.Init(); err != nil {
 			return fmt.Errorf("eg.Init failed: %w", err)
 		}
@@ -553,7 +553,7 @@ func testEgressV6(t *testing.T) {
 	defer eNS.Close()
 
 	err = eNS.Do(func(ns.NetNS) error {
-		eg := NewEgress("lo", nil, net.ParseIP("::1"), constants.BackendNFTables)
+		eg := NewEgress("lo", nil, net.ParseIP("::1"), constants.EgressBackendNFTables)
 		if err := eg.Init(); err != nil {
 			return fmt.Errorf("eg.Init failed: %w", err)
 		}

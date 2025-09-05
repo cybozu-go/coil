@@ -6,11 +6,12 @@ import (
 	"sync"
 
 	"github.com/coreos/go-iptables/iptables"
-	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
 	"github.com/vishvananda/netlink"
+
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 )
 
 const (
@@ -71,14 +72,30 @@ func (e *egress) newRule(family int) *netlink.Rule {
 	return r
 }
 
-func (e *egress) addEgressRule(family int) error {
-	rule := e.newRule(family)
-	if err := netlink.RuleAdd(rule); err != nil {
-		ipVersion := "IPv4"
-		if family == netlink.FAMILY_V6 {
-			ipVersion = "IPv6"
+func (e *egress) addEgressRule() error {
+	if e.ipv6 != nil {
+		if err := e.addEgressRuleV6(); err != nil {
+			return err
 		}
-		return fmt.Errorf("netlink: failed to add egress rule for %s: %w", ipVersion, err)
+	}
+	if e.ipv4 != nil {
+		if err := e.addEgressRuleV4(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *egress) addEgressRuleV6() error {
+	if err := netlink.RuleAdd(e.newRule(netlink.FAMILY_V6)); err != nil {
+		return fmt.Errorf("netlink: failed to add IPv6 egress rule %w", err)
+	}
+	return nil
+}
+
+func (e *egress) addEgressRuleV4() error {
+	if err := netlink.RuleAdd(e.newRule(netlink.FAMILY_V4)); err != nil {
+		return fmt.Errorf("netlink: failed to add IPv4 egress rule %w", err)
 	}
 	return nil
 }
@@ -240,7 +257,8 @@ func (e *egress) Init() error {
 		return err
 	}
 
-	if e.backend == constants.BackendNFTables {
+	switch e.backend {
+	case constants.EgressBackendNFTables:
 		conn, err := nftables.New()
 		if err != nil {
 			return fmt.Errorf("failed to create nftables connection: %w", err)
@@ -261,7 +279,7 @@ func (e *egress) Init() error {
 		if err := conn.Flush(); err != nil {
 			return fmt.Errorf("failed to flush nftables rules: %w", err)
 		}
-	} else {
+	case constants.EgressBackendIPTables:
 		if e.ipv4 != nil {
 			if err := e.addIPTablesRules(iptables.ProtocolIPv4, e.ipv4); err != nil {
 				return err
@@ -272,17 +290,12 @@ func (e *egress) Init() error {
 				return err
 			}
 		}
+	default:
+		return fmt.Errorf("invalid backend: %s", e.backend)
 	}
 
-	if e.ipv4 != nil {
-		if err := e.addEgressRule(netlink.FAMILY_V4); err != nil {
-			return err
-		}
-	}
-	if e.ipv6 != nil {
-		if err := e.addEgressRule(netlink.FAMILY_V6); err != nil {
-			return err
-		}
+	if err := e.addEgressRule(); err != nil {
+		return err
 	}
 
 	attrs := netlink.NewLinkAttrs()

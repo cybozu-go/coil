@@ -124,7 +124,7 @@ func setupManager(mgr ctrl.Manager, certCompleted chan struct{}) error {
 
 	backend := config.backend
 	if backend == "" {
-		backend = constants.DefaultBackend
+		backend = constants.DefaultEgressBackend
 	}
 
 	egressctrl := controllers.EgressReconciler{

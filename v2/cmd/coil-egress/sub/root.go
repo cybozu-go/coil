@@ -27,9 +27,9 @@ var rootCmd = &cobra.Command{
 	Long:    `coil-egress manages Foo-over-UDP tunnels in pods created by Egress.`,
 	Version: v2.Version(),
 	PreRunE: func(cmd *cobra.Command, args []string) error {
-		if config.backend != constants.BackendIPTables && config.backend != constants.BackendNFTables {
+		if config.backend != constants.EgressBackendIPTables && config.backend != constants.EgressBackendNFTables {
 			return fmt.Errorf("invalid backend: %s (must be either %s or %s)",
-				config.backend, constants.BackendIPTables, constants.BackendNFTables)
+				config.backend, constants.EgressBackendIPTables, constants.EgressBackendNFTables)
 		}
 		return nil
 	},
@@ -54,7 +54,7 @@ func init() {
 	pf.StringVar(&config.healthAddr, "health-addr", ":8081", "bind address of health/readiness probes")
 	pf.IntVar(&config.port, "fou-port", 5555, "port number for foo-over-udp tunnels")
 	pf.BoolVar(&config.enableSportAuto, "enable-sport-auto", false, "enable automatic source port assignment")
-	pf.StringVar(&config.backend, "backend", constants.DefaultBackend, "Backend for egress NAT rules: iptables or nftables (default: iptables)")
+	pf.StringVar(&config.backend, "backend", constants.DefaultEgressBackend, "Backend for egress NAT rules: iptables or nftables (default: iptables)")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)

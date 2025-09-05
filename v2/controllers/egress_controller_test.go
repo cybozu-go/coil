@@ -55,7 +55,7 @@ var _ = Describe("Egress reconciler", func() {
 			Scheme:  mgr.GetScheme(),
 			Image:   "coil:dev",
 			Port:    5555,
-			Backend: constants.DefaultBackend,
+			Backend: constants.DefaultEgressBackend,
 		}
 		err = egr.SetupWithManager(mgr)
 		Expect(err).ToNot(HaveOccurred())
@@ -544,7 +544,7 @@ var _ = Describe("Egress reconciler", func() {
 	})
 
 	It("should set different backend arguments", func() {
-		backends := []string{constants.BackendIPTables, constants.BackendNFTables}
+		backends := []string{constants.EgressBackendIPTables, constants.EgressBackendNFTables}
 
 		for _, backend := range backends {
 			By(fmt.Sprintf("testing with %s backend", backend))
