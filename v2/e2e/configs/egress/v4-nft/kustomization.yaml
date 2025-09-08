@@ -1,5 +1,5 @@
 resources:
-- ../../../../config/default/egress/v4-nft
+- ../../../../config/default/egress/v4
 
 configMapGenerator:
 - name: coil-config
@@ -22,3 +22,6 @@ commonLabels:
 #     version: v1
 #     kind: Deployment
 #     name: coil-egress-controller
+
+patches:
+  - path: ../coil-egress-controller-nft-patch.yaml

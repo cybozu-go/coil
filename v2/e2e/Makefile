@@ -188,9 +188,6 @@ enable-certs-rotation:
 	@sed -i "18,24 {s/^# //}" configs/egress/v4/kustomization.yaml
 	@sed -i "18,24 {s/^# //}" configs/egress/v6/kustomization.yaml
 	@sed -i "18,24 {s/^# //}" configs/egress/dualstack/kustomization.yaml
-	@sed -i "18,24 {s/^# //}" configs/egress/v4-nft/kustomization.yaml
-	@sed -i "18,24 {s/^# //}" configs/egress/v6-nft/kustomization.yaml
-	@sed -i "18,24 {s/^# //}" configs/egress/dualstack-nft/kustomization.yaml
 	@sed -i -E 's/^(- coil-.*controller_role\.yaml)/# \1/g' ../config/rbac/kustomization.yaml
 	@sed -i -E 's/^# (- coil-.*controller-certs_role\.yaml)/\1/g' ../config/rbac/kustomization.yaml
 	@sed -i -E 's/^(- \.\.\/coil-.*controller_role\.yaml)/# \1/g' ../config/rbac/egress/kustomization.yaml
@@ -203,8 +200,6 @@ enable-certs-rotation:
 	@$(call comment_certs,"../config/default/kustomization.yaml")
 	@$(call comment_certs,"../config/default/egress/v4/kustomization.yaml")
 	@$(call comment_certs,"../config/default/egress/v6/kustomization.yaml")
-	@$(call comment_certs,"../config/default/egress/v4-nft/kustomization.yaml")
-	@$(call comment_certs,"../config/default/egress/v6-nft/kustomization.yaml")
 
 $(KIND):
 	mkdir -p $(dir $@)
