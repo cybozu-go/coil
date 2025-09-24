@@ -4,10 +4,11 @@ import (
 	"flag"
 	"time"
 
-	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 )
 
 type Config struct {
@@ -24,7 +25,6 @@ type Config struct {
 	ZapOpts                zap.Options
 	EnableIPAM             bool
 	EnableEgress           bool
-	Backend                string
 	AddressBlockGCInterval time.Duration
 }
 
@@ -43,7 +43,6 @@ func Parse(rootCmd *cobra.Command) *Config {
 	pf.BoolVar(&config.RegisterFromMain, "register-from-main", constants.DefaultRegisterFromMain, "help migration from Coil 2.0.1")
 	pf.BoolVar(&config.EnableIPAM, "enable-ipam", constants.DefaultEnableIPAM, "enable IPAM related features")
 	pf.BoolVar(&config.EnableEgress, "enable-egress", constants.DefaultEnableEgress, "enable Egress related features")
-	pf.StringVar(&config.Backend, "backend", constants.DefaultEgressBackend, "Backend for egress NAT rules: iptables or nftables (default: iptables)")
 	pf.DurationVar(&config.AddressBlockGCInterval, "addressblock-gc-interval", constants.DefaultAddressBlockGCInterval, "interval for address block GC")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
