@@ -96,3 +96,12 @@ const (
 	FamilyIPv4 = "ipv4"
 	FamilyIPv6 = "ipv6"
 )
+
+// Network backend types
+const (
+	EgressBackendIPTables = "iptables"
+	EgressBackendNFTables = "nftables"
+)
+
+// Default backend
+const DefaultEgressBackend = EgressBackendIPTables

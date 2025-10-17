@@ -19,6 +19,7 @@ It watches client Pods and creates or deletes Foo-over-UDP tunnels.
 
 ```
 Flags:
+      --backend string        backend for egress NAT rules: iptables or nftables (default "iptables")
       --fou-port int          port number for foo-over-udp tunnels (default 5555)
       --enable-sport-auto     enable automatic source port assignment (default false)
       --health-addr string    bind address of health/readiness probes (default ":8081")
@@ -76,8 +77,8 @@ This value is from `/proc/sys/net/netfilter/nf_conntrack_count`.
 
 ### `coil_egress_nftables_masqueraded_packets_total`
 
-This is the total number of packets masqueraded by iptables in a egress NAT pod.
-This value is from the result of `iptables -t nat -L POSTROUTING -vn`.
+This is the total number of packets masqueraded by iptables/nftables in a egress NAT pod.
+This value is from the result of `iptables -t nat -L POSTROUTING -vn` or nftables equivalent.
 
 | Label       | Description                   |
 | ----------- | ----------------------------- |
@@ -88,8 +89,8 @@ This value is from the result of `iptables -t nat -L POSTROUTING -vn`.
 
 ### `coil_egress_nftables_masqueraded_bytes_total`
 
-This is the total bytes of masqueraded packets by iptables in a egress NAT pod.
-This value is from the result of `iptables -t nat -L POSTROUTING -vn`.
+This is the total bytes of masqueraded packets by iptables/nftables in a egress NAT pod.
+This value is from the result of `iptables -t nat -L POSTROUTING -vn` or nftables equivalent.
 
 | Label       | Description                   |
 | ----------- | ----------------------------- |
@@ -100,8 +101,8 @@ This value is from the result of `iptables -t nat -L POSTROUTING -vn`.
 
 ### `coil_egress_nftables_invalid_packets_total`
 
-This is the total number of packets dropped as invalid packets by iptables in a egress NAT pod.
-This value is from the result of `iptables -t filter -L -vn`.
+This is the total number of packets dropped as invalid packets by iptables/nftables in a egress NAT pod.
+This value is from the result of `iptables -t filter -L -vn` or nftables equivalent.
 
 | Label       | Description                   |
 | ----------- | ----------------------------- |
@@ -112,8 +113,8 @@ This value is from the result of `iptables -t filter -L -vn`.
 
 ### `coil_egress_nftables_invalid_bytes_total`
 
-This is the total bytes of packets dropped as invalid packets by iptables in a egress NAT pod.
-This value is from the result of `iptables -t filter -L -vn`.
+This is the total bytes of packets dropped as invalid packets by iptables/nftables in a egress NAT pod.
+This value is from the result of `iptables -t filter -L -vn` or nftables equivalent.
 
 | Label       | Description                   |
 | ----------- | ----------------------------- |

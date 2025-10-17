@@ -8,11 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	v2 "github.com/cybozu-go/coil/v2"
-	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
-	"github.com/cybozu-go/coil/v2/controllers"
-	"github.com/cybozu-go/coil/v2/pkg/cert"
-	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -22,6 +17,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	v2 "github.com/cybozu-go/coil/v2"
+	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
+	"github.com/cybozu-go/coil/v2/controllers"
+	"github.com/cybozu-go/coil/v2/pkg/cert"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 )
 
 const (
@@ -121,11 +122,15 @@ func setupManager(mgr ctrl.Manager, certCompleted chan struct{}) error {
 	if err != nil {
 		return err
 	}
+
+	backend := config.backend
+
 	egressctrl := controllers.EgressReconciler{
-		Client: mgr.GetClient(),
-		Scheme: scheme,
-		Image:  img,
-		Port:   config.egressPort,
+		Client:  mgr.GetClient(),
+		Scheme:  scheme,
+		Image:   img,
+		Port:    config.egressPort,
+		Backend: backend,
 	}
 	if err := egressctrl.SetupWithManager(mgr); err != nil {
 		return err

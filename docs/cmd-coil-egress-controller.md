@@ -16,6 +16,7 @@ and binds it to the **ClusterRoles** for `coil-egress`.
 
 ```
 Flags:
+      --backend string                  backend for egress NAT rules: iptables or nftables (default "iptables")
       --cert-dir string                 directory to locate TLS certs for webhook (default "/certs")
       --egress-port int32               UDP port number used by coil-egress (default 5555)
       --health-addr string              bind address of health/readiness probes (default ":9387")

@@ -4,10 +4,11 @@ import (
 	"flag"
 	"time"
 
-	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 )
 
 type Config struct {

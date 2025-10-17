@@ -174,12 +174,18 @@ SNAT routers can be created in the following steps:
 1. Prepare an address pool whose IP addresses can communicate with one (or more) external networks.
 2. Prepare a namespace associated with the address pool.
 3. Run pods in the namespace.  These pods work as SNAT routers.
-4. Configure iptables rules in the router pods for SNAT.
+4. Configure iptables or nftables rules in the router pods for SNAT.
 
 The iptables rule looks like:
 
 ```
 iptables -t nat -A POSTROUTING ! -s <pod address>/32 -o eth0 -j MASQUERADE
+```
+
+The equivalent nftables rule looks like:
+
+```
+nft add rule ip nat POSTROUTING ip saddr != <pod address>/32 oifname "eth0" counter masquerade
 ```
 
 ### Foo-over-UDP tunnel

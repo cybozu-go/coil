@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
@@ -50,10 +51,11 @@ var _ = Describe("Egress reconciler", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		egr := &EgressReconciler{
-			Client: mgr.GetClient(),
-			Scheme: mgr.GetScheme(),
-			Image:  "coil:dev",
-			Port:   5555,
+			Client:  mgr.GetClient(),
+			Scheme:  mgr.GetScheme(),
+			Image:   "coil:dev",
+			Port:    5555,
+			Backend: constants.DefaultEgressBackend,
 		}
 		err = egr.SetupWithManager(mgr)
 		Expect(err).ToNot(HaveOccurred())
@@ -539,5 +541,40 @@ var _ = Describe("Egress reconciler", func() {
 
 		Expect(*pdb.Spec.MinAvailable).To(Equal(intstr.FromInt(1)))
 		Expect(pdb.Spec.Selector.MatchLabels).To(HaveKeyWithValue(constants.LabelAppName, "coil"))
+	})
+
+	It("should set different backend arguments", func() {
+		backends := []string{constants.EgressBackendIPTables, constants.EgressBackendNFTables}
+
+		for _, backend := range backends {
+			By(fmt.Sprintf("testing with %s backend", backend))
+
+			egr := &EgressReconciler{
+				Client:  k8sClient,
+				Scheme:  scheme,
+				Image:   "coil:dev",
+				Port:    5555,
+				Backend: backend,
+			}
+
+			eg := makeEgress(fmt.Sprintf("eg-backend-%s", backend))
+			depl := &appsv1.Deployment{}
+			depl.Namespace = eg.Namespace
+			depl.Name = eg.Name
+
+			egr.reconcilePodTemplate(eg, depl)
+
+			var egressContainer *corev1.Container
+			for i := range depl.Spec.Template.Spec.Containers {
+				c := &depl.Spec.Template.Spec.Containers[i]
+				if c.Name == "egress" {
+					egressContainer = c
+					break
+				}
+			}
+
+			Expect(egressContainer).NotTo(BeNil())
+			Expect(egressContainer.Args).To(ContainElement(fmt.Sprintf("--backend=%s", backend)))
+		}
 	})
 })
