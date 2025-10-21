@@ -250,7 +250,6 @@ func (n *nodeIPAM) getPool(ctx context.Context, name string) (*nodePool, error) 
 		return nil, err
 	}
 
-	var p *nodePool
 	p, ok := n.pools[name]
 	if !ok {
 		p = &nodePool{
@@ -264,10 +263,10 @@ func (n *nodeIPAM) getPool(ctx context.Context, name string) (*nodePool, error) 
 			requestCompletionCh: make(chan *coilv2.BlockRequest),
 			blockAlloc:          make(map[string]*allocator),
 		}
+		if err := p.syncBlock(ctx); err != nil {
+			return nil, err
+		}
 		n.pools[name] = p
-	}
-	if err := p.syncBlock(ctx); err != nil {
-		return nil, err
 	}
 
 	return p, nil
