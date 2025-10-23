@@ -9,6 +9,10 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/coreos/go-iptables/iptables"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
+	"github.com/google/nftables"
+	"github.com/google/nftables/binaryutil"
+	"github.com/google/nftables/expr"
 	"github.com/vishvananda/netlink"
 )
 
@@ -34,36 +38,37 @@ func ruleMap(family int) (map[int]*netlink.Rule, error) {
 
 func testClientDual(t *testing.T) {
 	t.Parallel()
+	for _, backend := range []string{constants.EgressBackendIPTables, constants.EgressBackendNFTables} {
+		cNS, err := ns.GetNS(fmt.Sprintf("/run/netns/test-client-dual-%s", backend))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer cNS.Close()
 
-	cNS, err := ns.GetNS("/run/netns/test-client-dual")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer cNS.Close()
+		err = cNS.Do(func(ns.NetNS) error {
+			return testClientDualFunc(false, backend)
+		})
+		if err != nil {
+			t.Error(err)
+		}
 
-	err = cNS.Do(func(ns.NetNS) error {
-		return testClientDualFunc(false)
-	})
-	if err != nil {
-		t.Error(err)
-	}
+		coNS, err := ns.GetNS(fmt.Sprintf("/run/netns/test-client-dual-%s-oo", backend))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer coNS.Close()
 
-	coNS, err := ns.GetNS("/run/netns/test-client-dual-oo")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer coNS.Close()
-
-	err = coNS.Do(func(ns.NetNS) error {
-		return testClientDualFunc(true)
-	})
-	if err != nil {
-		t.Error(err)
+		err = coNS.Do(func(ns.NetNS) error {
+			return testClientDualFunc(true, backend)
+		})
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
-func testClientDualFunc(originatingOnly bool) error {
-	nc := NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), nil, nil)
+func testClientDualFunc(originatingOnly bool, backend string) error {
+	nc := NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), nil, nil, backend)
 	initialized, err := nc.IsInitialized()
 	if err != nil {
 		return err
@@ -320,14 +325,14 @@ func testClientDualFunc(originatingOnly bool) error {
 		addrs := []string{"100.100.100.100/24", "d0d5:1e73:46c3:d7a9:fa27:90e7:9540:d895/112"}
 		testAddrs := []string{"10.1.10.0/24", "fd10::/112"}
 
-		if err := testOriginatingOnly(link, nc, false, addrs, testAddrs); err != nil {
+		if err := testOriginatingOnly(link, nc, false, addrs, testAddrs, backend); err != nil {
 			return fmt.Errorf("originatingOnly test with no IP addresses failed: %w", err)
 		}
 
 		addrs = []string{"100.100.101.100/24", "d0d5:1e73:46c3:d7a9:fa27:90e7:9541:d895/112"}
 		testAddrs = []string{"10.1.11.0/24", "fd11::/16"}
 
-		if err := testOriginatingOnly(link, nc, true, addrs, testAddrs); err != nil {
+		if err := testOriginatingOnly(link, nc, true, addrs, testAddrs, backend); err != nil {
 			return fmt.Errorf("originatingOnly test with IP addresses failed: %w", err)
 		}
 	}
@@ -338,35 +343,38 @@ func testClientDualFunc(originatingOnly bool) error {
 func testClientV4(t *testing.T) {
 	t.Parallel()
 
-	cNS, err := ns.GetNS("/run/netns/test-client-v4")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer cNS.Close()
+	for _, backend := range []string{constants.EgressBackendIPTables, constants.EgressBackendNFTables} {
+		cNS, err := ns.GetNS(fmt.Sprintf("/run/netns/test-client-v4-%s", backend))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer cNS.Close()
 
-	err = cNS.Do(func(ns.NetNS) error {
-		return testClientV4Func(false)
-	})
-	if err != nil {
-		t.Error(err)
+		err = cNS.Do(func(ns.NetNS) error {
+			return testClientV4Func(false, backend)
+		})
+		if err != nil {
+			t.Error(err)
+		}
+
+		coNS, err := ns.GetNS(fmt.Sprintf("/run/netns/test-client-v4-%s-oo", backend))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer coNS.Close()
+
+		err = coNS.Do(func(ns.NetNS) error {
+			return testClientV4Func(true, backend)
+		})
+		if err != nil {
+			t.Error(err)
+		}
 	}
 
-	coNS, err := ns.GetNS("/run/netns/test-client-v4-oo")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer coNS.Close()
-
-	err = coNS.Do(func(ns.NetNS) error {
-		return testClientV4Func(true)
-	})
-	if err != nil {
-		t.Error(err)
-	}
 }
 
-func testClientV4Func(originatingOnly bool) error {
-	nc := NewNatClient(net.ParseIP("10.1.1.1"), nil, nil, nil)
+func testClientV4Func(originatingOnly bool, backend string) error {
+	nc := NewNatClient(net.ParseIP("10.1.1.1"), nil, nil, nil, backend)
 	initialized, err := nc.IsInitialized()
 	if err != nil {
 		return err
@@ -442,13 +450,13 @@ func testClientV4Func(originatingOnly bool) error {
 	if originatingOnly {
 		addrs := []string{"100.100.100.100/24"}
 		testAddrs := []string{"10.1.10.0/24"}
-		if err := testOriginatingOnly(link, nc, false, addrs, testAddrs); err != nil {
+		if err := testOriginatingOnly(link, nc, false, addrs, testAddrs, backend); err != nil {
 			return fmt.Errorf("originatingOnly test with no IP addresses failed: %w", err)
 		}
 
 		addrs = []string{"100.100.101.100/24"}
 		testAddrs = []string{"10.1.11.0/24"}
-		if err := testOriginatingOnly(link, nc, true, addrs, testAddrs); err != nil {
+		if err := testOriginatingOnly(link, nc, true, addrs, testAddrs, backend); err != nil {
 			return fmt.Errorf("originatingOnly test with IP addresses failed: %w", err)
 		}
 	}
@@ -458,36 +466,38 @@ func testClientV4Func(originatingOnly bool) error {
 
 func testClientV6(t *testing.T) {
 	t.Parallel()
+	for _, backend := range []string{constants.EgressBackendIPTables, constants.EgressBackendNFTables} {
+		cNS, err := ns.GetNS(fmt.Sprintf("/run/netns/test-client-v6-%s", backend))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer cNS.Close()
 
-	cNS, err := ns.GetNS("/run/netns/test-client-v6")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer cNS.Close()
+		err = cNS.Do(func(ns.NetNS) error {
+			return testClientV6Func(false, backend)
+		})
+		if err != nil {
+			t.Error(err)
+		}
 
-	err = cNS.Do(func(ns.NetNS) error {
-		return testClientV6Func(false)
-	})
-	if err != nil {
-		t.Error(err)
+		coNS, err := ns.GetNS(fmt.Sprintf("/run/netns/test-client-v6-%s-oo", backend))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer coNS.Close()
+
+		err = coNS.Do(func(ns.NetNS) error {
+			return testClientV6Func(true, backend)
+		})
+		if err != nil {
+			t.Error(err)
+		}
 	}
 
-	coNS, err := ns.GetNS("/run/netns/test-client-v6-oo")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer coNS.Close()
-
-	err = coNS.Do(func(ns.NetNS) error {
-		return testClientV6Func(true)
-	})
-	if err != nil {
-		t.Error(err)
-	}
 }
 
-func testClientV6Func(originatingOnly bool) error {
-	nc := NewNatClient(nil, net.ParseIP("fd02::1"), nil, nil)
+func testClientV6Func(originatingOnly bool, backend string) error {
+	nc := NewNatClient(nil, net.ParseIP("fd02::1"), nil, nil, backend)
 	initialized, err := nc.IsInitialized()
 	if err != nil {
 		return err
@@ -564,14 +574,14 @@ func testClientV6Func(originatingOnly bool) error {
 		addrs := []string{"d0d5:1e73:46c3:d7a9:fa27:90e7:9540:d895/112"}
 		testAddrs := []string{"fd10::/16"}
 
-		if err := testOriginatingOnly(link, nc, false, addrs, testAddrs); err != nil {
+		if err := testOriginatingOnly(link, nc, false, addrs, testAddrs, backend); err != nil {
 			return fmt.Errorf("originatingOnly test with no IP addresses failed: %w", err)
 		}
 
 		addrs = []string{"d0d5:1e73:46c3:d7a9:fa27:90e7:9541:d895/112"}
 		testAddrs = []string{"fd11::/16"}
 
-		if err := testOriginatingOnly(link, nc, true, addrs, testAddrs); err != nil {
+		if err := testOriginatingOnly(link, nc, true, addrs, testAddrs, backend); err != nil {
 			return fmt.Errorf("originatingOnly test with IP addresses failed: %w", err)
 		}
 	}
@@ -582,38 +592,41 @@ func testClientV6Func(originatingOnly bool) error {
 func testClientCustom(t *testing.T) {
 	t.Parallel()
 
-	cNS, err := ns.GetNS("/run/netns/test-client-custom")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer cNS.Close()
+	for _, backend := range []string{constants.EgressBackendIPTables, constants.EgressBackendNFTables} {
+		cNS, err := ns.GetNS(fmt.Sprintf("/run/netns/test-client-custom-%s", backend))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer cNS.Close()
 
-	err = cNS.Do(func(ns.NetNS) error {
-		return testClientCustomFunc(false)
-	})
-	if err != nil {
-		t.Error(err)
+		err = cNS.Do(func(ns.NetNS) error {
+			return testClientCustomFunc(false, backend)
+		})
+		if err != nil {
+			t.Error(err)
+		}
+
+		coNS, err := ns.GetNS(fmt.Sprintf("/run/netns/test-client-custom-%s-oo", backend))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer coNS.Close()
+
+		err = coNS.Do(func(ns.NetNS) error {
+			return testClientCustomFunc(true, backend)
+		})
+		if err != nil {
+			t.Error(err)
+		}
 	}
 
-	coNS, err := ns.GetNS("/run/netns/test-client-custom-oo")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer coNS.Close()
-
-	err = coNS.Do(func(ns.NetNS) error {
-		return testClientCustomFunc(true)
-	})
-	if err != nil {
-		t.Error(err)
-	}
 }
 
-func testClientCustomFunc(originatingOnly bool) error {
+func testClientCustomFunc(originatingOnly bool, backend string) error {
 	nc := NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), []*net.IPNet{
 		{IP: net.ParseIP("192.168.10.0"), Mask: net.CIDRMask(24, 32)},
 		{IP: net.ParseIP("fd02::"), Mask: net.CIDRMask(16, 128)},
-	}, nil)
+	}, nil, backend)
 	initialized, err := nc.IsInitialized()
 	if err != nil {
 		return err
@@ -671,7 +684,7 @@ func testClientCustomFunc(originatingOnly bool) error {
 	return nil
 }
 
-func testOriginatingOnly(link netlink.Link, nc NatClient, addAddresses bool, addrs, testAddrs []string) error {
+func testOriginatingOnly(link netlink.Link, nc NatClient, addAddresses bool, addrs, testAddrs []string, backend string) error {
 	for i := range addrs {
 		ip, ipnet, err := net.ParseCIDR(addrs[i])
 		if err != nil {
@@ -767,23 +780,137 @@ func testOriginatingOnly(link netlink.Link, nc NatClient, addAddresses bool, add
 					return err
 				}
 
-				exists, err = checkIPTRules(ipt, "mangle", "INPUT",
-					"-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j", "CONNMARK",
-					"-i", link.Attrs().Name, "--set-mark", fmt.Sprintf("%d", link.Attrs().Index))
-				if err != nil {
-					return fmt.Errorf("failed to check IPTables mangle INPUT rule: %w", err)
-				}
-				if !exists {
-					return fmt.Errorf("expected IPTables mangle INPUT rule does not exist")
-				}
+				if backend == constants.EgressBackendIPTables {
+					exists, err = checkIPTRules(ipt, "mangle", "INPUT",
+						"-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j", "CONNMARK",
+						"-i", link.Attrs().Name, "--set-mark", fmt.Sprintf("%d", link.Attrs().Index))
+					if err != nil {
+						return fmt.Errorf("failed to check IPTables mangle INPUT rule: %w", err)
+					}
+					if !exists {
+						return fmt.Errorf("expected IPTables mangle INPUT rule does not exist")
+					}
 
-				exists, err = checkIPTRules(ipt, "mangle", "OUTPUT", "-j", "CONNMARK", "-m", "connmark",
-					"--mark", fmt.Sprintf("%d", link.Attrs().Index), "--restore-mark")
-				if err != nil {
-					return fmt.Errorf("failed to check IPTables mangle OUTPUT rule: %w", err)
-				}
-				if !exists {
-					return fmt.Errorf("expected IPTables mangle OUTPUT rule does not exist")
+					exists, err = checkIPTRules(ipt, "mangle", "OUTPUT", "-j", "CONNMARK", "-m", "connmark",
+						"--mark", fmt.Sprintf("%d", link.Attrs().Index), "--restore-mark")
+					if err != nil {
+						return fmt.Errorf("failed to check IPTables mangle OUTPUT rule: %w", err)
+					}
+					if !exists {
+						return fmt.Errorf("expected IPTables mangle OUTPUT rule does not exist")
+					}
+				} else {
+					nft, err := nftables.New()
+					if err != nil {
+						return fmt.Errorf("failed to create nft connection: %w", err)
+					}
+					nfFamily := nftables.TableFamilyIPv4
+					if family == netlink.FAMILY_V6 {
+						nfFamily = nftables.TableFamilyIPv6
+					}
+					table, err := nft.ListTableOfFamily("mangle", nfFamily)
+					if err != nil {
+						return fmt.Errorf("failed to get mangle table: %w", err)
+					}
+					inputChain, err := nft.ListChain(table, "input")
+					if err != nil {
+						return fmt.Errorf("failed to get input chain in table %q: %w", table.Name, err)
+					}
+
+					outputChain, err := nft.ListChain(table, "output")
+					if err != nil {
+						return fmt.Errorf("failed to get output chain in table %q: %w", table.Name, err)
+					}
+
+					deviceSet, err := nft.GetSetByName(table, link.Attrs().Name)
+					if err != nil {
+						return fmt.Errorf("failed to get set for device %q: %w", link.Attrs().Name, err)
+					}
+
+					markRule := &nftables.Rule{
+						Table: table,
+						Chain: inputChain,
+						Exprs: []expr.Any{
+							&expr.Meta{
+								Key:      expr.MetaKeyIIFNAME,
+								Register: 1,
+							},
+							&expr.Lookup{
+								SetName:        deviceSet.Name,
+								SetID:          deviceSet.ID,
+								SourceRegister: 1,
+							},
+							&expr.Ct{
+								Register: 1,
+								Key:      expr.CtKeySTATE,
+							},
+							&expr.Bitwise{
+								SourceRegister: 1,
+								DestRegister:   1,
+								Len:            4,
+								Mask:           binaryutil.NativeEndian.PutUint32(expr.CtStateBitNEW | expr.CtStateBitESTABLISHED | expr.CtStateBitRELATED),
+								Xor:            binaryutil.NativeEndian.PutUint32(0),
+							},
+							&expr.Cmp{
+								Op:       expr.CmpOpNeq,
+								Register: 1,
+								Data:     []byte{0, 0, 0, 0},
+							},
+							&expr.Counter{},
+							&expr.Immediate{
+								Register: 1,
+								Data:     binaryutil.NativeEndian.PutUint32(uint32(link.Attrs().Index)),
+							},
+							&expr.Ct{
+								Key:            expr.CtKeyMARK,
+								SourceRegister: false,
+								Register:       0,
+							},
+						},
+					}
+
+					exists, err := checkNftRule(nft, markRule)
+					if err != nil {
+						return fmt.Errorf("failed to check mark rule existance: %w", err)
+					}
+					if !exists {
+						return fmt.Errorf("expected nft mangle input rule does not exist")
+					}
+
+					restoreMarkRule := &nftables.Rule{
+						Table: table,
+						Chain: outputChain,
+						Exprs: []expr.Any{
+							&expr.Ct{
+								Register: 1,
+								Key:      expr.CtKeyMARK,
+							},
+							&expr.Cmp{
+								Op:       expr.CmpOpEq,
+								Register: 1,
+								Data:     binaryutil.NativeEndian.PutUint32(uint32(link.Attrs().Index)),
+							},
+							&expr.Counter{},
+							&expr.Ct{
+								Register: 1,
+								Key:      expr.CtKeyMARK,
+							},
+							&expr.Meta{
+								Key:            expr.MetaKeyMARK,
+								SourceRegister: true,
+								Register:       1,
+							},
+						},
+					}
+
+					exists, err = checkNftRule(nft, restoreMarkRule)
+					if err != nil {
+						return fmt.Errorf("failed to check restore mark rule existance: %w", err)
+					}
+					if !exists {
+						return fmt.Errorf("expected nft mangle output rule does not exist")
+					}
+
 				}
 			} else {
 				return fmt.Errorf("routes are different in table %d and the default table", egressLinkTable)

@@ -24,6 +24,7 @@ type EgressWatcher struct {
 	NodeName   string
 	PodNet     nodenet.PodNetwork
 	EgressPort int
+	Backend    string
 }
 
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses,verbs=get;list;watch
@@ -189,7 +190,7 @@ func (r *EgressWatcher) hook(gwn gwNets, log *logr.Logger) func(ipv4, ipv6 net.I
 		}
 		cl := founat.NewNatClient(ipv4, ipv6, nil, func(message string) {
 			log.Info(message)
-		})
+		}, r.Backend)
 		initialized, err := cl.IsInitialized()
 		if !initialized {
 			return fmt.Errorf("natClient hasn't been initialized: %w", err)

@@ -211,6 +211,8 @@ enable-certs-rotation:
 	@$(call comment_certs,"../config/default/kustomization.yaml")
 	@$(call comment_certs,"../config/default/egress/v4/kustomization.yaml")
 	@$(call comment_certs,"../config/default/egress/v6/kustomization.yaml")
+	@$(call comment_certs,"../config/default/egress/v4-nft/kustomization.yaml")
+	@$(call comment_certs,"../config/default/egress/v6-nft/kustomization.yaml")
 
 $(KIND):
 	mkdir -p $(dir $@)

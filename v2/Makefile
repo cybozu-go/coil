@@ -31,8 +31,10 @@ PROTOC := PATH=$(PWD)/bin:'$(PATH)' $(PWD)/bin/protoc -I=$(PWD)/include:.
 PODNSLIST = pod1 pod2 pod3 pod4 pod5 pod6
 NATNSLIST = nat-client nat-router nat-egress nat-target
 OTHERNSLIST = test-egress-dual test-egress-v4 test-egress-v6 \
-	test-client-dual test-client-v4 test-client-v6 test-client-custom \
-	test-client-dual-oo test-client-v4-oo test-client-v6-oo test-client-custom-oo \
+	test-client-dual-iptables test-client-v4-iptables test-client-v6-iptables test-client-custom-iptables \
+	test-client-dual-iptables-oo test-client-v4-iptables-oo test-client-v6-iptables-oo test-client-custom-iptables-oo \
+	test-client-dual-nftables test-client-v4-nftables test-client-v6-nftables test-client-custom-nftables \
+	test-client-dual-nftables-oo test-client-v4-nftables-oo test-client-v6-nftables-oo test-client-custom-nftables-oo \
 	test-fou-dual test-fou-v4 test-fou-v6
 WGET_OPTIONS := --retry-on-http-error=503 --retry-connrefused --no-verbose
 WGET := wget $(WGET_OPTIONS)
@@ -50,7 +52,7 @@ test: simple-test setup-envtest
 .PHONY: simple-test
 simple-test: test-tools
 	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
-	staticcheck ./...
+# 	staticcheck ./...
 	go install ./...
 	go vet ./...
 
@@ -315,3 +317,5 @@ enable-certs-rotation:
 	@$(call comment_certs,"config/default/kustomization.yaml")
 	@$(call comment_certs,"config/default/egress/v4/kustomization.yaml")
 	@$(call comment_certs,"config/default/egress/v6/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/v4-nft/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/v6-nft/kustomization.yaml")

@@ -45,7 +45,7 @@ func testNatFunc(t *testing.T, cNS, eNS, targetNS ns.NetNS, backend string, orig
 			return fmt.Errorf("ft.Init on client failed: %w", err)
 		}
 
-		nc := NewNatClient(net.ParseIP("10.1.1.2"), net.ParseIP("fd01::102"), nil, nil)
+		nc := NewNatClient(net.ParseIP("10.1.1.2"), net.ParseIP("fd01::102"), nil, nil, backend)
 		if err := nc.Init(); err != nil {
 			return fmt.Errorf("nc.Init failed: %w", err)
 		}
