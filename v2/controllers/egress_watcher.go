@@ -24,6 +24,7 @@ type EgressWatcher struct {
 	NodeName   string
 	PodNet     nodenet.PodNetwork
 	EgressPort int
+	Backend    string
 }
 
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses,verbs=get;list;watch
@@ -136,9 +137,10 @@ func (r *EgressWatcher) reconcileEgressClient(ctx context.Context, eg *coilv2.Eg
 }
 
 type gwNets struct {
-	gateway   net.IP
-	networks  []*net.IPNet
-	sportAuto bool
+	gateway         net.IP
+	networks        []*net.IPNet
+	sportAuto       bool
+	originatingOnly bool
 }
 
 func (r *EgressWatcher) getHooks(ctx context.Context, eg *coilv2.Egress, logger *logr.Logger) ([]nodenet.SetupHook, error) {
@@ -188,7 +190,7 @@ func (r *EgressWatcher) hook(gwn gwNets, log *logr.Logger) func(ipv4, ipv6 net.I
 		}
 		cl := founat.NewNatClient(ipv4, ipv6, nil, func(message string) {
 			log.Info(message)
-		})
+		}, r.Backend)
 		initialized, err := cl.IsInitialized()
 		if !initialized {
 			return fmt.Errorf("natClient hasn't been initialized: %w", err)
@@ -203,7 +205,7 @@ func (r *EgressWatcher) hook(gwn gwNets, log *logr.Logger) func(ipv4, ipv6 net.I
 		if err != nil {
 			return err
 		}
-		if err := cl.AddEgress(link, gwn.networks); err != nil {
+		if err := cl.AddEgress(link, gwn.networks, gwn.originatingOnly); err != nil {
 			return err
 		}
 

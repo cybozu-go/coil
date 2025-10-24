@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: coild
+  namespace: system
+  labels:
+    app.kubernetes.io/component: coild
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: coild
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: coild
+    spec:
+      hostNetwork: true
+      hostPID: true    # to see netns file under /proc
+      priorityClassName: system-node-critical
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists
+      serviceAccountName: coild
+      terminationGracePeriodSeconds: 1
+      containers:
+      - name: coild
+        image: coil:dev
+        command: ["coild"]
+        args:
+          - --zap-stacktrace-level=panic
+          - --enable-ipam=false
+          - --enable-egress=true
+          - --pod-table-id=0
+          - --protocol-id=2
+          - --backend=nftables
+        env:
+        - name: COIL_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        securityContext:
+          privileged: true
+        ports:
+        - name: metrics
+          containerPort: 9384
+          protocol: TCP
+        - name: health
+          containerPort: 9385
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+            host: localhost
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: health
+            host: localhost
+        volumeMounts:
+        - mountPath: /run
+          name: run
+          mountPropagation: HostToContainer  # to see bind mount netns file under /run/netns
+        - mountPath: /lib/modules
+          name: modules
+          readOnly: true
+      initContainers:
+      - name: coil-installer
+        image: coil:dev
+        command: ["coil-installer"]
+        env:
+        - name: CNI_NETCONF
+          valueFrom:
+            configMapKeyRef:
+              name: coil-config
+              key: cni_netconf
+        - name: CNI_CONF_NAME
+          value: "10-coil.conflist"
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /host/opt/cni/bin
+          name: cni-bin-dir
+        - mountPath: /host/etc/cni/net.d
+          name: cni-net-dir
+      volumes:
+      - name: run
+        hostPath:
+          path: /run
+      - name: modules
+        hostPath:
+          path: /lib/modules
+      - name: cni-bin-dir
+        hostPath:
+          path: /opt/cni/bin
+      - name: cni-net-dir
+        hostPath:
+          path: /etc/cni/net.d

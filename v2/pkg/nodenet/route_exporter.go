@@ -80,8 +80,8 @@ func (r *routeExporter) Sync(nets []*net.IPNet) error {
 			Protocol:  r.protocolId,
 		})
 		if err != nil {
-			r.log.Error(err, "netlink: failed to add route", "network", key)
-			return fmt.Errorf("netlink: failed to add route to %s: %w", key, err)
+			r.log.Error(err, "exporter: netlink: failed to add route", "network", key)
+			return fmt.Errorf("exporter: netlink: failed to add route to %s: %w", key, err)
 		}
 	}
 

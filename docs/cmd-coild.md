@@ -50,6 +50,7 @@ Calico needs to be configured to set [`FELIX_INTERFACEPREFIX`](https://github.co
 
 ```
 Flags:
+      --backend string        backend for egress NAT rules: iptables or nftables (default: iptables)
       --compat-calico         make veth name compatible with Calico
       --egress-port int       UDP port number for egress NAT (default 5555)
       --enable-egress         enable Egress related features (default true)

@@ -160,14 +160,25 @@ setup-nodes:
 TEST_IPAM ?= true
 TEST_EGRESS ?= true
 .PHONY: test
-test: setup-echotest
+test: setup-echotest setup-echotest-image
 	TEST_IPAM=$(TEST_IPAM) TEST_EGRESS=$(TEST_EGRESS) go test -count 1 -v . -args -ginkgo.progress -ginkgo.v
 
-.PHONY: setup-echotest
-setup-echotest:
+.PHONY: build-echotest
+build-echotest:
 	CGO_ENABLED=0 GOARCH=$(ARCH) GOOS=linux go build -o echotest ./echo-server
+
+.PHONY: setup-echotest
+setup-echotest: build-echotest
 	docker cp echotest coil-control-plane:/usr/local/bin
 	rm echotest
+
+.PHONY: build-echotest-image
+build-echotest-image:
+	TARGETARCH=$(ARCH) docker build -t echotest:dev -f echo-server/Dockerfile echo-server/.
+
+.PHONY: setup-echotest-image
+setup-echotest-image: build-echotest-image
+	$(KIND) load docker-image echotest:dev --name coil
 
 .PHONY: logs
 logs:
@@ -200,6 +211,8 @@ enable-certs-rotation:
 	@$(call comment_certs,"../config/default/kustomization.yaml")
 	@$(call comment_certs,"../config/default/egress/v4/kustomization.yaml")
 	@$(call comment_certs,"../config/default/egress/v6/kustomization.yaml")
+	@$(call comment_certs,"../config/default/egress/v4-nft/kustomization.yaml")
+	@$(call comment_certs,"../config/default/egress/v6-nft/kustomization.yaml")
 
 $(KIND):
 	mkdir -p $(dir $@)

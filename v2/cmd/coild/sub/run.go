@@ -145,6 +145,7 @@ func subMain() error {
 			NodeName:   nodeName,
 			PodNet:     podNet,
 			EgressPort: cfg.EgressPort,
+			Backend:    cfg.Backend,
 		}
 		if err := egressWatcher.SetupWithManager(mgr); err != nil {
 			return err
