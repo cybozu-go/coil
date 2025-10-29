@@ -4,16 +4,17 @@ End-to-end test suites
 This document describes the strategy, analysis, and implementation of
 end-to-end (e2e) tests for Coil.
 
-- [Strategy](#strategy)
-- [Analysis](#analysis)
-  - [Manifests](#manifests)
-  - [`coil-ipam-controller`](#coil-ipam-controller)
-  - [`coil-egress-controller`](#coil-egress-controller)
-  - [`coild`](#coild)
-  - [`coil-router`](#coil-router)
-  - [`coil-egress`](#coil-egress)
-- [How to test](#how-to-test)
-- [Implementation](#implementation)
+- [End-to-end test suites](#end-to-end-test-suites)
+  - [Strategy](#strategy)
+  - [Analysis](#analysis)
+    - [Manifests](#manifests)
+    - [`coil-ipam-controller`](#coil-ipam-controller)
+    - [`coil-egress-controller`](#coil-egress-controller)
+    - [`coild`](#coild)
+    - [`coil-router`](#coil-router)
+    - [`coil-egress`](#coil-egress)
+  - [How to test](#how-to-test)
+  - [Implementation](#implementation)
 
 ## Strategy
 
@@ -128,3 +129,14 @@ $ make start KUBERNETES_VERSION=1.25.3
 To stop the cluster, run `make stop`.
 
 [kind]: https://github.com/kubernetes-sigs/kind
+
+> NOTE: Some tests require us to get the IP address from the host's kind
+> interface.
+> By default first interface with name starting with `br-` will be used.
+> If you have more than one interface with such name, you can specify
+> which interface should be used by providing an env variable
+> `NETWORK_INTERFACE=<name>` to `make test` command, for example:
+
+```
+NETWORK_INTERFACE=br-36d13ecf5bde make test
+```

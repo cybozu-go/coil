@@ -69,7 +69,7 @@ type NatClient interface {
 // `podNodeNet` is, if given, are networks for Pod and Node addresses.
 // If all the addresses of Pods and Nodes are within IPv4/v6 private addresses,
 // `podNodeNet` can be left nil.
-func NewNatClient(ipv4, ipv6 net.IP, podNodeNet []*net.IPNet, logFunc func(string), backend string) NatClient {
+func NewNatClient(ipv4, ipv6 net.IP, podNodeNet []*net.IPNet, backend string, logFunc func(string)) NatClient {
 	if ipv4 != nil && ipv4.To4() == nil {
 		panic("invalid IPv4 address")
 	}
@@ -108,11 +108,11 @@ type natClient struct {
 	v4priv []*net.IPNet
 	v6priv []*net.IPNet
 
+	backend string
+
 	logFunc func(string)
 
 	mu sync.Mutex
-
-	backend string
 }
 
 func newRuleForClient(family, table, prio int) *netlink.Rule {
@@ -622,7 +622,8 @@ func addNftInputRule(nft *nftables.Conn, table *nftables.Table, link netlink.Lin
 		Policy:   ptr(nftables.ChainPolicyAccept),
 	}
 
-	if err := addNftChain(nft, inputChain); err != nil {
+	inputChain, err := addNftChain(nft, inputChain)
+	if err != nil {
 		return fmt.Errorf("failed to add chain: %w", err)
 	}
 
@@ -639,7 +640,8 @@ func addNftInputRule(nft *nftables.Conn, table *nftables.Table, link netlink.Lin
 		},
 	}
 
-	if err := addNftSet(nft, table, deviceSet, elements); err != nil {
+	deviceSet, err = addNftSet(nft, table, deviceSet, elements)
+	if err != nil {
 		return fmt.Errorf("failed to add set: %w", err)
 	}
 
@@ -707,7 +709,8 @@ func addNftOutputRule(nft *nftables.Conn, table *nftables.Table, link netlink.Li
 		Policy:   ptr(nftables.ChainPolicyAccept),
 	}
 
-	if err := addNftChain(nft, outputChain); err != nil {
+	outputChain, err := addNftChain(nft, outputChain)
+	if err != nil {
 		return fmt.Errorf("failed to add chain: %w", err)
 	}
 
@@ -749,31 +752,31 @@ func addNftOutputRule(nft *nftables.Conn, table *nftables.Table, link netlink.Li
 	return nil
 }
 
-func addNftChain(nft *nftables.Conn, chain *nftables.Chain) error {
+func addNftChain(nft *nftables.Conn, chain *nftables.Chain) (*nftables.Chain, error) {
 	existingChain, err := nft.ListChain(chain.Table, chain.Name)
 	if (err != nil && errors.Is(err, os.ErrNotExist)) || existingChain == nil {
 		chain = nft.AddChain(chain)
 	} else if err != nil {
-		return fmt.Errorf("failed to configure chain %q in table %q: %w", chain.Name, chain.Table.Name, err)
+		return nil, fmt.Errorf("failed to configure chain %q in table %q: %w", chain.Name, chain.Table.Name, err)
 	} else {
 		chain = existingChain
 	}
-	return nil
+	return chain, nil
 }
 
-func addNftSet(nft *nftables.Conn, table *nftables.Table, set *nftables.Set, elements []nftables.SetElement) error {
+func addNftSet(nft *nftables.Conn, table *nftables.Table, set *nftables.Set, elements []nftables.SetElement) (*nftables.Set, error) {
 	existingSet, err := nft.GetSetByName(table, set.Name)
 	if (err != nil && errors.Is(err, os.ErrNotExist)) || existingSet == nil {
 		if err := nft.AddSet(set, elements); err != nil {
-			return fmt.Errorf("failed to add set %s : %w", set.Name, err)
+			return nil, fmt.Errorf("failed to add set %s : %w", set.Name, err)
 		}
 	} else if err != nil {
-		return fmt.Errorf("failed to configure set %q in table %q: %w", set.Name, set.Table.Name, err)
+		return nil, fmt.Errorf("failed to configure set %q in table %q: %w", set.Name, set.Table.Name, err)
 	} else {
 		set = existingSet
 	}
 
-	return nil
+	return set, nil
 }
 
 func checkNftRule(nft *nftables.Conn, rule *nftables.Rule) (bool, error) {

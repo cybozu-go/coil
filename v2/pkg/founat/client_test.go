@@ -68,7 +68,7 @@ func testClientDual(t *testing.T) {
 }
 
 func testClientDualFunc(originatingOnly bool, backend string) error {
-	nc := NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), nil, nil, backend)
+	nc := NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), nil, backend, nil)
 	initialized, err := nc.IsInitialized()
 	if err != nil {
 		return err
@@ -374,7 +374,7 @@ func testClientV4(t *testing.T) {
 }
 
 func testClientV4Func(originatingOnly bool, backend string) error {
-	nc := NewNatClient(net.ParseIP("10.1.1.1"), nil, nil, nil, backend)
+	nc := NewNatClient(net.ParseIP("10.1.1.1"), nil, nil, backend, nil)
 	initialized, err := nc.IsInitialized()
 	if err != nil {
 		return err
@@ -497,7 +497,7 @@ func testClientV6(t *testing.T) {
 }
 
 func testClientV6Func(originatingOnly bool, backend string) error {
-	nc := NewNatClient(nil, net.ParseIP("fd02::1"), nil, nil, backend)
+	nc := NewNatClient(nil, net.ParseIP("fd02::1"), nil, backend, nil)
 	initialized, err := nc.IsInitialized()
 	if err != nil {
 		return err
@@ -626,7 +626,7 @@ func testClientCustomFunc(originatingOnly bool, backend string) error {
 	nc := NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), []*net.IPNet{
 		{IP: net.ParseIP("192.168.10.0"), Mask: net.CIDRMask(24, 32)},
 		{IP: net.ParseIP("fd02::"), Mask: net.CIDRMask(16, 128)},
-	}, nil, backend)
+	}, backend, nil)
 	initialized, err := nc.IsInitialized()
 	if err != nil {
 		return err

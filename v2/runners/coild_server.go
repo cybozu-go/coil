@@ -45,7 +45,7 @@ type GWNets struct {
 
 // NATSetup represents a NAT setup function for Pods.
 type NATSetup interface {
-	Hook([]GWNets, *zap.Logger, string) func(ipv4, ipv6 net.IP) error
+	Hook([]GWNets, string, *zap.Logger) func(ipv4, ipv6 net.IP) error
 }
 
 // NewNATSetup creates a NATSetup using founat package.
@@ -58,7 +58,7 @@ type natSetup struct {
 	port int
 }
 
-func (n natSetup) Hook(l []GWNets, log *zap.Logger, backend string) func(ipv4, ipv6 net.IP) error {
+func (n natSetup) Hook(l []GWNets, backend string, log *zap.Logger) func(ipv4, ipv6 net.IP) error {
 	return func(ipv4, ipv6 net.IP) error {
 		ft := founat.NewFoUTunnel(n.port, ipv4, ipv6, func(message string) {
 			log.Sugar().Info(message)
@@ -67,9 +67,9 @@ func (n natSetup) Hook(l []GWNets, log *zap.Logger, backend string) func(ipv4, i
 			return err
 		}
 
-		cl := founat.NewNatClient(ipv4, ipv6, nil, func(message string) {
+		cl := founat.NewNatClient(ipv4, ipv6, nil, backend, func(message string) {
 			log.Sugar().Info(message)
-		}, backend)
+		})
 		if err := cl.Init(); err != nil {
 			return err
 		}
@@ -467,7 +467,7 @@ func (s *coildServer) getHook(ctx context.Context, pod *corev1.Pod) (nodenet.Set
 	if len(gwlist) > 0 {
 		logger = logger.With(zap.String("pod_name", pod.Name), zap.String("pod_namespace", pod.Namespace))
 		logger.Sugar().Infof("gwlist: %v", gwlist)
-		return s.natSetup.Hook(gwlist, logger, s.cfg.Backend), nil
+		return s.natSetup.Hook(gwlist, s.cfg.Backend, logger), nil
 	}
 	return nil, nil
 }
