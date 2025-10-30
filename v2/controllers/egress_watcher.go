@@ -25,6 +25,7 @@ type EgressWatcher struct {
 	PodNet     nodenet.PodNetwork
 	EgressPort int
 	Backend    string
+	Tracker    map[string]map[string]*coilv2.Egress
 }
 
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses,verbs=get;list;watch
@@ -42,9 +43,6 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 		logger.Error(err, "failed to get egress")
 		return ctrl.Result{}, err
-	}
-	if eg.DeletionTimestamp != nil {
-		return ctrl.Result{}, nil
 	}
 
 	pods := &corev1.PodList{}
@@ -76,6 +74,10 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	for _, targetPod := range targetPods {
+		if eg.DeletionTimestamp != nil {
+			delete(r.Tracker, namespacedName(targetPod))
+			continue
+		}
 		for k, v := range targetPod.Annotations {
 			if !strings.HasPrefix(k, constants.AnnEgressPrefix) {
 				continue
@@ -109,8 +111,19 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	return ctrl.Result{}, nil
 }
 
+func namespacedName(o client.Object) string {
+	return fmt.Sprintf("%s/%s", o.GetNamespace(), o.GetName())
+}
+
 func (r *EgressWatcher) reconcileEgressClient(ctx context.Context, eg *coilv2.Egress, pod *corev1.Pod, logger *logr.Logger) error {
-	hooks, err := r.getHooks(ctx, eg, logger)
+	logger.Info("Reconciling", "pod", fmt.Sprintf("%s/%s", pod.Namespace, pod.Name))
+	if _, ok := r.Tracker[namespacedName(pod)]; !ok {
+		r.Tracker[namespacedName(pod)] = make(map[string]*coilv2.Egress)
+	}
+
+	r.Tracker[namespacedName(pod)][namespacedName(eg)] = eg
+
+	hooks, err := r.getHooks(ctx, eg, logger, r.Tracker[namespacedName(pod)])
 	if err != nil {
 		return fmt.Errorf("failed to setup NAT hook: %w", err)
 	}
@@ -143,12 +156,20 @@ type gwNets struct {
 	originatingOnly bool
 }
 
-func (r *EgressWatcher) getHooks(ctx context.Context, eg *coilv2.Egress, logger *logr.Logger) ([]nodenet.SetupHook, error) {
+func (r *EgressWatcher) getHooks(ctx context.Context, eg *coilv2.Egress, logger *logr.Logger, knownEg map[string]*coilv2.Egress) ([]nodenet.SetupHook, error) {
 	var gw gwNets
 	svc := &corev1.Service{}
 
 	if err := r.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, svc); err != nil {
 		return nil, err
+	}
+
+	enableOriginatingOnly := false
+	for _, v := range knownEg {
+		if v.Spec.OriginatingOnly {
+			enableOriginatingOnly = true
+			break
+		}
 	}
 
 	hooks := []nodenet.SetupHook{}
@@ -170,7 +191,7 @@ func (r *EgressWatcher) getHooks(ctx context.Context, eg *coilv2.Egress, logger 
 		}
 
 		if len(subnets) > 0 {
-			gw = gwNets{gateway: svcIP, networks: subnets, sportAuto: eg.Spec.FouSourcePortAuto}
+			gw = gwNets{gateway: svcIP, networks: subnets, sportAuto: eg.Spec.FouSourcePortAuto, originatingOnly: enableOriginatingOnly}
 			hooks = append(hooks, r.hook(gw, logger))
 		}
 	}

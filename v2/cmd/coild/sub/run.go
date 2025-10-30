@@ -129,12 +129,14 @@ func subMain() error {
 		}
 	}
 
+	egressTracker := make(map[string]map[string]*coilv2.Egress)
+
 	os.Remove(cfg.SocketPath)
 	l, err := net.Listen("unix", cfg.SocketPath)
 	if err != nil {
 		return err
 	}
-	server := runners.NewCoildServer(l, mgr, nodeIPAM, podNet, runners.NewNATSetup(cfg.EgressPort), cfg, grpcLogger, runners.ProcessLinkAlias)
+	server := runners.NewCoildServer(l, mgr, nodeIPAM, podNet, runners.NewNATSetup(cfg.EgressPort), cfg, grpcLogger, runners.ProcessLinkAlias, egressTracker)
 	if err := mgr.Add(server); err != nil {
 		return err
 	}
@@ -146,6 +148,7 @@ func subMain() error {
 			PodNet:     podNet,
 			EgressPort: cfg.EgressPort,
 			Backend:    cfg.Backend,
+			Tracker:    egressTracker,
 		}
 		if err := egressWatcher.SetupWithManager(mgr); err != nil {
 			return err

@@ -762,7 +762,7 @@ func testOriginatingOnly(link netlink.Link, nc NatClient, addAddresses bool, add
 					return fmt.Errorf("wrong values in table %d", egressLinkTable)
 				}
 
-				exists, err := checkFWMarkRule(link, egressLinkTable, family)
+				_, exists, err := checkFWMarkRule(link, egressLinkTable, family)
 				if err != nil {
 					return fmt.Errorf("failed while checking FW Mark rule: %w", err)
 				}

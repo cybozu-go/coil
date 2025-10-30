@@ -323,22 +323,6 @@ func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet, originati
 		}
 	}
 
-	for _, n := range adds {
-		if err := c.addEgress1(link, n); err != nil {
-			return err
-		}
-
-		if originatingOnly {
-			family := iptables.ProtocolIPv6
-			if n.IP.To4() != nil {
-				family = iptables.ProtocolIPv4
-			}
-			if err := configureRoutes(family, c.backend); err != nil {
-				return err
-			}
-		}
-	}
-
 	for _, r := range deletes {
 		if c.logFunc != nil {
 			c.logFunc(fmt.Sprintf("removing a destination %s", r.Dst.String()))
@@ -348,7 +332,62 @@ func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet, originati
 		}
 	}
 
+	for _, n := range adds {
+		if err := c.addEgress1(link, n); err != nil {
+			return err
+		}
+
+		family := iptables.ProtocolIPv6
+		if n.IP.To4() != nil {
+			family = iptables.ProtocolIPv4
+		}
+
+		if originatingOnly {
+			if err := configureRoutes(family, c.backend); err != nil {
+				return err
+			}
+		}
+	}
+
+	if originatingOnly {
+		for _, f := range getFamilies(subnets) {
+			if err := configureRoutes(f, c.backend); err != nil {
+				return err
+			}
+		}
+	} else {
+		for _, f := range []iptables.Protocol{iptables.ProtocolIPv4, iptables.ProtocolIPv6} {
+			if err := removeRoutes(f, c.backend); err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
+}
+
+func getFamilies(subnets []*net.IPNet) []iptables.Protocol {
+	var v4, v6 bool
+	for _, subnet := range subnets {
+		if subnet.IP.To4() != nil {
+			v4 = true
+		} else {
+			v6 = true
+		}
+		if v4 && v6 {
+			break
+		}
+	}
+
+	result := []iptables.Protocol{}
+	if v4 {
+		result = append(result, iptables.ProtocolIPv4)
+	}
+	if v6 {
+		result = append(result, iptables.ProtocolIPv6)
+	}
+
+	return result
 }
 
 func collectRoutes(linkIndex int) (map[string]netlink.Route, error) {
@@ -542,6 +581,97 @@ func configureRoutes(family iptables.Protocol, backend string) error {
 	return nil
 }
 
+func removeRoutes(family iptables.Protocol, backend string) error {
+	netlinkFamily := netlink.FAMILY_V4
+	nftFamily := nftables.TableFamilyIPv4
+	if family == iptables.ProtocolIPv6 {
+		netlinkFamily = netlink.FAMILY_V6
+		nftFamily = nftables.TableFamilyIPv6
+	}
+
+	links, err := netlink.LinkList()
+	if err != nil {
+		return fmt.Errorf("netlink: failed to list links: %w", err)
+	}
+
+	var ipt *iptables.IPTables
+	var nft *nftables.Conn
+	switch backend {
+	case constants.EgressBackendIPTables:
+		ipt, err = iptables.New(iptables.IPFamily(family))
+		if err != nil {
+			return err
+		}
+	case constants.EgressBackendNFTables:
+		nft, err = nftables.New()
+		if err != nil {
+			return fmt.Errorf("failed to create nftables connection: %w", err)
+		}
+	default:
+		return fmt.Errorf("unknown backend %q", backend)
+	}
+
+	for _, link := range links {
+		hasGlobalIP, err := checkLinkForGlobalScopeIP(link, netlinkFamily)
+		if err != nil {
+			return fmt.Errorf("netlink: failed to check interface %q for non-local IP address: %w", link.Attrs().Name, err)
+		}
+		if !hasGlobalIP {
+			continue
+		}
+
+		linkTable := nonEgressTableID + link.Attrs().Index
+
+		routes, err := netlink.RouteListFiltered(netlinkFamily, &netlink.Route{
+			Table: linkTable,
+		}, netlink.RT_FILTER_TABLE)
+
+		if err != nil {
+			return fmt.Errorf("netlink: failed to list routes for interface %q in table %q: %w", link.Attrs().Name, linkTable, err)
+		}
+
+		if len(routes) > 0 {
+			for i := range routes {
+				if err := netlink.RouteDel(&routes[i]); err != nil && !errors.Is(err, syscall.EEXIST) {
+					return fmt.Errorf("netlink: failed to delete route %q, link: %s, state: %s - %w",
+						routes[i].String(), link.Attrs().Name, link.Attrs().OperState.String(), err)
+				}
+			}
+
+			if err := delFWMarkRule(link, linkTable, netlinkFamily); err != nil {
+				return fmt.Errorf("failed to delete FWMark rule: %w", err)
+			}
+
+			if backend == constants.EgressBackendIPTables {
+				if err := delIPTRule(ipt, "mangle", "INPUT",
+					"-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j", "CONNMARK",
+					"-i", link.Attrs().Name, "--set-mark", fmt.Sprintf("%d", link.Attrs().Index)); err != nil {
+					return fmt.Errorf("failed to delete IPTables rule: %w", err)
+				}
+
+				if err := delIPTRule(ipt, "mangle", "OUTPUT", "-j", "CONNMARK", "-m", "connmark",
+					"--mark", fmt.Sprintf("%d", link.Attrs().Index), "--restore-mark"); err != nil {
+					return fmt.Errorf("failed to delete IPTables rule: %w", err)
+				}
+			} else {
+				mangleTable, err := nft.ListTableOfFamily("mangle", nftFamily)
+				if err != nil && !errors.Is(err, os.ErrNotExist) {
+					return fmt.Errorf("failed to list mangle table: %w", err)
+				} else if errors.Is(err, os.ErrNotExist) {
+					return nil
+				} else if err == nil && mangleTable != nil {
+					nft.DelTable(mangleTable)
+
+					if err := nft.Flush(); err != nil {
+						return fmt.Errorf("failed to flush nft rules: %w", err)
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func checkLinkForGlobalScopeIP(link netlink.Link, family int) (bool, error) {
 	addrs, err := netlink.AddrList(link, family)
 	if err != nil {
@@ -555,8 +685,23 @@ func checkLinkForGlobalScopeIP(link netlink.Link, family int) (bool, error) {
 	return false, nil
 }
 
+func checkFWMarkRule(link netlink.Link, table, family int) (*netlink.Rule, bool, error) {
+	rules, err := netlink.RuleList(family)
+	if err != nil {
+		return nil, false, fmt.Errorf("netlink: failed to list rules: %w", err)
+	}
+
+	for _, r := range rules {
+		if r.Mark == uint32(link.Attrs().Index) && r.Table == table {
+			// rule already exists
+			return &r, true, nil
+		}
+	}
+	return nil, false, nil
+}
+
 func addFWMarkRule(link netlink.Link, table, family int) error {
-	exists, err := checkFWMarkRule(link, table, family)
+	_, exists, err := checkFWMarkRule(link, table, family)
 	if err != nil {
 		return fmt.Errorf("failed to check FW mark rule existance: %w", err)
 	}
@@ -574,19 +719,19 @@ func addFWMarkRule(link netlink.Link, table, family int) error {
 	return nil
 }
 
-func checkFWMarkRule(link netlink.Link, table, family int) (bool, error) {
-	rules, err := netlink.RuleList(family)
+func delFWMarkRule(link netlink.Link, table, family int) error {
+	r, exists, err := checkFWMarkRule(link, table, family)
 	if err != nil {
-		return false, fmt.Errorf("netlink: failed to list rules: %w", err)
+		return fmt.Errorf("failed to check FW mark rule existance: %w", err)
 	}
 
-	for _, r := range rules {
-		if r.Mark == uint32(link.Attrs().Index) && r.Table == table {
-			// rule already exists
-			return true, nil
+	if exists {
+		if err := netlink.RuleDel(r); err != nil {
+			return fmt.Errorf("failed to remove FW mark rule: %w", err)
 		}
 	}
-	return false, nil
+
+	return nil
 }
 
 func checkIPTRules(ipt *iptables.IPTables, table string, chain string, rulespec ...string) (bool, error) {
@@ -606,6 +751,21 @@ func addIPTRule(ipt *iptables.IPTables, table string, chain string, rulespec ...
 	if !exists {
 		if err := ipt.Append(table, chain, rulespec...); err != nil {
 			return fmt.Errorf("failed to append %q rule in chain %q - %q: %w", table, chain, rulespec, err)
+		}
+	}
+
+	return nil
+}
+
+func delIPTRule(ipt *iptables.IPTables, table string, chain string, rulespec ...string) error {
+	exists, err := checkIPTRules(ipt, table, chain, rulespec...)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		if err := ipt.Delete(table, chain, rulespec...); err != nil {
+			return fmt.Errorf("failed to delete %q rule in chain %q - %q: %w", table, chain, rulespec, err)
 		}
 	}
 
