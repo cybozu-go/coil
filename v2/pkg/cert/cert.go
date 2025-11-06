@@ -39,7 +39,7 @@ func SetupRotator(mgr ctrl.Manager, objectType string, enableRestartOnCertRefres
 		DNSName:                fmt.Sprintf("%s.%s.svc", serviceName, podNamespace),
 		ExtraDNSNames:          []string{fmt.Sprintf("%s.%s.svc.cluster.local", serviceName, podNamespace)},
 		IsReady:                setupFinished,
-		RequireLeaderElection:  true,
+		RequireLeaderElection:  false,
 		Webhooks:               webhooks,
 		RestartOnSecretRefresh: enableRestartOnCertRefresh,
 	}); err != nil {
