@@ -1,0 +1,34 @@
+resources:
+- ../../../config/default/originatingonly
+- ../../../config/pod/coil-router.yaml
+
+patchesStrategicMerge:
+- ../../coil-ipam-controller_patch.yaml
+
+# [CERTS] Following patches should be uncommented if automatic cert generation is used.
+# patches:
+# - path: ../config/pod/generate_certs.yaml
+#   target:
+#     group: apps
+#     version: v1
+#     kind: Deployment
+#     name: coil-ipam-controller
+# - path: ../config/pod/generate_certs.yaml
+#   target:
+#     group: apps
+#     version: v1
+#     kind: Deployment
+#     name: coil-egress-controller
+
+configMapGenerator:
+- name: coil-config
+  namespace: system
+  files:
+  - cni_netconf=../../../netconf.json
+
+# Adds namespace to all resources.
+namespace: kube-system
+
+# Labels to add to all resources and selectors.
+commonLabels:
+  app.kubernetes.io/name: coil

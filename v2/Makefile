@@ -222,6 +222,9 @@ config/default/ipam/webhook_manifests_patch.yaml: config/default/ipam-cert.pem c
 config/default/egress/webhook_manifests_patch.yaml: config/default/egress-cert.pem config/default/egress/webhook_manifests_patch.yaml.tmpl
 	sed "s/%CACERT%/$$(base64 -w0 < $<)/g" $@.tmpl > $@
 
+config/default/egress/webhook_manifests_patch.yaml: config/default/egress-cert.pem config/default/egress/webhook_manifests_patch.yaml.tmpl
+	sed "s/%CACERT%/$$(base64 -w0 < $<)/g" $@.tmpl > $@
+
 # Generate code
 .PHONY: generate
 generate: $(CONTROLLER_GEN)
@@ -315,7 +318,12 @@ enable-certs-rotation:
 	@touch config/default/egress-cert.pem
 	@touch config/default/egress-key.pem
 	@$(call comment_certs,"config/default/kustomization.yaml")
+	@$(call comment_certs,"config/default/originatingonly/kustomization.yaml")
 	@$(call comment_certs,"config/default/egress/v4/kustomization.yaml")
 	@$(call comment_certs,"config/default/egress/v6/kustomization.yaml")
 	@$(call comment_certs,"config/default/egress/v4-nft/kustomization.yaml")
 	@$(call comment_certs,"config/default/egress/v6-nft/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/v4-originatingonly/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/v6-originatingonly/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/v4-nft-originatingonly/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/v6-nft-originatingonly/kustomization.yaml")

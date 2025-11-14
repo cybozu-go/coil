@@ -95,8 +95,7 @@ func (n natSetup) Hook(l []GWNets, backend string, log *zap.Logger) func(ipv4, i
 
 // NewCoildServer returns an implementation of cnirpc.CNIServer for coild.
 func NewCoildServer(l net.Listener, mgr manager.Manager, nodeIPAM ipam.NodeIPAM, podNet nodenet.PodNetwork, setup NATSetup, cfg *config.Config, logger *zap.Logger,
-	aliasFunc func(conf *nodenet.PodNetConf, pod *corev1.Pod, ifName string) error,
-	tracker map[string]map[string]*coilv2.Egress) manager.Runnable {
+	aliasFunc func(conf *nodenet.PodNetConf, pod *corev1.Pod, ifName string) error) manager.Runnable {
 	return &coildServer{
 		listener:  l,
 		apiReader: mgr.GetAPIReader(),
@@ -107,7 +106,6 @@ func NewCoildServer(l net.Listener, mgr manager.Manager, nodeIPAM ipam.NodeIPAM,
 		logger:    logger,
 		cfg:       cfg,
 		aliasFunc: aliasFunc,
-		tracker:   tracker,
 	}
 }
 
@@ -133,7 +131,6 @@ type coildServer struct {
 	logger    *zap.Logger
 	cfg       *config.Config
 	aliasFunc func(conf *nodenet.PodNetConf, pod *corev1.Pod, ifName string) error
-	tracker   map[string]map[string]*coilv2.Egress
 }
 
 var _ manager.LeaderElectionRunnable = &coildServer{}
@@ -442,20 +439,6 @@ func (s *coildServer) getHook(ctx context.Context, pod *corev1.Pod) (nodenet.Set
 				"failed to get Service "+n.String(), err.Error())
 		}
 
-		if _, ok := s.tracker[namespacedName(pod)]; !ok {
-			s.tracker[namespacedName(pod)] = make(map[string]*coilv2.Egress)
-		}
-
-		s.tracker[namespacedName(pod)][namespacedName(eg)] = eg
-
-		enableOriginatingOnly := false
-		for _, v := range s.tracker[namespacedName(pod)] {
-			if v.Spec.OriginatingOnly {
-				enableOriginatingOnly = true
-				break
-			}
-		}
-
 		for _, clusterIP := range svc.Spec.ClusterIPs {
 			svcIP := net.ParseIP(clusterIP)
 			if svcIP == nil {
@@ -476,7 +459,7 @@ func (s *coildServer) getHook(ctx context.Context, pod *corev1.Pod) (nodenet.Set
 
 			if len(subnets) > 0 {
 				gwlist = append(gwlist, GWNets{Gateway: svcIP, Networks: subnets,
-					SportAuto: eg.Spec.FouSourcePortAuto, OriginatingOnly: enableOriginatingOnly})
+					SportAuto: eg.Spec.FouSourcePortAuto, OriginatingOnly: s.cfg.OriginatingOnly})
 			}
 		}
 	}
@@ -487,10 +470,6 @@ func (s *coildServer) getHook(ctx context.Context, pod *corev1.Pod) (nodenet.Set
 		return s.natSetup.Hook(gwlist, s.cfg.Backend, logger), nil
 	}
 	return nil, nil
-}
-
-func namespacedName(o client.Object) string {
-	return fmt.Sprintf("%s/%s", o.GetNamespace(), o.GetName())
 }
 
 // ref: https://github.com/grpc-ecosystem/go-grpc-middleware/blob/71d7422112b1d7fadd4b8bf12a6f33ba6d22e98e/interceptors/logging/examples/zap/example_test.go#L17

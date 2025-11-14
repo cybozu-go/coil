@@ -129,26 +129,24 @@ func subMain() error {
 		}
 	}
 
-	egressTracker := make(map[string]map[string]*coilv2.Egress)
-
 	os.Remove(cfg.SocketPath)
 	l, err := net.Listen("unix", cfg.SocketPath)
 	if err != nil {
 		return err
 	}
-	server := runners.NewCoildServer(l, mgr, nodeIPAM, podNet, runners.NewNATSetup(cfg.EgressPort), cfg, grpcLogger, runners.ProcessLinkAlias, egressTracker)
+	server := runners.NewCoildServer(l, mgr, nodeIPAM, podNet, runners.NewNATSetup(cfg.EgressPort), cfg, grpcLogger, runners.ProcessLinkAlias)
 	if err := mgr.Add(server); err != nil {
 		return err
 	}
 
 	if cfg.EnableEgress {
 		egressWatcher := &controllers.EgressWatcher{
-			Client:     mgr.GetClient(),
-			NodeName:   nodeName,
-			PodNet:     podNet,
-			EgressPort: cfg.EgressPort,
-			Backend:    cfg.Backend,
-			Tracker:    egressTracker,
+			Client:          mgr.GetClient(),
+			NodeName:        nodeName,
+			PodNet:          podNet,
+			EgressPort:      cfg.EgressPort,
+			Backend:         cfg.Backend,
+			OriginatingOnly: cfg.OriginatingOnly,
 		}
 		if err := egressWatcher.SetupWithManager(mgr); err != nil {
 			return err

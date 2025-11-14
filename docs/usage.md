@@ -203,7 +203,6 @@ spec:
   destinations:
   - 172.20.0.0/16
   - fd04::/64
-  originatingOnly: true
   replicas: 3
   strategy:
     type: RollingUpdate
@@ -245,7 +244,6 @@ You may customize the container of egress Pods as shown in the above example.
 | Field                   | Type                      | Description                                                          |
 | ----------------------- | ------------------------- | -------------------------------------------------------------------- |
 | `destinations`          | `[]string`                | IP subnets where the packets are SNATed and sent.                    |
-| `originatingOnly`       | `bool`                    | If true, only connections originating in the pod will use egress.    |
 | `replicas`              | `int`                     | Copied to Deployment's `spec.replicas`.  Default is 1.               |
 | `strategy`              | [DeploymentStrategy][]    | Copied to Deployment's `spec.strategy`.                              |
 | `template`              | [PodTemplateSpec][]       | Copied to Deployment's `spec.template`.                              |
@@ -318,14 +316,11 @@ The default timeout seconds is 10800 (= 3 hours).
 
 ### Use egress only for connections originating on the client
 
-If `originatingOnly` is set `true` in the egress definition, only connections originating on the client 
+If `enable-originating-only` `coild` flag is set `true`, only connections originating on the client 
 or incoming onto `fou` interface will use egress FOU interface to send data. 
 In case of incomming connections, the same interface will be used for egress traffic - 
 e.g. if connection will be estabilished on `eth0`, the traffic will not be routed through `fou`,
 but will be handled by `eth0`.
-
-Please be aware that, in case of multiple `egress` resources attached to the client pod, if at least one
-`egress` will have `originatingOnly: true` set, all the other egresses will inherit this behavior.
 
 ## Metrics
 

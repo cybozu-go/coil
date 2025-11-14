@@ -240,9 +240,7 @@ var _ = Describe("Coild server", func() {
 			AddressBlockGCInterval: 10 * time.Second,
 		}
 
-		tracker := make(map[string]map[string]*coilv2.Egress)
-
-		serv := NewCoildServer(l, mgr, nodeIPAM, podNet, natsetup, cfg, logger, mockAlias, tracker)
+		serv := NewCoildServer(l, mgr, nodeIPAM, podNet, natsetup, cfg, logger, mockAlias)
 		err = mgr.Add(serv)
 		Expect(err).ToNot(HaveOccurred())
 

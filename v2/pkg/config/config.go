@@ -27,6 +27,7 @@ type Config struct {
 	EnableEgress           bool
 	AddressBlockGCInterval time.Duration
 	Backend                string
+	OriginatingOnly        bool
 }
 
 func Parse(rootCmd *cobra.Command) *Config {
@@ -46,6 +47,7 @@ func Parse(rootCmd *cobra.Command) *Config {
 	pf.BoolVar(&config.EnableEgress, "enable-egress", constants.DefaultEnableEgress, "enable Egress related features")
 	pf.DurationVar(&config.AddressBlockGCInterval, "addressblock-gc-interval", constants.DefaultAddressBlockGCInterval, "interval for address block GC")
 	pf.StringVar(&config.Backend, "backend", constants.DefaultEgressBackend, "backend for egress NAT rules: iptables or nftables (default: iptables)")
+	pf.BoolVar(&config.OriginatingOnly, "enable-originating-only", constants.DefaultOriginatingOnly, "egress should be used only for connections originating in the pod (default: false)")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)

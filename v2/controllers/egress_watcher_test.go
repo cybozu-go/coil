@@ -72,7 +72,6 @@ var _ = Describe("Egress watcher", func() {
 			NodeName:   "coil-worker",
 			PodNet:     podNetwork,
 			EgressPort: 5555,
-			Tracker:    make(map[string]map[string]*coilv2.Egress),
 		}
 		err = watcher.SetupWithManager(mgr)
 		Expect(err).ToNot(HaveOccurred())

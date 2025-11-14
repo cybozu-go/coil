@@ -14,7 +14,6 @@ spec:
   {{if .IPv4Addr }}  - {{ .IPv4Addr }} {{end}}
   {{if .IPv6Addr }}  - {{ .IPv6Addr }} {{end}}
   fouSourcePortAuto: true
-  originatingOnly: {{ .OriginatingOnly }}
   template:
     spec:
       nodeSelector:

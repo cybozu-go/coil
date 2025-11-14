@@ -25,10 +25,11 @@ import (
 )
 
 var (
-	enableIPv4Tests   = true
-	enableIPv6Tests   = false
-	enableIPAMTests   = true
-	enableEgressTests = true
+	enableIPv4Tests       = true
+	enableIPv6Tests       = false
+	enableIPAMTests       = true
+	enableEgressTests     = true
+	enableOriginatingOnly = false
 )
 
 const networkInterfaceKey = "NETWORK_INTERFACE"
@@ -38,6 +39,7 @@ func ParseEnv() {
 	ParseBool(testIPv6Key, &enableIPv6Tests)
 	ParseBool(testIPAMKey, &enableIPAMTests)
 	ParseBool(testEgressKey, &enableEgressTests)
+	ParseBool(testOriginatingOnlyKey, &enableOriginatingOnly)
 }
 
 func ParseBool(key string, target *bool) {
@@ -676,7 +678,12 @@ func testEgress() {
 		}
 	})
 
-	It("should be able to use orginatingonly", func() {
+	It(func(originatingOnly bool) string {
+		if originatingOnly {
+			return "should be able to provide ingress traffic"
+		}
+		return "should not be able to provide ingress traffic"
+	}(enableOriginatingOnly), func() {
 		By("starting echo-server on the node")
 		port := "12345"
 		go runOnNode("coil-control-plane", "/usr/local/bin/echotest", "-port", port, "-reply-remote", "-no-separator")
@@ -691,152 +698,55 @@ func testEgress() {
 		}()
 
 		By("deploying egress")
-		egressData := prepareEgressData(true, port, "")
+		egressData := prepareEgressData(port, fmt.Sprintf("originatingonly-%t", enableOriginatingOnly))
 
 		deployEgress(egressData, curDir, tmpDir)
 
 		By("deploying egress client")
 		pod := deployClient(egressData, curDir, tmpDir)
 
-		if enableIPv4Tests {
-			By("testing IPv4 egress connectivity")
-			Expect(checkEgressConnection(egressData.IPv4Addr, pod, egressData.Port)).To(Succeed())
+		if enableOriginatingOnly {
+			if enableIPv4Tests {
+				By("testing IPv4 egress connectivity")
+				Expect(checkEgressConnection(egressData.IPv4Addr, pod, egressData.Port)).To(Succeed())
+			}
+
+			if enableIPv6Tests {
+				By("testing IPv6 egress connectivity")
+				Expect(checkEgressConnection(egressData.IPv6Addr, pod, egressData.Port)).To(Succeed())
+			}
+
+			By("testing ingress connectivity")
+			errs := checkIngressConnections(egressData)
+			Expect(errs).To(BeEmpty())
+		} else {
+			expectedErr := 0
+			if enableIPv4Tests {
+				expectedErr++
+				By("testing IPv4 egress connectivity")
+				Expect(checkEgressConnection(egressData.IPv4Addr, pod, egressData.Port)).To(Succeed())
+			}
+
+			if enableIPv6Tests {
+				expectedErr++
+				By("testing IPv6 egress connectivity")
+				Expect(checkEgressConnection(egressData.IPv6Addr, pod, egressData.Port)).To(Succeed())
+			}
+
+			By("testing ingress connectivity")
+			errs := checkIngressConnections(egressData)
+			Expect(len(errs)).To(Equal(expectedErr))
 		}
-
-		if enableIPv6Tests {
-			By("testing IPv6 egress connectivity")
-			Expect(checkEgressConnection(egressData.IPv6Addr, pod, egressData.Port)).To(Succeed())
-		}
-
-		By("testing ingress connectivity")
-		errs := checkIngressConnections(egressData)
-		Expect(errs).To(BeEmpty())
-	})
-
-	It("should fail ingress connection if originatingOnly is not used", func() {
-		By("starting echo-server on the node")
-		port := "12346"
-		go runOnNode("coil-control-plane", "/usr/local/bin/echotest", "-port", port, "-reply-remote", "-no-separator")
-
-		curDir, err := os.Getwd()
-		Expect(err).ToNot(HaveOccurred())
-
-		tmpDir, err := os.MkdirTemp(curDir, "tmp*")
-		Expect(err).ToNot(HaveOccurred())
-		defer func() {
-			Expect(os.RemoveAll(tmpDir)).To(Succeed())
-		}()
-
-		egressData := prepareEgressData(false, port, "")
-
-		deployEgress(egressData, curDir, tmpDir)
-
-		pod := deployClient(egressData, curDir, tmpDir)
-
-		expectedErr := 0
-		if enableIPv4Tests {
-			expectedErr++
-			Expect(checkEgressConnection(egressData.IPv4Addr, pod, egressData.Port)).To(Succeed())
-		}
-
-		if enableIPv6Tests {
-			expectedErr++
-			Expect(checkEgressConnection(egressData.IPv6Addr, pod, egressData.Port)).To(Succeed())
-		}
-
-		errs := checkIngressConnections(egressData)
-		Expect(len(errs)).To(Equal(expectedErr))
-	})
-
-	It("should fail and then succed with ingress connection when originatinOnly is disabled and re-enabled", func() {
-		By("starting echo-server on the node")
-		port := "12347"
-		go runOnNode("coil-control-plane", "/usr/local/bin/echotest", "-port", port, "-reply-remote", "-no-separator")
-
-		curDir, err := os.Getwd()
-		Expect(err).ToNot(HaveOccurred())
-
-		tmpDir, err := os.MkdirTemp(curDir, "tmp*")
-		Expect(err).ToNot(HaveOccurred())
-		defer func() {
-			Expect(os.RemoveAll(tmpDir)).To(Succeed())
-		}()
-
-		postfix := "changed"
-
-		By("deploying egress")
-		egressData := prepareEgressData(true, port, postfix)
-
-		deployEgress(egressData, curDir, tmpDir)
-
-		By("deploying egress client")
-		pod := deployClient(egressData, curDir, tmpDir)
-
-		if enableIPv4Tests {
-			By("testing IPv4 egress connectivity")
-			Expect(checkEgressConnection(egressData.IPv4Addr, pod, egressData.Port)).To(Succeed())
-		}
-
-		if enableIPv6Tests {
-			By("testing IPv6 egress connectivity")
-			Expect(checkEgressConnection(egressData.IPv6Addr, pod, egressData.Port)).To(Succeed())
-		}
-
-		By("testing ingress connectivity")
-		errs := checkIngressConnections(egressData)
-		Expect(errs).To(BeEmpty())
-
-		By("disabling originatingOnly in egress")
-		egressData.OriginatingOnly = false
-		deployEgress(egressData, curDir, tmpDir)
-		time.Sleep(time.Second)
-
-		expectedErr := 0
-		if enableIPv4Tests {
-			expectedErr++
-			By("testing IPv4 egress connectivity")
-			Expect(checkEgressConnection(egressData.IPv4Addr, pod, egressData.Port)).To(Succeed())
-		}
-
-		if enableIPv6Tests {
-			expectedErr++
-			By("testing IPv6 egress connectivity")
-			Expect(checkEgressConnection(egressData.IPv6Addr, pod, egressData.Port)).To(Succeed())
-		}
-
-		By("testing ingress connectivity - should fail with ingress connection when originatingOnly is disabled")
-		errs = checkIngressConnections(egressData)
-		Expect(len(errs)).To(Equal(expectedErr))
-
-		By("re-enabling originatingOnly in egress")
-		egressData.OriginatingOnly = true
-		deployEgress(egressData, curDir, tmpDir)
-		time.Sleep(time.Second)
-
-		if enableIPv4Tests {
-			By("testing IPv4 egress connectivity")
-			Expect(checkEgressConnection(egressData.IPv4Addr, pod, egressData.Port)).To(Succeed())
-		}
-
-		if enableIPv6Tests {
-			By("testing IPv6 egress connectivity")
-			Expect(checkEgressConnection(egressData.IPv6Addr, pod, egressData.Port)).To(Succeed())
-		}
-
-		By("testing ingress connectivity - should succeed with ingress connection when originatingOnly is re-enabled")
-		errs = checkIngressConnections(egressData)
-		Expect(errs).To(BeEmpty())
 	})
 }
 
 // egressTemplateData is used to generate test egress via template.
 type egressTemplateData struct {
-	IPv4Addr        string // egress IPv4 network
-	IPv6Addr        string // egress IPv6 network
-	OriginatingOnly bool   // enabled or disable originatingOnly egressOriginati
-	PodName         string // name of the Pod that will use the generated egress (egress client)
-	EgressName      string // name of the created egress object
-	Port            string // port on which echotest server will serve
+	IPv4Addr   string // egress IPv4 network
+	IPv6Addr   string // egress IPv6 network
+	PodName    string // name of the Pod that will use the generated egress (egress client)
+	EgressName string // name of the created egress object
+	Port       string // port on which echotest server will serve
 }
 
 func testCoild() {
@@ -1008,18 +918,17 @@ func checkIngressConnections(egressData egressTemplateData) []error {
 	return errs
 }
 
-func prepareEgressData(originatingOnly bool, port, postfix string) egressTemplateData {
-	podName := fmt.Sprintf("nat-client-originatingonly-%t", originatingOnly)
-	egressName := fmt.Sprintf("egress-originatingonly-%t", originatingOnly)
+func prepareEgressData(port, postfix string) egressTemplateData {
+	podName := "nat-client"
+	egressName := "egress"
 	if postfix != "" {
 		podName = fmt.Sprintf("%s-%s", podName, postfix)
 		egressName = fmt.Sprintf("%s-%s", egressName, postfix)
 	}
 	egressData := egressTemplateData{
-		OriginatingOnly: originatingOnly,
-		PodName:         podName,
-		EgressName:      egressName,
-		Port:            port,
+		PodName:    podName,
+		EgressName: egressName,
+		Port:       port,
 	}
 
 	By(fmt.Sprintf("preparing addresses for %q", egressData.EgressName))
@@ -1045,8 +954,8 @@ func prepareEgressData(originatingOnly bool, port, postfix string) egressTemplat
 
 func deployEgress(egressData egressTemplateData, curDir, tmpDir string) {
 	By(fmt.Sprintf("preparing %q manifest", egressData.EgressName))
-	egressTemplate := filepath.Join(curDir, "manifests", "egress-originatingonly.yaml.tmpl")
-	egressTemplateExec, err := template.New("egress-originatingonly.yaml.tmpl").ParseFiles(egressTemplate)
+	egressTemplate := filepath.Join(curDir, "manifests", "egress.yaml.tmpl")
+	egressTemplateExec, err := template.New("egress.yaml.tmpl").ParseFiles(egressTemplate)
 	Expect(err).ToNot(HaveOccurred())
 
 	egressFilepath := filepath.Join(tmpDir, fmt.Sprintf("%s.yaml", egressData.EgressName))
@@ -1072,8 +981,8 @@ func deployEgress(egressData egressTemplateData, curDir, tmpDir string) {
 }
 
 func deployClient(egressData egressTemplateData, curDir, tmpDir string) *corev1.Pod {
-	podTemplate := filepath.Join(curDir, "manifests", "nat-client-originatingonly.yaml.tmpl")
-	podTemplateExec, err := template.New("nat-client-originatingonly.yaml.tmpl").ParseFiles(podTemplate)
+	podTemplate := filepath.Join(curDir, "manifests", "nat-client.yaml.tmpl")
+	podTemplateExec, err := template.New("nat-client.yaml.tmpl").ParseFiles(podTemplate)
 	Expect(err).ToNot(HaveOccurred())
 
 	if _, err := os.Stat(tmpDir); err != nil {

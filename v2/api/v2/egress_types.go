@@ -67,12 +67,6 @@ type EgressSpec struct {
 	// PodDisruptionBudget is an optional PodDisruptionBudget for Egress NAT pods.
 	// +optional
 	PodDisruptionBudget *EgressPDBSpec `json:"podDisruptionBudget,omitempty"`
-
-	// OriginatingOnly indicates connections that should use egress interface.
-	// If set to true, only outgoing connections that originate in the egress client will use egress.
-	// The default is false.
-	// +optional
-	OriginatingOnly bool `json:"originatingOnly,omitempty"`
 }
 
 // EgressPodTemplate defines pod template for Egress

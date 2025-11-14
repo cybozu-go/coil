@@ -52,12 +52,6 @@ spec:
                     If set to true, the kernel picks a flow based on the flow hash of the encapsulated packet.
                     The default is false.
                   type: boolean
-                originatingOnly:
-                  description: |-
-                    OriginatingOnly indicates connections that should use egress interface.
-                    If set to true, only outgoing connections that originate in the egress client will use egress.
-                    The default is false.
-                  type: boolean
                 podDisruptionBudget:
                   description: PodDisruptionBudget is an optional PodDisruptionBudget for Egress NAT pods.
                   properties:
