@@ -74,3 +74,9 @@ func runOnNode(node, cmd string, args ...string) (stdout []byte, err error) {
 	dockerArgs := append([]string{"exec", node, cmd}, args...)
 	return exec.Command("docker", dockerArgs...).Output()
 }
+
+func runOnPod(namespace, name string, args ...string) []byte {
+	command := []string{"exec", "-i", "-n", namespace, name, "--"}
+	command = append(command, args...)
+	return kubectlSafe(nil, command...)
+}

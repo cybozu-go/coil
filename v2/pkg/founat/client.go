@@ -1,10 +1,20 @@
 package founat
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"net"
+	"os"
+	"reflect"
 	"sync"
+	"syscall"
 
+	"github.com/coreos/go-iptables/iptables"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
+	"github.com/google/nftables"
+	"github.com/google/nftables/binaryutil"
+	"github.com/google/nftables/expr"
 	"github.com/vishvananda/netlink"
 )
 
@@ -14,7 +24,8 @@ const (
 	ncNarrowTableID = 117
 	ncWideTableID   = 118
 
-	mainTableID = 254
+	mainTableID      = 254
+	nonEgressTableID = 1000
 )
 
 // rule priorities
@@ -47,7 +58,7 @@ var (
 type NatClient interface {
 	Init() error
 	IsInitialized() (bool, error)
-	AddEgress(link netlink.Link, subnets []*net.IPNet) error
+	AddEgress(link netlink.Link, subnets []*net.IPNet, originatingOnly bool) error
 }
 
 // NewNatClient creates a NatClient.
@@ -58,7 +69,7 @@ type NatClient interface {
 // `podNodeNet` is, if given, are networks for Pod and Node addresses.
 // If all the addresses of Pods and Nodes are within IPv4/v6 private addresses,
 // `podNodeNet` can be left nil.
-func NewNatClient(ipv4, ipv6 net.IP, podNodeNet []*net.IPNet, logFunc func(string)) NatClient {
+func NewNatClient(ipv4, ipv6 net.IP, podNodeNet []*net.IPNet, backend string, logFunc func(string)) NatClient {
 	if ipv4 != nil && ipv4.To4() == nil {
 		panic("invalid IPv4 address")
 	}
@@ -86,6 +97,7 @@ func NewNatClient(ipv4, ipv6 net.IP, podNodeNet []*net.IPNet, logFunc func(strin
 		v4priv:  v4priv,
 		v6priv:  v6priv,
 		logFunc: logFunc,
+		backend: backend,
 	}
 }
 
@@ -95,6 +107,8 @@ type natClient struct {
 
 	v4priv []*net.IPNet
 	v6priv []*net.IPNet
+
+	backend string
 
 	logFunc func(string)
 
@@ -285,7 +299,7 @@ func (c *natClient) IsInitialized() (bool, error) {
 	return true, nil
 }
 
-func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet) error {
+func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet, originatingOnly bool) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -309,12 +323,6 @@ func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet) error {
 		}
 	}
 
-	for _, n := range adds {
-		if err := c.addEgress1(link, n); err != nil {
-			return err
-		}
-	}
-
 	for _, r := range deletes {
 		if c.logFunc != nil {
 			c.logFunc(fmt.Sprintf("removing a destination %s", r.Dst.String()))
@@ -324,7 +332,62 @@ func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet) error {
 		}
 	}
 
+	for _, n := range adds {
+		if err := c.addEgress1(link, n); err != nil {
+			return err
+		}
+
+		family := iptables.ProtocolIPv6
+		if n.IP.To4() != nil {
+			family = iptables.ProtocolIPv4
+		}
+
+		if originatingOnly {
+			if err := configureRoutes(family, c.backend); err != nil {
+				return err
+			}
+		}
+	}
+
+	if originatingOnly {
+		for _, f := range getFamilies(subnets) {
+			if err := configureRoutes(f, c.backend); err != nil {
+				return err
+			}
+		}
+	} else {
+		for _, f := range []iptables.Protocol{iptables.ProtocolIPv4, iptables.ProtocolIPv6} {
+			if err := removeRoutes(f, c.backend); err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
+}
+
+func getFamilies(subnets []*net.IPNet) []iptables.Protocol {
+	var v4, v6 bool
+	for _, subnet := range subnets {
+		if subnet.IP.To4() != nil {
+			v4 = true
+		} else {
+			v6 = true
+		}
+		if v4 && v6 {
+			break
+		}
+	}
+
+	result := []iptables.Protocol{}
+	if v4 {
+		result = append(result, iptables.ProtocolIPv4)
+	}
+	if v6 {
+		result = append(result, iptables.ProtocolIPv6)
+	}
+
+	return result
 }
 
 func collectRoutes(linkIndex int) (map[string]netlink.Route, error) {
@@ -419,4 +482,536 @@ func (c *natClient) addEgress1(link netlink.Link, n *net.IPNet) error {
 		return fmt.Errorf("netlink: failed to add route(table %d) to %s: %w", ncWideTableID, n.String(), err)
 	}
 	return nil
+}
+
+func configureRoutes(family iptables.Protocol, backend string) error {
+	netlinkFamily := netlink.FAMILY_V4
+	nftFamily := nftables.TableFamilyIPv4
+	if family == iptables.ProtocolIPv6 {
+		netlinkFamily = netlink.FAMILY_V6
+		nftFamily = nftables.TableFamilyIPv6
+	}
+
+	links, err := netlink.LinkList()
+	if err != nil {
+		return fmt.Errorf("netlink: failed to list links: %w", err)
+	}
+
+	var ipt *iptables.IPTables
+	var nft *nftables.Conn
+	switch backend {
+	case constants.EgressBackendIPTables:
+		ipt, err = iptables.New(iptables.IPFamily(family))
+		if err != nil {
+			return err
+		}
+	case constants.EgressBackendNFTables:
+		nft, err = nftables.New()
+		if err != nil {
+			return fmt.Errorf("failed to create nftables connection: %w", err)
+		}
+	default:
+		return fmt.Errorf("unknown backend %q", backend)
+	}
+
+	for _, link := range links {
+		hasGlobalIP, err := checkLinkForGlobalScopeIP(link, netlinkFamily)
+		if err != nil {
+			return fmt.Errorf("netlink: failed to check interface %q for non-local IP address: %w", link.Attrs().Name, err)
+		}
+		if !hasGlobalIP {
+			continue
+		}
+
+		linkTable := nonEgressTableID + link.Attrs().Index
+
+		routes, err := netlink.RouteList(link, netlinkFamily)
+		if err != nil {
+			return fmt.Errorf("netlink: failed to list routes for interface %q: %w", link.Attrs().Name, err)
+		}
+
+		if len(routes) > 0 {
+			for i := range routes {
+				routes[i].Table = linkTable
+				if err := netlink.RouteAdd(&routes[i]); err != nil && !errors.Is(err, syscall.EEXIST) {
+					return fmt.Errorf("netlink: failed to add route %q, link: %s, state: %s - %w",
+						routes[i].String(), link.Attrs().Name, link.Attrs().OperState.String(), err)
+				}
+			}
+
+			if err := addFWMarkRule(link, linkTable, netlinkFamily); err != nil {
+				return fmt.Errorf("failed to add FWMark rule: %w", err)
+			}
+
+			if backend == constants.EgressBackendIPTables {
+				if err := addIPTRule(ipt, "mangle", "INPUT",
+					"-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j", "CONNMARK",
+					"-i", link.Attrs().Name, "--set-mark", fmt.Sprintf("%d", link.Attrs().Index)); err != nil {
+					return fmt.Errorf("failed to configure IPTables: %w", err)
+				}
+
+				if err := addIPTRule(ipt, "mangle", "OUTPUT", "-j", "CONNMARK", "-m", "connmark",
+					"--mark", fmt.Sprintf("%d", link.Attrs().Index), "--restore-mark"); err != nil {
+					return fmt.Errorf("failed to configure IPTables: %w", err)
+				}
+			} else {
+				mangleTable, err := nft.ListTableOfFamily("mangle", nftFamily)
+				if err != nil && !errors.Is(err, os.ErrNotExist) {
+					return fmt.Errorf("failed to list mangle table: %w", err)
+				} else if err != nil || mangleTable == nil {
+					mangleTable = &nftables.Table{Family: nftFamily, Name: "mangle"}
+					mangleTable = nft.AddTable(mangleTable)
+				}
+
+				if err := addNftInputRule(nft, mangleTable, link); err != nil {
+					return fmt.Errorf("failed to configure NFT input rules: %w", err)
+				}
+
+				if err := addNftOutputRule(nft, mangleTable, link); err != nil {
+					return fmt.Errorf("failed to configure NFT output rules: %w", err)
+				}
+
+				if err := nft.Flush(); err != nil {
+					return fmt.Errorf("failed to flush nft rules: %w", err)
+				}
+			}
+
+		}
+	}
+	return nil
+}
+
+func removeRoutes(family iptables.Protocol, backend string) error {
+	netlinkFamily := netlink.FAMILY_V4
+	nftFamily := nftables.TableFamilyIPv4
+	if family == iptables.ProtocolIPv6 {
+		netlinkFamily = netlink.FAMILY_V6
+		nftFamily = nftables.TableFamilyIPv6
+	}
+
+	links, err := netlink.LinkList()
+	if err != nil {
+		return fmt.Errorf("netlink: failed to list links: %w", err)
+	}
+
+	var ipt *iptables.IPTables
+	var nft *nftables.Conn
+	switch backend {
+	case constants.EgressBackendIPTables:
+		ipt, err = iptables.New(iptables.IPFamily(family))
+		if err != nil {
+			return err
+		}
+	case constants.EgressBackendNFTables:
+		nft, err = nftables.New()
+		if err != nil {
+			return fmt.Errorf("failed to create nftables connection: %w", err)
+		}
+	default:
+		return fmt.Errorf("unknown backend %q", backend)
+	}
+
+	for _, link := range links {
+		hasGlobalIP, err := checkLinkForGlobalScopeIP(link, netlinkFamily)
+		if err != nil {
+			return fmt.Errorf("netlink: failed to check interface %q for non-local IP address: %w", link.Attrs().Name, err)
+		}
+		if !hasGlobalIP {
+			continue
+		}
+
+		linkTable := nonEgressTableID + link.Attrs().Index
+
+		routes, err := netlink.RouteListFiltered(netlinkFamily, &netlink.Route{
+			Table: linkTable,
+		}, netlink.RT_FILTER_TABLE)
+
+		if err != nil {
+			return fmt.Errorf("netlink: failed to list routes for interface %q in table %q: %w", link.Attrs().Name, linkTable, err)
+		}
+
+		if len(routes) > 0 {
+			for i := range routes {
+				if err := netlink.RouteDel(&routes[i]); err != nil && !errors.Is(err, syscall.EEXIST) {
+					return fmt.Errorf("netlink: failed to delete route %q, link: %s, state: %s - %w",
+						routes[i].String(), link.Attrs().Name, link.Attrs().OperState.String(), err)
+				}
+			}
+
+			if err := delFWMarkRule(link, linkTable, netlinkFamily); err != nil {
+				return fmt.Errorf("failed to delete FWMark rule: %w", err)
+			}
+
+			if backend == constants.EgressBackendIPTables {
+				if err := delIPTRule(ipt, "mangle", "INPUT",
+					"-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED", "-j", "CONNMARK",
+					"-i", link.Attrs().Name, "--set-mark", fmt.Sprintf("%d", link.Attrs().Index)); err != nil {
+					return fmt.Errorf("failed to delete IPTables rule: %w", err)
+				}
+
+				if err := delIPTRule(ipt, "mangle", "OUTPUT", "-j", "CONNMARK", "-m", "connmark",
+					"--mark", fmt.Sprintf("%d", link.Attrs().Index), "--restore-mark"); err != nil {
+					return fmt.Errorf("failed to delete IPTables rule: %w", err)
+				}
+			} else {
+				mangleTable, err := nft.ListTableOfFamily("mangle", nftFamily)
+				if err != nil && !errors.Is(err, os.ErrNotExist) {
+					return fmt.Errorf("failed to list mangle table: %w", err)
+				} else if errors.Is(err, os.ErrNotExist) {
+					return nil
+				} else if err == nil && mangleTable != nil {
+					nft.DelTable(mangleTable)
+
+					if err := nft.Flush(); err != nil {
+						return fmt.Errorf("failed to flush nft rules: %w", err)
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func checkLinkForGlobalScopeIP(link netlink.Link, family int) (bool, error) {
+	addrs, err := netlink.AddrList(link, family)
+	if err != nil {
+		return false, fmt.Errorf("netlink: failed to list addresses for linl %q: %w", link.Attrs().Name, err)
+	}
+	for _, a := range addrs {
+		if a.Scope == int(netlink.SCOPE_UNIVERSE) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func checkFWMarkRule(link netlink.Link, table, family int) (*netlink.Rule, bool, error) {
+	rules, err := netlink.RuleList(family)
+	if err != nil {
+		return nil, false, fmt.Errorf("netlink: failed to list rules: %w", err)
+	}
+
+	for _, r := range rules {
+		if r.Mark == uint32(link.Attrs().Index) && r.Table == table {
+			// rule already exists
+			return &r, true, nil
+		}
+	}
+	return nil, false, nil
+}
+
+func addFWMarkRule(link netlink.Link, table, family int) error {
+	_, exists, err := checkFWMarkRule(link, table, family)
+	if err != nil {
+		return fmt.Errorf("failed to check FW mark rule existance: %w", err)
+	}
+
+	if !exists {
+		rule := netlink.NewRule()
+		rule.Mark = uint32(link.Attrs().Index)
+		rule.Table = table
+		rule.Family = family
+		if err := netlink.RuleAdd(rule); err != nil {
+			return fmt.Errorf("netlink: failed to add rule %q: %w", rule.String(), err)
+		}
+	}
+
+	return nil
+}
+
+func delFWMarkRule(link netlink.Link, table, family int) error {
+	r, exists, err := checkFWMarkRule(link, table, family)
+	if err != nil {
+		return fmt.Errorf("failed to check FW mark rule existance: %w", err)
+	}
+
+	if exists {
+		if err := netlink.RuleDel(r); err != nil {
+			return fmt.Errorf("failed to remove FW mark rule: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func checkIPTRules(ipt *iptables.IPTables, table string, chain string, rulespec ...string) (bool, error) {
+	exists, err := ipt.Exists(table, chain, rulespec...)
+	if err != nil {
+		return false, fmt.Errorf("failed to check %q rule in chain %q - %q: %w", table, chain, rulespec, err)
+	}
+	return exists, nil
+}
+
+func addIPTRule(ipt *iptables.IPTables, table string, chain string, rulespec ...string) error {
+	exists, err := checkIPTRules(ipt, table, chain, rulespec...)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		if err := ipt.Append(table, chain, rulespec...); err != nil {
+			return fmt.Errorf("failed to append %q rule in chain %q - %q: %w", table, chain, rulespec, err)
+		}
+	}
+
+	return nil
+}
+
+func delIPTRule(ipt *iptables.IPTables, table string, chain string, rulespec ...string) error {
+	exists, err := checkIPTRules(ipt, table, chain, rulespec...)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		if err := ipt.Delete(table, chain, rulespec...); err != nil {
+			return fmt.Errorf("failed to delete %q rule in chain %q - %q: %w", table, chain, rulespec, err)
+		}
+	}
+
+	return nil
+}
+
+func addNftInputRule(nft *nftables.Conn, table *nftables.Table, link netlink.Link) error {
+	inputChain := &nftables.Chain{
+		Name:     "input",
+		Table:    table,
+		Type:     nftables.ChainTypeFilter,
+		Hooknum:  nftables.ChainHookInput,
+		Priority: nftables.ChainPriorityMangle,
+		Policy:   ptr(nftables.ChainPolicyAccept),
+	}
+
+	inputChain, err := addNftChain(nft, inputChain)
+	if err != nil {
+		return fmt.Errorf("failed to add chain: %w", err)
+	}
+
+	deviceSet := &nftables.Set{
+		Table:        table,
+		Name:         link.Attrs().Name,
+		KeyType:      nftables.TypeIFName,
+		KeyByteOrder: binaryutil.NativeEndian,
+	}
+
+	elements := []nftables.SetElement{
+		{
+			Key: ifname(link.Attrs().Name),
+		},
+	}
+
+	deviceSet, err = addNftSet(nft, table, deviceSet, elements)
+	if err != nil {
+		return fmt.Errorf("failed to add set: %w", err)
+	}
+
+	markRule := &nftables.Rule{
+		Table: table,
+		Chain: inputChain,
+		Exprs: []expr.Any{
+			&expr.Meta{
+				Key:      expr.MetaKeyIIFNAME,
+				Register: 1,
+			},
+			&expr.Lookup{
+				SetName:        deviceSet.Name,
+				SetID:          deviceSet.ID,
+				SourceRegister: 1,
+			},
+			&expr.Ct{
+				Register: 1,
+				Key:      expr.CtKeySTATE,
+			},
+			&expr.Bitwise{
+				SourceRegister: 1,
+				DestRegister:   1,
+				Len:            4,
+				Mask:           binaryutil.NativeEndian.PutUint32(expr.CtStateBitNEW | expr.CtStateBitESTABLISHED | expr.CtStateBitRELATED),
+				Xor:            binaryutil.NativeEndian.PutUint32(0),
+			},
+			&expr.Cmp{
+				Op:       expr.CmpOpNeq,
+				Register: 1,
+				Data:     []byte{0, 0, 0, 0},
+			},
+			&expr.Counter{},
+			&expr.Immediate{
+				Register: 1,
+				Data:     binaryutil.NativeEndian.PutUint32(uint32(link.Attrs().Index)),
+			},
+			&expr.Ct{
+				Key:            expr.CtKeyMARK,
+				SourceRegister: true,
+				Register:       1,
+			},
+		},
+	}
+
+	exists, err := checkNftRule(nft, markRule)
+	if err != nil {
+		return fmt.Errorf("faild to check input rule existance: %w", err)
+	}
+
+	if !exists {
+		nft.AddRule(markRule)
+	}
+
+	return nil
+}
+
+func addNftOutputRule(nft *nftables.Conn, table *nftables.Table, link netlink.Link) error {
+	outputChain := &nftables.Chain{
+		Name:     "output",
+		Table:    table,
+		Type:     nftables.ChainTypeRoute,
+		Hooknum:  nftables.ChainHookOutput,
+		Priority: nftables.ChainPriorityMangle,
+		Policy:   ptr(nftables.ChainPolicyAccept),
+	}
+
+	outputChain, err := addNftChain(nft, outputChain)
+	if err != nil {
+		return fmt.Errorf("failed to add chain: %w", err)
+	}
+
+	restoreMarkRule := &nftables.Rule{
+		Table: table,
+		Chain: outputChain,
+		Exprs: []expr.Any{
+			&expr.Ct{
+				Register: 1,
+				Key:      expr.CtKeyMARK,
+			},
+			&expr.Cmp{
+				Op:       expr.CmpOpEq,
+				Register: 1,
+				Data:     binaryutil.NativeEndian.PutUint32(uint32(link.Attrs().Index)),
+			},
+			&expr.Counter{},
+			&expr.Ct{
+				Register: 1,
+				Key:      expr.CtKeyMARK,
+			},
+			&expr.Meta{
+				Key:            expr.MetaKeyMARK,
+				SourceRegister: true,
+				Register:       1,
+			},
+		},
+	}
+
+	exists, err := checkNftRule(nft, restoreMarkRule)
+	if err != nil {
+		return fmt.Errorf("faild to check output rule existance: %w", err)
+	}
+
+	if !exists {
+		nft.AddRule(restoreMarkRule)
+	}
+
+	return nil
+}
+
+func addNftChain(nft *nftables.Conn, chain *nftables.Chain) (*nftables.Chain, error) {
+	existingChain, err := nft.ListChain(chain.Table, chain.Name)
+	if (err != nil && errors.Is(err, os.ErrNotExist)) || existingChain == nil {
+		chain = nft.AddChain(chain)
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to configure chain %q in table %q: %w", chain.Name, chain.Table.Name, err)
+	} else {
+		chain = existingChain
+	}
+	return chain, nil
+}
+
+func addNftSet(nft *nftables.Conn, table *nftables.Table, set *nftables.Set, elements []nftables.SetElement) (*nftables.Set, error) {
+	existingSet, err := nft.GetSetByName(table, set.Name)
+	if (err != nil && errors.Is(err, os.ErrNotExist)) || existingSet == nil {
+		if err := nft.AddSet(set, elements); err != nil {
+			return nil, fmt.Errorf("failed to add set %s : %w", set.Name, err)
+		}
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to configure set %q in table %q: %w", set.Name, set.Table.Name, err)
+	} else {
+		set = existingSet
+	}
+
+	return set, nil
+}
+
+func checkNftRule(nft *nftables.Conn, rule *nftables.Rule) (bool, error) {
+	rules, err := nft.GetRules(rule.Table, rule.Chain)
+	if err != nil {
+		return false, fmt.Errorf("failed to list rules in table %q, chain %q: %w", rule.Table.Name, rule.Chain.Name, err)
+	}
+
+	for _, r := range rules {
+		if ruleEqual(rule, r) {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func ifname(n string) []byte {
+	b := make([]byte, 16)
+	copy(b, []byte(n+"\x00"))
+	return b
+}
+
+func ptr[T any](v T) *T {
+	return &v
+}
+
+func ruleEqual(a, b *nftables.Rule) bool {
+	if !bytes.Equal(a.UserData, b.UserData) {
+		return false
+	}
+
+	for i := range a.Exprs {
+		switch a.Exprs[i].(type) {
+		case *expr.Meta:
+			if !exprEqual(&expr.Meta{}, a.Exprs[i], b.Exprs[i]) {
+				return false
+			}
+		case *expr.Lookup:
+			if !exprEqual(&expr.Lookup{}, a.Exprs[i], b.Exprs[i]) {
+				return false
+			}
+		case *expr.Cmp:
+			if !exprEqual(&expr.Cmp{}, a.Exprs[i], b.Exprs[i]) {
+				return false
+			}
+		case *expr.Ct:
+			if !exprEqual(&expr.Ct{}, a.Exprs[i], b.Exprs[i]) {
+				return false
+			}
+		case *expr.Bitwise:
+			if !exprEqual(&expr.Bitwise{}, a.Exprs[i], b.Exprs[i]) {
+				return false
+			}
+		case *expr.Immediate:
+			if !exprEqual(&expr.Immediate{}, a.Exprs[i], b.Exprs[i]) {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func exprEqual[V *expr.Meta | *expr.Lookup | *expr.Cmp | *expr.Ct | *expr.Bitwise | *expr.Immediate](_ V, aExpr, bExpr expr.Any) bool {
+	aExprCast, ok := aExpr.(V)
+	if !ok {
+		return false
+	}
+	bExprCast, ok := bExpr.(V)
+	if !ok {
+		return false
+	}
+	if reflect.DeepEqual(aExprCast, bExprCast) {
+		return true
+	}
+	return false
 }

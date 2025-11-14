@@ -141,10 +141,12 @@ func subMain() error {
 
 	if cfg.EnableEgress {
 		egressWatcher := &controllers.EgressWatcher{
-			Client:     mgr.GetClient(),
-			NodeName:   nodeName,
-			PodNet:     podNet,
-			EgressPort: cfg.EgressPort,
+			Client:          mgr.GetClient(),
+			NodeName:        nodeName,
+			PodNet:          podNet,
+			EgressPort:      cfg.EgressPort,
+			Backend:         cfg.Backend,
+			OriginatingOnly: cfg.OriginatingOnly,
 		}
 		if err := egressWatcher.SetupWithManager(mgr); err != nil {
 			return err

@@ -1,0 +1,32 @@
+resources:
+- ../../crd
+- ../../rbac
+- ../../pod/originatingonly
+- ../../webhook/ipam
+- ../../webhook/egress
+
+# [CERTS] Following lines should be commented if automatic cert generation is used.
+patchesStrategicMerge:
+- ../egress/webhook_manifests_patch.yaml
+- ../ipam/webhook_manifests_patch.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+secretGenerator:
+# [IPAM] Following lines should be uncommented to enable IPAM features.
+- name: coilv2-ipam-webhook-server-cert
+# [CERTS] Following lines should be commented if automatic cert generation is used.
+  files:
+  - ca.crt=../cert.pem
+  - tls.crt=../ipam-cert.pem
+  - tls.key=../ipam-key.pem
+  type: "kubernetes.io/tls"
+# [EGRESS] Following lines be uncommented to enable Egress NAT features.
+- name: coilv2-egress-webhook-server-cert
+# [CERTS] Following lines should be commented if automatic cert generation is used.
+  files:
+  - ca.crt=../cert.pem
+  - tls.crt=../egress-cert.pem
+  - tls.key=../egress-key.pem
+  type: "kubernetes.io/tls"

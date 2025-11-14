@@ -21,9 +21,11 @@ import (
 
 type EgressWatcher struct {
 	client.Client
-	NodeName   string
-	PodNet     nodenet.PodNetwork
-	EgressPort int
+	NodeName        string
+	PodNet          nodenet.PodNetwork
+	EgressPort      int
+	Backend         string
+	OriginatingOnly bool
 }
 
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses,verbs=get;list;watch
@@ -41,9 +43,6 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 		logger.Error(err, "failed to get egress")
 		return ctrl.Result{}, err
-	}
-	if eg.DeletionTimestamp != nil {
-		return ctrl.Result{}, nil
 	}
 
 	pods := &corev1.PodList{}
@@ -75,6 +74,9 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	for _, targetPod := range targetPods {
+		if eg.DeletionTimestamp != nil {
+			continue
+		}
 		for k, v := range targetPod.Annotations {
 			if !strings.HasPrefix(k, constants.AnnEgressPrefix) {
 				continue
@@ -109,6 +111,8 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 }
 
 func (r *EgressWatcher) reconcileEgressClient(ctx context.Context, eg *coilv2.Egress, pod *corev1.Pod, logger *logr.Logger) error {
+	logger.Info("Reconciling", "pod", fmt.Sprintf("%s/%s", pod.Namespace, pod.Name))
+
 	hooks, err := r.getHooks(ctx, eg, logger)
 	if err != nil {
 		return fmt.Errorf("failed to setup NAT hook: %w", err)
@@ -136,9 +140,10 @@ func (r *EgressWatcher) reconcileEgressClient(ctx context.Context, eg *coilv2.Eg
 }
 
 type gwNets struct {
-	gateway   net.IP
-	networks  []*net.IPNet
-	sportAuto bool
+	gateway         net.IP
+	networks        []*net.IPNet
+	sportAuto       bool
+	originatingOnly bool
 }
 
 func (r *EgressWatcher) getHooks(ctx context.Context, eg *coilv2.Egress, logger *logr.Logger) ([]nodenet.SetupHook, error) {
@@ -168,7 +173,7 @@ func (r *EgressWatcher) getHooks(ctx context.Context, eg *coilv2.Egress, logger 
 		}
 
 		if len(subnets) > 0 {
-			gw = gwNets{gateway: svcIP, networks: subnets, sportAuto: eg.Spec.FouSourcePortAuto}
+			gw = gwNets{gateway: svcIP, networks: subnets, sportAuto: eg.Spec.FouSourcePortAuto, originatingOnly: r.OriginatingOnly}
 			hooks = append(hooks, r.hook(gw, logger))
 		}
 	}
@@ -186,7 +191,7 @@ func (r *EgressWatcher) hook(gwn gwNets, log *logr.Logger) func(ipv4, ipv6 net.I
 		if !ft.IsInitialized() {
 			return errors.New("fouTunnel hasn't been initialized")
 		}
-		cl := founat.NewNatClient(ipv4, ipv6, nil, func(message string) {
+		cl := founat.NewNatClient(ipv4, ipv6, nil, r.Backend, func(message string) {
 			log.Info(message)
 		})
 		initialized, err := cl.IsInitialized()
@@ -203,7 +208,7 @@ func (r *EgressWatcher) hook(gwn gwNets, log *logr.Logger) func(ipv4, ipv6 net.I
 		if err != nil {
 			return err
 		}
-		if err := cl.AddEgress(link, gwn.networks); err != nil {
+		if err := cl.AddEgress(link, gwn.networks, gwn.originatingOnly); err != nil {
 			return err
 		}
 

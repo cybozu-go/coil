@@ -6,23 +6,25 @@ Coil is a Kubernetes-native application and can be controlled with `kubectl`.
 
 For installation, read [setup.md](setup.md).
 
-- [Admin role](#admin-role)
-- [Address pools](#address-pools)
-  - [AddressPool custom resource](#addresspool-custom-resource)
-  - [The default pool](#the-default-pool)
-  - [Using non-default pools](#using-non-default-pools)
-  - [Adding addresses to a pool](#adding-addresses-to-a-pool)
-- [Address blocks](#address-blocks)
-  - [Importing address blocks as routes](#importing-address-blocks-as-routes)
-- [Egress NAT](#egress-nat)
-  - [How it works](#how-it-works)
-  - [Egress custom resource](#egress-custom-resource)
-  - [Client Pods](#client-pods)
-  - [Use NetworkPolicy to prohibit NAT usage](#use-networkpolicy-to-prohibit-nat-usage)
-  - [Session affinity](#session-affinity)
-- [Metrics](#metrics)
-  - [How to scrape metrics](#how-to-scrape-metrics)
-  - [Dashboards](#dashboards)
+- [User manual](#user-manual)
+  - [Admin role](#admin-role)
+  - [Address pools](#address-pools)
+    - [AddressPool custom resource](#addresspool-custom-resource)
+    - [The default pool](#the-default-pool)
+    - [Using non-default pools](#using-non-default-pools)
+    - [Adding addresses to a pool](#adding-addresses-to-a-pool)
+  - [Address blocks](#address-blocks)
+    - [Importing address blocks as routes](#importing-address-blocks-as-routes)
+  - [Egress NAT](#egress-nat)
+    - [How it works](#how-it-works)
+    - [Egress custom resource](#egress-custom-resource)
+    - [Client Pods](#client-pods)
+    - [Use NetworkPolicy to prohibit NAT usage](#use-networkpolicy-to-prohibit-nat-usage)
+    - [Session affinity](#session-affinity)
+    - [Use egress only for connections originating on the client](#use-egress-only-for-connections-originating-on-the-client)
+  - [Metrics](#metrics)
+    - [How to scrape metrics](#how-to-scrape-metrics)
+    - [Dashboards](#dashboards)
 
 ## Admin role
 
@@ -311,6 +313,14 @@ spec:
 ```
 
 The default timeout seconds is 10800 (= 3 hours).
+
+### Use egress only for connections originating on the client
+
+If `enable-originating-only` `coild` flag is set `true`, only connections originating on the client 
+or incoming onto `fou` interface will use egress FOU interface to send data. 
+In case of incomming connections, the same interface will be used for egress traffic - 
+e.g. if connection will be estabilished on `eth0`, the traffic will not be routed through `fou`,
+but will be handled by `eth0`.
 
 ## Metrics
 

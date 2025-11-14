@@ -1,0 +1,6 @@
+resources:
+# [IPAM] Next file should be uncommented to enable IPAM features.
+- ../coil-ipam-controller.yaml
+# [EGRESS] Following line should be uncommented to enable Egress NAT features.
+- ../coil-egress-controller.yaml
+- coild.yaml

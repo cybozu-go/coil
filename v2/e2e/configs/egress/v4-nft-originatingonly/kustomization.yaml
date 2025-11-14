@@ -1,0 +1,27 @@
+resources:
+- ../../../../config/default/egress/v4-nft-originatingonly
+
+configMapGenerator:
+- name: coil-config
+  namespace: system
+  files:
+  - cni_netconf=../../../netconf/netconf-kindnet-v4.json
+
+# Adds namespace to all resources.
+namespace: kube-system
+
+# Labels to add to all resources and selectors.
+commonLabels:
+  app.kubernetes.io/name: coil
+
+# [CERTS] Following patches should be uncommented if automatic cert generation is used.
+# patches:
+# - path: ../../../../config/pod/generate_certs.yaml
+#   target:
+#     group: apps
+#     version: v1
+#     kind: Deployment
+#     name: coil-egress-controller
+
+patches:
+  - path: ../coil-egress-controller-nft-patch.yaml

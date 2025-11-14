@@ -13,10 +13,11 @@ import (
 )
 
 const (
-	testIPv6Key   = "TEST_IPV6"
-	testIPv4Key   = "TEST_IPV4"
-	testIPAMKey   = "TEST_IPAM"
-	testEgressKey = "TEST_EGRESS"
+	testIPv6Key            = "TEST_IPV6"
+	testIPv4Key            = "TEST_IPV4"
+	testIPAMKey            = "TEST_IPAM"
+	testEgressKey          = "TEST_EGRESS"
+	testOriginatingOnlyKey = "TEST_ORIGINATINGONLY"
 )
 
 var _ = Describe("coil controllers", func() {

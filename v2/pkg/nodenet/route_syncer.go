@@ -76,7 +76,7 @@ func (d *routeSyncer) Sync(gis []GatewayInfo) error {
 	for k, v := range routeMap {
 		if !currentMap[k] {
 			if err := netlink.RouteAdd(v); err != nil {
-				return fmt.Errorf("netlink: failed to add route to %s: %w", k, err)
+				return fmt.Errorf("sync: netlink: failed to add route to %s: %w", k, err)
 			}
 			d.log.Info("added", "dst", v.Dst.String())
 		}

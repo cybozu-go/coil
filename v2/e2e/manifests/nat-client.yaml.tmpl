@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ .PodName }}
+  namespace: default
+  annotations:
+    egress.coil.cybozu.com/internet: {{ .EgressName }}
+spec:
+  tolerations:
+  - key: test
+    operator: Exists
+  nodeSelector:
+    test: coil
+    kubernetes.io/hostname: coil-worker2
+  containers:
+  - name: echotest
+    image: echotest:dev
+    command: ["echotest", "-port", "{{ .Port }}", "-reply-remote", "-no-separator"]
+

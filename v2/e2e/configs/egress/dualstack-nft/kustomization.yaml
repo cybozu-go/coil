@@ -1,5 +1,5 @@
 resources:
-- ../../../../config/default/egress/v6
+- ../../../../config/default/egress/v6-nft
 
 configMapGenerator:
 - name: coil-config

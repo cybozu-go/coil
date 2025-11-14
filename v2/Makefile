@@ -31,7 +31,10 @@ PROTOC := PATH=$(PWD)/bin:'$(PATH)' $(PWD)/bin/protoc -I=$(PWD)/include:.
 PODNSLIST = pod1 pod2 pod3 pod4 pod5 pod6
 NATNSLIST = nat-client nat-router nat-egress nat-target
 OTHERNSLIST = test-egress-dual test-egress-v4 test-egress-v6 \
-	test-client-dual test-client-v4 test-client-v6 test-client-custom \
+	test-client-dual-iptables test-client-v4-iptables test-client-v6-iptables test-client-custom-iptables \
+	test-client-dual-iptables-oo test-client-v4-iptables-oo test-client-v6-iptables-oo test-client-custom-iptables-oo \
+	test-client-dual-nftables test-client-v4-nftables test-client-v6-nftables test-client-custom-nftables \
+	test-client-dual-nftables-oo test-client-v4-nftables-oo test-client-v6-nftables-oo test-client-custom-nftables-oo \
 	test-fou-dual test-fou-v4 test-fou-v6
 WGET_OPTIONS := --retry-on-http-error=503 --retry-connrefused --no-verbose
 WGET := wget $(WGET_OPTIONS)
@@ -219,6 +222,9 @@ config/default/ipam/webhook_manifests_patch.yaml: config/default/ipam-cert.pem c
 config/default/egress/webhook_manifests_patch.yaml: config/default/egress-cert.pem config/default/egress/webhook_manifests_patch.yaml.tmpl
 	sed "s/%CACERT%/$$(base64 -w0 < $<)/g" $@.tmpl > $@
 
+config/default/egress/webhook_manifests_patch.yaml: config/default/egress-cert.pem config/default/egress/webhook_manifests_patch.yaml.tmpl
+	sed "s/%CACERT%/$$(base64 -w0 < $<)/g" $@.tmpl > $@
+
 # Generate code
 .PHONY: generate
 generate: $(CONTROLLER_GEN)
@@ -312,5 +318,12 @@ enable-certs-rotation:
 	@touch config/default/egress-cert.pem
 	@touch config/default/egress-key.pem
 	@$(call comment_certs,"config/default/kustomization.yaml")
+	@$(call comment_certs,"config/default/originatingonly/kustomization.yaml")
 	@$(call comment_certs,"config/default/egress/v4/kustomization.yaml")
 	@$(call comment_certs,"config/default/egress/v6/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/v4-nft/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/v6-nft/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/v4-originatingonly/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/v6-originatingonly/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/v4-nft-originatingonly/kustomization.yaml")
+	@$(call comment_certs,"config/default/egress/v6-nft-originatingonly/kustomization.yaml")
