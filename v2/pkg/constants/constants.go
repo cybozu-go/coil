@@ -105,3 +105,6 @@ const (
 
 // Default backend
 const DefaultEgressBackend = EgressBackendIPTables
+
+// Default originating only
+const DefaultOriginatingOnly = false

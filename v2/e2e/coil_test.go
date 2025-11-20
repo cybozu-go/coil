@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +17,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/common/expfmt"
+	"github.com/vishvananda/netlink"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -22,22 +25,27 @@ import (
 )
 
 var (
-	enableIPv4Tests   = true
-	enableIPv6Tests   = false
-	enableIPAMTests   = true
-	enableEgressTests = true
+	enableIPv4Tests       = true
+	enableIPv6Tests       = false
+	enableIPAMTests       = true
+	enableEgressTests     = true
+	enableOriginatingOnly = false
 )
 
+const networkInterfaceKey = "NETWORK_INTERFACE"
+
 func ParseEnv() {
-	enableIPv4Tests = ParseBool(testIPv4Key)
-	enableIPv6Tests = ParseBool(testIPv6Key)
-	enableIPAMTests = ParseBool(testIPAMKey)
-	enableEgressTests = ParseBool(testEgressKey)
+	ParseBool(testIPv4Key, &enableIPv4Tests)
+	ParseBool(testIPv6Key, &enableIPv6Tests)
+	ParseBool(testIPAMKey, &enableIPAMTests)
+	ParseBool(testEgressKey, &enableEgressTests)
+	ParseBool(testOriginatingOnlyKey, &enableOriginatingOnly)
 }
 
-func ParseBool(key string) bool {
-	value, _ := strconv.ParseBool(os.Getenv(key))
-	return value
+func ParseBool(key string, target *bool) {
+	if value, exists := os.LookupEnv(key); exists {
+		*target, _ = strconv.ParseBool(value)
+	}
 }
 
 var _ = Describe("coil", func() {
@@ -668,8 +676,77 @@ func testEgress() {
 				testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, enableIPAMTests)
 			}
 		}
-
 	})
+
+	It(func(originatingOnly bool) string {
+		if originatingOnly {
+			return "should be able to provide ingress traffic"
+		}
+		return "should not be able to provide ingress traffic"
+	}(enableOriginatingOnly), func() {
+		By("starting echo-server on the node")
+		port := "12345"
+		go runOnNode("coil-control-plane", "/usr/local/bin/echotest", "-port", port, "-reply-remote", "-no-separator")
+
+		curDir, err := os.Getwd()
+		Expect(err).ToNot(HaveOccurred())
+
+		tmpDir, err := os.MkdirTemp(curDir, "tmp*")
+		Expect(err).ToNot(HaveOccurred())
+		defer func() {
+			Expect(os.RemoveAll(tmpDir)).To(Succeed())
+		}()
+
+		By("deploying egress")
+		egressData := prepareEgressData(port, fmt.Sprintf("originatingonly-%t", enableOriginatingOnly))
+
+		deployEgress(egressData, curDir, tmpDir)
+
+		By("deploying egress client")
+		pod := deployClient(egressData, curDir, tmpDir)
+
+		if enableOriginatingOnly {
+			if enableIPv4Tests {
+				By("testing IPv4 egress connectivity")
+				Expect(checkEgressConnection(egressData.IPv4Addr, pod, egressData.Port)).To(Succeed())
+			}
+
+			if enableIPv6Tests {
+				By("testing IPv6 egress connectivity")
+				Expect(checkEgressConnection(egressData.IPv6Addr, pod, egressData.Port)).To(Succeed())
+			}
+
+			By("testing ingress connectivity")
+			errs := checkIngressConnections(egressData)
+			Expect(errs).To(BeEmpty())
+		} else {
+			expectedErr := 0
+			if enableIPv4Tests {
+				expectedErr++
+				By("testing IPv4 egress connectivity")
+				Expect(checkEgressConnection(egressData.IPv4Addr, pod, egressData.Port)).To(Succeed())
+			}
+
+			if enableIPv6Tests {
+				expectedErr++
+				By("testing IPv6 egress connectivity")
+				Expect(checkEgressConnection(egressData.IPv6Addr, pod, egressData.Port)).To(Succeed())
+			}
+
+			By("testing ingress connectivity")
+			errs := checkIngressConnections(egressData)
+			Expect(len(errs)).To(Equal(expectedErr))
+		}
+	})
+}
+
+// egressTemplateData is used to generate test egress via template.
+type egressTemplateData struct {
+	IPv4Addr   string // egress IPv4 network
+	IPv6Addr   string // egress IPv6 network
+	PodName    string // name of the Pod that will use the generated egress (egress client)
+	EgressName string // name of the created egress object
+	Port       string // port on which echotest server will serve
 }
 
 func testCoild() {
@@ -685,7 +762,7 @@ func testCoild() {
 }
 
 func testNAT(data []byte, clientPod, fakeURL string, natAddresses []string, ipamEnabled bool) {
-	resp := kubectlSafe(data, "exec", "-i", clientPod, "--", "curl", "-sf", "-T", "-", fakeURL)
+	resp := kubectlSafe(data, "exec", "-i", clientPod, "--", "curl", "--max-time", "5", "-sf", "-T", "-", fakeURL)
 
 	if !ipamEnabled {
 		respStr := string(resp)
@@ -719,4 +796,235 @@ func getNATAddresses(name string) []string {
 	}
 
 	return natAddresses
+}
+
+func getLocalIP(ifName string, family int) (*net.IP, *net.IPNet, error) {
+	links, err := netlink.LinkList()
+	if err != nil {
+		return nil, nil, fmt.Errorf("netlink: failed to list links: %w", err)
+	}
+
+	for _, link := range links {
+		if strings.Contains(link.Attrs().Name, ifName) {
+			ip, ipnet, err := getNetwork(link, family)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to get address: %w", err)
+			}
+			if ip == nil {
+				return nil, nil, fmt.Errorf("failed to find address on the interface %q", ifName)
+			}
+			return ip, ipnet, nil
+		}
+	}
+
+	return nil, nil, fmt.Errorf("netlink: failed to find suitable addresses: %w", err)
+}
+
+func getNetwork(link netlink.Link, family int) (*net.IP, *net.IPNet, error) {
+	addrs, err := netlink.AddrList(link, family)
+	if err != nil {
+		return nil, nil, fmt.Errorf("netlink: failed to get addresses for link %q: %w", link.Attrs().Name, err)
+	}
+	if len(addrs) > 0 {
+		for _, a := range addrs {
+			if a.Scope == int(netlink.SCOPE_UNIVERSE) {
+				ip, cidr, err := net.ParseCIDR(a.IPNet.String())
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to parse CIDR: %w", err)
+				}
+				return &ip, cidr, nil
+			}
+		}
+	}
+
+	return nil, nil, fmt.Errorf("netlink: failed to find suitable addresses in link %q: %w", link.Attrs().Name, err)
+}
+
+func checkPodIPs(ips []corev1.PodIP, addr string) bool {
+	for _, ip := range ips {
+		if ip.IP == addr {
+			return true
+		}
+	}
+	return false
+}
+
+func checkEgressConnection(address string, pod *corev1.Pod, port string) error {
+	ip, _, err := net.ParseCIDR(address)
+	if err != nil {
+		return fmt.Errorf("failed to parse address %q: %w", address, err)
+	}
+	if ip == nil {
+		return fmt.Errorf("failed to parse address %q", address)
+	}
+
+	isV6 := !(ip.To4() != nil)
+	separator := "."
+	if isV6 {
+		separator = ":"
+	}
+
+	addr := strings.Split(address, separator)
+
+	By("get node's IP addresses")
+	var nodeIP string
+	command := fmt.Sprintf("ip -j addr show dev eth0 | jq '.[].addr_info[] | .local' | grep %s", addr[0])
+	nodeByte, err := runOnNode("coil-control-plane", "bash", "-c", command)
+	Expect(err).ToNot(HaveOccurred())
+	nodeIP = strings.ReplaceAll(strings.Trim(string(nodeByte), " \n"), "\"", "")
+
+	By("test egress connection to IP " + nodeIP)
+	if !(ip.To4() != nil) {
+		nodeIP = fmt.Sprintf("[%s]", nodeIP) // IPv6 address
+	}
+	result := runOnPod(pod.Namespace, pod.Name, "curl", "--max-time", "3", fmt.Sprintf("http://%s:%s", nodeIP, port))
+	incomingAddr := string(result)
+	incomingAddr = strings.ReplaceAll(incomingAddr, "|", "")
+	Expect(checkPodIPs(pod.Status.PodIPs, incomingAddr)).To(BeTrue())
+
+	return nil
+}
+
+func checkIngressConnections(egressData egressTemplateData) []error {
+	By("get client pod's data")
+	pod := &corev1.Pod{}
+	Eventually(func() bool {
+		err := getResource("default", "pod", egressData.PodName, "", pod)
+		if err != nil {
+			return false
+		}
+		return strings.Contains(pod.Name, egressData.PodName)
+	}).Should(BeTrue())
+
+	var errs []error
+	for _, ip := range pod.Status.PodIPs {
+		tmpIP := ip.IP
+		addr := net.ParseIP(tmpIP)
+		Expect(addr).ToNot(BeNil())
+		isv6 := !(addr.To4() != nil)
+
+		if isv6 {
+			tmpIP = fmt.Sprintf("[%s]", tmpIP)
+		}
+
+		if (!isv6 && enableIPv4Tests) || (isv6 && enableIPv6Tests) {
+			By("test connection to client pod on address " + tmpIP)
+			if _, err := runOnNode("coil-control-plane", "curl", "--max-time", "3", fmt.Sprintf("http://%s:%s", tmpIP, egressData.Port)); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+
+	return errs
+}
+
+func prepareEgressData(port, postfix string) egressTemplateData {
+	podName := "nat-client"
+	egressName := "egress"
+	if postfix != "" {
+		podName = fmt.Sprintf("%s-%s", podName, postfix)
+		egressName = fmt.Sprintf("%s-%s", egressName, postfix)
+	}
+	egressData := egressTemplateData{
+		PodName:    podName,
+		EgressName: egressName,
+		Port:       port,
+	}
+
+	By(fmt.Sprintf("preparing addresses for %q", egressData.EgressName))
+	testIf := os.Getenv(networkInterfaceKey)
+	if testIf == "" {
+		testIf = "br-"
+	}
+
+	if enableIPv4Tests {
+		_, ipv4net, err := getLocalIP(testIf, netlink.FAMILY_V4)
+		Expect(err).ToNot(HaveOccurred())
+		egressData.IPv4Addr = ipv4net.String()
+	}
+
+	if enableIPv6Tests {
+		_, ipv6net, err := getLocalIP(testIf, netlink.FAMILY_V6)
+		Expect(err).ToNot(HaveOccurred())
+		egressData.IPv6Addr = ipv6net.String()
+	}
+
+	return egressData
+}
+
+func deployEgress(egressData egressTemplateData, curDir, tmpDir string) {
+	By(fmt.Sprintf("preparing %q manifest", egressData.EgressName))
+	egressTemplate := filepath.Join(curDir, "manifests", "egress.yaml.tmpl")
+	egressTemplateExec, err := template.New("egress.yaml.tmpl").ParseFiles(egressTemplate)
+	Expect(err).ToNot(HaveOccurred())
+
+	egressFilepath := filepath.Join(tmpDir, fmt.Sprintf("%s.yaml", egressData.EgressName))
+	egressFile, err := os.Create(egressFilepath)
+	Expect(err).ToNot(HaveOccurred())
+	defer egressFile.Close()
+
+	err = egressTemplateExec.Execute(egressFile, egressData)
+	Expect(err).ToNot(HaveOccurred())
+
+	By(fmt.Sprintf("creating egress %q", egressData.EgressName))
+	kubectlSafe(nil, "apply", "-f", egressFilepath)
+
+	By(fmt.Sprintf("checking if %q is ready", egressData.EgressName))
+	Eventually(func() int {
+		depl := &appsv1.Deployment{}
+		err := getResource("internet", "deployments", egressData.EgressName, "", depl)
+		if err != nil {
+			return 0
+		}
+		return int(depl.Status.ReadyReplicas)
+	}).Should(Equal(1))
+}
+
+func deployClient(egressData egressTemplateData, curDir, tmpDir string) *corev1.Pod {
+	podTemplate := filepath.Join(curDir, "manifests", "nat-client.yaml.tmpl")
+	podTemplateExec, err := template.New("nat-client.yaml.tmpl").ParseFiles(podTemplate)
+	Expect(err).ToNot(HaveOccurred())
+
+	if _, err := os.Stat(tmpDir); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			err = os.Mkdir(filepath.Join(curDir, "tmp"), 0o744)
+		}
+		Expect(err).ToNot(HaveOccurred())
+	}
+
+	podFilepath := filepath.Join(tmpDir, fmt.Sprintf("%s.yaml", egressData.PodName))
+	podFile, err := os.Create(podFilepath)
+	Expect(err).ToNot(HaveOccurred())
+	defer podFile.Close()
+
+	err = podTemplateExec.Execute(podFile, egressData)
+	Expect(err).ToNot(HaveOccurred())
+
+	By(fmt.Sprintf("creating pod %q", egressData.PodName))
+	kubectlSafe(nil, "apply", "-f", podFilepath)
+
+	By(fmt.Sprintf("waiting for %q pod start", egressData.PodName))
+	Eventually(func() bool {
+		pod := &corev1.Pod{}
+		err := getResource("default", "pod", egressData.PodName, "", pod)
+		if err != nil {
+			return false
+		}
+		return pod.Status.Phase == corev1.PodRunning
+	}).Should(BeTrue())
+
+	By(fmt.Sprintf("get %q pod's data", egressData.PodName))
+	pods := &corev1.PodList{}
+	Eventually(func() bool {
+		err := getResource("internet", "pods", "", fmt.Sprintf("app.kubernetes.io/instance=%s", egressData.EgressName), pods)
+		if err != nil {
+			return false
+		}
+		if len(pods.Items) < 1 {
+			return false
+		}
+		return strings.Contains(pods.Items[0].Name, egressData.EgressName)
+	}).Should(BeTrue())
+
+	return &pods.Items[0]
 }

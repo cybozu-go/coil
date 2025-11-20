@@ -162,7 +162,7 @@ type mockNATSetup struct {
 	gwnets []GWNets
 }
 
-func (ns *mockNATSetup) Hook(gwnets []GWNets, _ *uberzap.Logger) func(ipv4, ipv6 net.IP) error {
+func (ns *mockNATSetup) Hook(gwnets []GWNets, _ string, _ *uberzap.Logger) func(ipv4, ipv6 net.IP) error {
 	ns.gwnets = gwnets
 	return nil
 }
