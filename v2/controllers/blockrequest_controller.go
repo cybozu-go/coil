@@ -5,9 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
-	"github.com/cybozu-go/coil/v2/pkg/constants"
-	"github.com/cybozu-go/coil/v2/pkg/ipam"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,6 +14,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
+	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
+	"github.com/cybozu-go/coil/v2/pkg/ipam"
 )
 
 // BlockRequestReconciler reconciles a BlockRequest object

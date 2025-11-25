@@ -8,11 +8,6 @@ import (
 	"strings"
 	"time"
 
-	v2 "github.com/cybozu-go/coil/v2"
-	"github.com/cybozu-go/coil/v2/controllers"
-	"github.com/cybozu-go/coil/v2/pkg/constants"
-	"github.com/cybozu-go/coil/v2/pkg/founat"
-	egressMetrics "github.com/cybozu-go/coil/v2/pkg/metrics"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -21,6 +16,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
+	v2 "github.com/cybozu-go/coil/v2"
+	"github.com/cybozu-go/coil/v2/controllers"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
+	"github.com/cybozu-go/coil/v2/pkg/founat"
+	egressMetrics "github.com/cybozu-go/coil/v2/pkg/metrics"
 )
 
 const (

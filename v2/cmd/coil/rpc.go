@@ -9,12 +9,13 @@ import (
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
 	current "github.com/containernetworking/cni/pkg/types/100"
-	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
-	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/resolver"
 	"google.golang.org/grpc/status"
+
+	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 )
 
 // makeCNIArgs creates *CNIArgs.

@@ -4,14 +4,15 @@ import (
 	"context"
 	"fmt"
 
-	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
-	"github.com/cybozu-go/coil/v2/pkg/constants"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 )
 
 var _ = Describe("PoolManager", func() {

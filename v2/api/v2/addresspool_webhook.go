@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cybozu-go/coil/v2/pkg/constants"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -12,6 +11,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 )
 
 // SetupWebhookWithManager registers webhooks for AddressPool

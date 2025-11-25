@@ -6,12 +6,6 @@ import (
 	"os"
 	"time"
 
-	v2 "github.com/cybozu-go/coil/v2"
-	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
-	"github.com/cybozu-go/coil/v2/controllers"
-	"github.com/cybozu-go/coil/v2/pkg/constants"
-	"github.com/cybozu-go/coil/v2/pkg/nodenet"
-	"github.com/cybozu-go/coil/v2/runners"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -19,6 +13,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
+	v2 "github.com/cybozu-go/coil/v2"
+	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
+	"github.com/cybozu-go/coil/v2/controllers"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
+	"github.com/cybozu-go/coil/v2/pkg/nodenet"
+	"github.com/cybozu-go/coil/v2/runners"
 )
 
 const (

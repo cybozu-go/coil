@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	v2 "github.com/cybozu-go/coil/v2"
 	"github.com/cybozu-go/coil/v2/pkg/config"
-	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{

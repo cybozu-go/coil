@@ -5,9 +5,10 @@ import (
 	"os"
 	"time"
 
-	v2 "github.com/cybozu-go/coil/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	v2 "github.com/cybozu-go/coil/v2"
 )
 
 const (

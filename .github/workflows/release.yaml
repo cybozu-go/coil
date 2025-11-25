@@ -7,15 +7,15 @@ defaults:
   run:
     working-directory: v2
 env:
-  go-version: "1.24"
+  go-version: "1.25.4"
   cache-version: 1
 jobs:
   image:
     name: Push container image
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.go-version }}
       - name: Set up QEMU
@@ -55,7 +55,7 @@ jobs:
     needs: image
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/containernetworking/cni/pkg/types"
+
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 )
 

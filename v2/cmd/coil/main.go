@@ -9,6 +9,7 @@ import (
 	"github.com/containernetworking/cni/pkg/types"
 	current "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/containernetworking/cni/pkg/version"
+
 	v2 "github.com/cybozu-go/coil/v2"
 	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
 )

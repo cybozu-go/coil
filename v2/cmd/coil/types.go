@@ -6,6 +6,7 @@ import (
 
 	"github.com/containernetworking/cni/pkg/types"
 	"github.com/containernetworking/cni/pkg/version"
+
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 )
 
