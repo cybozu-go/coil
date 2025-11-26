@@ -23,6 +23,7 @@ import (
 
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/cybozu-go/coil/v2/pkg/founat"
+	"github.com/cybozu-go/coil/v2/pkg/nat"
 )
 
 var (
@@ -55,7 +56,7 @@ func init() {
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 // SetupPodWatcher registers pod watching reconciler to mgr.
-func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, encapSportAuto bool, eg founat.Egress, cfg *rest.Config) error {
+func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, encapSportAuto bool, nat nat.Server, cfg *rest.Config) error {
 	ClientPods.Reset()
 	ClientPodInfo.Reset()
 
@@ -65,7 +66,7 @@ func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, enc
 		myName:         name,
 		ft:             ft,
 		encapSportAuto: encapSportAuto,
-		eg:             eg,
+		nat:            nat,
 		clientPods:     ClientPods.WithLabelValues(ns, name),
 		podAddrs:       make(map[string][]net.IP),
 		peers:          make(map[string]map[string]struct{}),
@@ -119,7 +120,7 @@ type podWatcher struct {
 	myName         string
 	ft             founat.FoUTunnel
 	encapSportAuto bool
-	eg             founat.Egress
+	nat            nat.Server
 	clientPods     prometheus.Gauge
 
 	mu       sync.Mutex
@@ -226,7 +227,7 @@ OUTER:
 		if err != nil {
 			return err
 		}
-		if err := r.eg.AddClient(ip, link); err != nil {
+		if err := r.nat.AddClient(ip, link); err != nil {
 			return err
 		}
 		metric := ClientPodInfo.WithLabelValues(pod.GetNamespace(), pod.GetName(), ip.String(), link.Attrs().Name, r.myName, r.myNS)

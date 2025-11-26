@@ -4,6 +4,7 @@ go 1.25.4
 
 require (
 	github.com/bits-and-blooms/bitset v1.24.4
+	github.com/bsm/gomega v1.27.10
 	github.com/containernetworking/cni v1.3.0
 	github.com/containernetworking/plugins v1.8.0
 	github.com/coreos/go-iptables v0.8.0

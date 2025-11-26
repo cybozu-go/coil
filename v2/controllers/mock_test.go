@@ -182,37 +182,6 @@ func (t *mockFoUTunnel) GetPeers() map[string]bool {
 	return m
 }
 
-type mockEgress struct {
-	mu  sync.Mutex
-	ips map[string]bool
-}
-
-var _ founat.Egress = &mockEgress{}
-
-func (e *mockEgress) Init() error {
-	panic("not implemented")
-}
-
-func (e *mockEgress) AddClient(ip net.IP, _ netlink.Link) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	e.ips[ip.String()] = true
-	return nil
-}
-
-func (e *mockEgress) GetClients() map[string]bool {
-	m := make(map[string]bool)
-
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	for k := range e.ips {
-		m[k] = true
-	}
-	return m
-}
-
 // mockLink implements netlink.Link interface
 type mockLink struct {
 	name string
