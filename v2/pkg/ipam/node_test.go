@@ -2,11 +2,13 @@ package ipam
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"reflect"
 	"time"
 
+	"github.com/bsm/gomega/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -18,7 +20,6 @@ import (
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
-	. "github.com/cybozu-go/coil/v2/pkg/test"
 )
 
 func testController(ctx context.Context, npMap map[string]NodeIPAM) {
@@ -356,3 +357,35 @@ var _ = Describe("NodeIPAM", func() {
 		Expect(ipv6).To(EqualIP(net.ParseIP("fd10::43")))
 	})
 })
+
+type equalIP struct {
+	expected net.IP
+}
+
+// EqualIP is a custom mather of Gomega to assert IP equivalence
+func EqualIP(ip net.IP) types.GomegaMatcher {
+	return equalIP{expected: ip}
+}
+
+func (m equalIP) Match(actual interface{}) (success bool, err error) {
+	ip, ok := actual.(net.IP)
+	if !ok {
+		return false, errors.New("EqualIP matcher expects an net.IP")
+	}
+
+	return ip.Equal(m.expected), nil
+}
+
+func (m equalIP) FailureMessage(actual interface{}) (message string) {
+	return fmt.Sprintf(`Expected
+	%s
+to be the same as
+	%s`, actual, m.expected)
+}
+
+func (m equalIP) NegatedFailureMessage(actual interface{}) (message string) {
+	return fmt.Sprintf(`Expected
+	%s
+not equal to
+	%s`, actual, m.expected)
+}

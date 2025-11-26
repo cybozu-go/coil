@@ -76,6 +76,14 @@ test-founat:
 	#for i in $(NATNSLIST) $(OTHERNSLIST); do $(SUDO) ip netns delete $$i; done
 	rm -f founat.test
 
+.PHONY: test-nat
+test-nat:
+	$(SUDO) go test -tags=privileged -count 1 -race -v ./pkg/nat/...
+
+.PHONY: test-integration
+test-integration:
+	$(SUDO) go test -tags=privileged -count 1 -v ./pkg/test/...
+
 .PHONY: check-generate
 check-generate:
 	-rm $(ROLES) $(PROTOC_OUTPUTS)

@@ -17,6 +17,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
+	"github.com/cybozu-go/coil/v2/pkg/nat"
+	"github.com/cybozu-go/coil/v2/pkg/nat/mock"
 )
 
 func makePodWithHostNetwork(name string, ips []string, egresses map[string]string) {
@@ -83,7 +86,7 @@ var _ = Describe("Pod watcher", Ordered, func() {
 	ctx := context.Background()
 	var cancel context.CancelFunc
 	var ft *mockFoUTunnel
-	var eg *mockEgress
+	var nat nat.Server
 
 	BeforeEach(func() {
 		makePod("pod1", []string{"10.1.1.1", "fd01::1"}, nil, corev1.PodRunning)
@@ -100,7 +103,7 @@ var _ = Describe("Pod watcher", Ordered, func() {
 
 		ctx, cancel = context.WithCancel(context.TODO())
 		ft = &mockFoUTunnel{peers: make(map[string]bool)}
-		eg = &mockEgress{ips: make(map[string]bool)}
+		nat = mock.NewNatServer()
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 			Scheme:         scheme,
 			LeaderElection: false,
@@ -113,7 +116,7 @@ var _ = Describe("Pod watcher", Ordered, func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		err = SetupPodWatcher(mgr, "internet", "egress2", ft, true, eg, cfg)
+		err = SetupPodWatcher(mgr, "internet", "egress2", ft, true, nat, cfg)
 		Expect(err).ToNot(HaveOccurred())
 
 		go func() {
@@ -146,10 +149,10 @@ var _ = Describe("Pod watcher", Ordered, func() {
 		}).Should(BeTrue())
 
 		Eventually(func() bool {
-			return reflect.DeepEqual(eg.GetClients(), map[string]bool{
-				"10.1.1.2": true,
-				"fd01::2":  true,
-				"fd01::3":  true,
+			return reflect.DeepEqual(nat.GetClients(), map[string]struct{}{
+				"10.1.1.2": {},
+				"fd01::2":  {},
+				"fd01::3":  {},
 			})
 		}).Should(BeTrue())
 
@@ -171,11 +174,11 @@ var _ = Describe("Pod watcher", Ordered, func() {
 		}).Should(BeTrue())
 
 		Eventually(func() bool {
-			return reflect.DeepEqual(eg.GetClients(), map[string]bool{
-				"10.1.1.2": true,
-				"fd01::2":  true,
-				"fd01::3":  true,
-				"10.1.1.6": true,
+			return reflect.DeepEqual(nat.GetClients(), map[string]struct{}{
+				"10.1.1.2": {},
+				"fd01::2":  {},
+				"fd01::3":  {},
+				"10.1.1.6": {},
 			})
 		}).Should(BeTrue())
 
@@ -201,12 +204,12 @@ var _ = Describe("Pod watcher", Ordered, func() {
 		}).Should(BeTrue())
 
 		Eventually(func() bool {
-			return reflect.DeepEqual(eg.GetClients(), map[string]bool{
-				"10.1.1.1": true,
-				"fd01::1":  true,
-				"10.1.1.2": true,
-				"fd01::2":  true,
-				"fd01::3":  true,
+			return reflect.DeepEqual(nat.GetClients(), map[string]struct{}{
+				"10.1.1.1": {},
+				"fd01::1":  {},
+				"10.1.1.2": {},
+				"fd01::2":  {},
+				"fd01::3":  {},
 			})
 		}).Should(BeTrue())
 
@@ -232,14 +235,14 @@ var _ = Describe("Pod watcher", Ordered, func() {
 		}).Should(BeTrue())
 
 		Eventually(func() bool {
-			return reflect.DeepEqual(eg.GetClients(), map[string]bool{
-				"10.1.1.1": true,
-				"fd01::1":  true,
-				"10.1.1.2": true,
-				"fd01::2":  true,
-				"fd01::3":  true, // founat.Egress does not have remove API
-				"10.1.1.7": true,
-				"fd01::7":  true,
+			return reflect.DeepEqual(nat.GetClients(), map[string]struct{}{
+				"10.1.1.1": {},
+				"fd01::1":  {},
+				"10.1.1.2": {},
+				"fd01::2":  {},
+				"fd01::3":  {}, // founat.Egress does not have remove API
+				"10.1.1.7": {},
+				"fd01::7":  {},
 			})
 		}).Should(BeTrue())
 
@@ -253,10 +256,10 @@ var _ = Describe("Pod watcher", Ordered, func() {
 				"10.1.1.2": true,
 				"fd01::2":  true,
 				"fd01::3":  true,
-			}) && reflect.DeepEqual(eg.GetClients(), map[string]bool{
-				"10.1.1.2": true,
-				"fd01::2":  true,
-				"fd01::3":  true,
+			}) && reflect.DeepEqual(nat.GetClients(), map[string]struct{}{
+				"10.1.1.2": {},
+				"fd01::2":  {},
+				"fd01::3":  {},
 			})
 		}).Should(BeTrue())
 
@@ -273,10 +276,10 @@ var _ = Describe("Pod watcher", Ordered, func() {
 		}).Should(BeTrue())
 
 		Eventually(func() bool {
-			return reflect.DeepEqual(eg.GetClients(), map[string]bool{
-				"10.1.1.2": true, // cannot be removed
-				"fd01::2":  true, // ditto
-				"fd01::3":  true,
+			return reflect.DeepEqual(nat.GetClients(), map[string]struct{}{
+				"10.1.1.2": {}, // cannot be removed
+				"fd01::2":  {}, // ditto
+				"fd01::3":  {},
 			})
 		}).Should(BeTrue())
 
