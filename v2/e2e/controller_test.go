@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
 	corev1 "k8s.io/api/core/v1"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
@@ -51,7 +52,8 @@ func testCoilIPAMController() {
 		out, err := runOnNode(node, "curl", "-sf", "http://localhost:9386/metrics")
 		Expect(err).ShouldNot(HaveOccurred())
 
-		mfs, err := (&expfmt.TextParser{}).TextToMetricFamilies(bytes.NewReader(out))
+		textParser := expfmt.NewTextParser(model.UTF8Validation)
+		mfs, err := textParser.TextToMetricFamilies(bytes.NewBuffer(out))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(mfs).NotTo(BeEmpty())
 	})
@@ -99,7 +101,8 @@ func testCoilEgressController() {
 					out, err := runOnNode(node, "curl", "-sf", address)
 					Expect(err).ShouldNot(HaveOccurred())
 
-					mfs, err := (&expfmt.TextParser{}).TextToMetricFamilies(bytes.NewReader(out))
+					textParser := expfmt.NewTextParser(model.UTF8Validation)
+					mfs, err := textParser.TextToMetricFamilies(bytes.NewBuffer(out))
 					Expect(err).NotTo(HaveOccurred())
 					Expect(mfs).NotTo(BeEmpty())
 				}

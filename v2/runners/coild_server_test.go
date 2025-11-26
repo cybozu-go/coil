@@ -15,6 +15,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
 	"github.com/vishvananda/netlink"
 	uberzap "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -373,7 +374,8 @@ var _ = Describe("Coild server", func() {
 			resp, err := http.Get("http://localhost:13449/metrics")
 			Expect(err).NotTo(HaveOccurred())
 			defer resp.Body.Close()
-			mfs, err := (&expfmt.TextParser{}).TextToMetricFamilies(resp.Body)
+			textParser := expfmt.NewTextParser(model.UTF8Validation)
+			mfs, err := textParser.TextToMetricFamilies(resp.Body)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(mfs).To(HaveKey("grpc_server_handled_total"))
 			mf := mfs["grpc_server_handled_total"]

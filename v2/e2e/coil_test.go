@@ -16,6 +16,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
 	"github.com/vishvananda/netlink"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -292,7 +293,8 @@ func testIPAM() {
 		out, err := runOnNode("coil-worker", "curl", "-sf", "http://localhost:9388/metrics")
 		Expect(err).ShouldNot(HaveOccurred())
 
-		mfs, err := (&expfmt.TextParser{}).TextToMetricFamilies(bytes.NewReader(out))
+		textParser := expfmt.NewTextParser(model.UTF8Validation)
+		mfs, err := textParser.TextToMetricFamilies(bytes.NewBuffer(out))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(mfs).NotTo(BeEmpty())
 
@@ -756,7 +758,8 @@ func testCoild() {
 		out, err := runOnNode("coil-worker", "curl", "-sf", "http://localhost:9384/metrics")
 		Expect(err).ShouldNot(HaveOccurred())
 
-		mfs, err := (&expfmt.TextParser{}).TextToMetricFamilies(bytes.NewReader(out))
+		textParser := expfmt.NewTextParser(model.UTF8Validation)
+		mfs, err := textParser.TextToMetricFamilies(bytes.NewBuffer(out))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(mfs).NotTo(BeEmpty())
 	})
