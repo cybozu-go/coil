@@ -11,13 +11,6 @@ import (
 	"time"
 
 	current "github.com/containernetworking/cni/pkg/types/100"
-	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
-	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
-	"github.com/cybozu-go/coil/v2/pkg/config"
-	"github.com/cybozu-go/coil/v2/pkg/constants"
-	"github.com/cybozu-go/coil/v2/pkg/founat"
-	"github.com/cybozu-go/coil/v2/pkg/ipam"
-	"github.com/cybozu-go/coil/v2/pkg/nodenet"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -33,6 +26,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
+
+	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
+	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
+	"github.com/cybozu-go/coil/v2/pkg/config"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
+	"github.com/cybozu-go/coil/v2/pkg/founat"
+	"github.com/cybozu-go/coil/v2/pkg/ipam"
+	"github.com/cybozu-go/coil/v2/pkg/nodenet"
 )
 
 // GWNets represents networks for a destination.

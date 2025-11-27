@@ -11,11 +11,12 @@ import (
 	"syscall"
 
 	"github.com/coreos/go-iptables/iptables"
-	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
 	"github.com/vishvananda/netlink"
+
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 )
 
 // IDs

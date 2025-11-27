@@ -12,14 +12,10 @@ import (
 	"time"
 
 	current "github.com/containernetworking/cni/pkg/types/100"
-	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
-	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
-	"github.com/cybozu-go/coil/v2/pkg/config"
-	"github.com/cybozu-go/coil/v2/pkg/constants"
-	"github.com/cybozu-go/coil/v2/pkg/nodenet"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
 	"github.com/vishvananda/netlink"
 	uberzap "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -32,6 +28,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
+	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
+	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
+	"github.com/cybozu-go/coil/v2/pkg/config"
+	"github.com/cybozu-go/coil/v2/pkg/constants"
+	"github.com/cybozu-go/coil/v2/pkg/nodenet"
 )
 
 const (
@@ -372,7 +374,8 @@ var _ = Describe("Coild server", func() {
 			resp, err := http.Get("http://localhost:13449/metrics")
 			Expect(err).NotTo(HaveOccurred())
 			defer resp.Body.Close()
-			mfs, err := (&expfmt.TextParser{}).TextToMetricFamilies(resp.Body)
+			textParser := expfmt.NewTextParser(model.UTF8Validation)
+			mfs, err := textParser.TextToMetricFamilies(resp.Body)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(mfs).To(HaveKey("grpc_server_handled_total"))
 			mf := mfs["grpc_server_handled_total"]

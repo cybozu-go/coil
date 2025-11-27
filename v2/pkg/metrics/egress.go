@@ -8,10 +8,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 )
 
 const (

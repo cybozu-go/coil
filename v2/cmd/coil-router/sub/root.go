@@ -6,10 +6,11 @@ import (
 	"os"
 	"time"
 
-	v2 "github.com/cybozu-go/coil/v2"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	v2 "github.com/cybozu-go/coil/v2"
 )
 
 var config struct {

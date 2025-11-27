@@ -3,13 +3,14 @@ package v2
 import (
 	"context"
 
-	"github.com/cybozu-go/coil/v2/pkg/constants"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 )
 
 var _ = Describe("AddressPool Webhook", func() {

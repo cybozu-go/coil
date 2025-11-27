@@ -6,10 +6,11 @@ import (
 	"net"
 	"sync"
 
+	"github.com/vishvananda/netlink"
+
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/pkg/founat"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
-	"github.com/vishvananda/netlink"
 )
 
 type mockPoolManager struct {

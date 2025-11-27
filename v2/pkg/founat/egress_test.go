@@ -8,9 +8,10 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/coreos/go-iptables/iptables"
-	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/google/nftables"
 	"github.com/vishvananda/netlink"
+
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 )
 
 func TestEgress(t *testing.T) {

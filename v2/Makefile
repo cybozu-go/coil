@@ -2,7 +2,7 @@
 
 IMAGE_TAG := latest
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
-CONTROLLER_TOOLS_VERSION=0.18.0
+CONTROLLER_TOOLS_VERSION=0.19.0
 PROTOC_VERSION=31.1
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
 PROTOC_GEN_GO_GRPC_VERSON=1.5.1
@@ -81,6 +81,7 @@ check-generate:
 	-rm $(ROLES) $(PROTOC_OUTPUTS)
 	$(MAKE) generate
 	$(MAKE) manifests
+	goimports -w -local github.com/cybozu-go/coil/v2 .
 	go mod tidy
 	git diff --exit-code
 
@@ -293,12 +294,19 @@ GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
 endef
 
 .PHONY: test-tools
-test-tools: staticcheck
+test-tools: staticcheck goimports
 
 .PHONY: staticcheck
 staticcheck:
 	if ! which staticcheck >/dev/null; then \
 		env GOFLAGS= go install honnef.co/go/tools/cmd/staticcheck@latest; \
+	fi
+
+GOIMPORTS := $(SELF_DIR)/bin/goimports
+.PHONY: goimports
+goimports:
+	if ! which goimports >/dev/null; then \
+		env GOFLAGS= go install golang.org/x/tools/cmd/goimports@latest; \
 	fi
 
 define comment_certs
