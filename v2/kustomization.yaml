@@ -1,6 +1,6 @@
 images:
 - name: coil
-  newTag: 2.11.1
+  newTag: 2.12.0
   newName: ghcr.io/cybozu-go/coil
 
 resources:
