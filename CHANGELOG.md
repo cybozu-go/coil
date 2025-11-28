@@ -5,6 +5,24 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.12.0] - 2025-11-28
+
+### Added
+
+- Egress only for connections originating in the client pod (#337)
+- Add cross-platform support for yq binary download (#341)
+- Add nftables support for egress NAT functionality (#345)
+- Feat nftables (#346)
+
+### Changed
+
+- Fix: Add multi-platform support for e2e test binary downloads in Makefile (#338)
+- Remove unnecessary kube-proxy double NAT workaround (#340)
+- Fix: flaky garbage collection tests by running GC immediately on start (#343)
+- Fix CRD generation in Makefile (#344)
+- Removed leader election requirement for cert-controller's rotator (#349)
+- Update dependencies and introduce goimports (#351)
+
 ## [2.11.1] - 2025-07-22
 
 ### Changed
@@ -388,8 +406,9 @@ The following `coil-controller` related resources are no longer needed, and you 
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.11.1...HEAD
-[2.11.0]: https://github.com/cybozu-go/coil/compare/v2.11.0...v2.11.1
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.12.0...HEAD
+[2.12.0]: https://github.com/cybozu-go/coil/compare/v2.11.1...v2.12.0
+[2.11.1]: https://github.com/cybozu-go/coil/compare/v2.11.0...v2.11.1
 [2.11.0]: https://github.com/cybozu-go/coil/compare/v2.10.1...v2.11.0
 [2.10.1]: https://github.com/cybozu-go/coil/compare/v2.10.0...v2.10.1
 [2.10.0]: https://github.com/cybozu-go/coil/compare/v2.9.1...v2.10.0
