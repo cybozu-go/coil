@@ -38,6 +38,8 @@ jobs:
       timeout-minutes: 10
     - run: make test-founat
       timeout-minutes: 10
+    - run: make test-nat
+    - run: make test-integration
     - run: make check-generate
   e2e:
     name: End-to-end Test
