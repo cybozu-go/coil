@@ -4,10 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"testing"
-
-	"github.com/containernetworking/plugins/pkg/ns"
 )
 
 func TestMain(m *testing.M) {
@@ -25,14 +22,6 @@ const (
 	nsEgress = "nat-egress"
 	nsTarget = "nat-target"
 )
-
-func getNS(name string) ns.NetNS {
-	a, err := ns.GetNS(filepath.Join("/run/netns", name))
-	if err != nil {
-		panic(err)
-	}
-	return a
-}
 
 func runIP(args ...string) {
 	out, err := exec.Command("ip", args...).CombinedOutput()

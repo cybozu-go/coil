@@ -22,6 +22,7 @@ import (
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/cybozu-go/coil/v2/pkg/founat"
 	egressMetrics "github.com/cybozu-go/coil/v2/pkg/metrics"
+	"github.com/cybozu-go/coil/v2/pkg/nat/netfilter"
 )
 
 const (
@@ -114,13 +115,13 @@ func subMain() error {
 	}
 
 	setupLog.Info("initialize Egress", "ipv4", ipv4.String(), "ipv6", ipv6.String(), "backend", config.backend)
-	eg := founat.NewEgress("eth0", ipv4, ipv6, config.backend)
-	if err := eg.Init(); err != nil {
+	nat, err := netfilter.NewNatServer("eth0", ipv4, ipv6, config.backend)
+	if err != nil {
 		return err
 	}
 
 	setupLog.Info("setup Pod watcher")
-	if err := controllers.SetupPodWatcher(mgr, myNS, myName, ft, config.enableSportAuto, eg, nil); err != nil {
+	if err := controllers.SetupPodWatcher(mgr, myNS, myName, ft, config.enableSportAuto, nat, nil); err != nil {
 		return err
 	}
 
