@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"reflect"
 	"sync"
 	"syscall"
 
@@ -35,6 +34,15 @@ const (
 	ncNarrowPrio    = 1900
 	ncLocalPrioBase = 2000
 	ncWidePrio      = 2100
+)
+
+// nftables chain names and rule identifiers
+const (
+	nftChainInput  = "input"
+	nftChainOutput = "output"
+
+	nftRuleIDInputPrefix  = "coil-" + nftChainInput + "-"
+	nftRuleIDOutputPrefix = "coil-" + nftChainOutput + "-"
 )
 
 // special subnets
@@ -744,15 +752,8 @@ func checkIPTRules(ipt *iptables.IPTables, table string, chain string, rulespec 
 }
 
 func addIPTRule(ipt *iptables.IPTables, table string, chain string, rulespec ...string) error {
-	exists, err := checkIPTRules(ipt, table, chain, rulespec...)
-	if err != nil {
-		return err
-	}
-
-	if !exists {
-		if err := ipt.Append(table, chain, rulespec...); err != nil {
-			return fmt.Errorf("failed to append %q rule in chain %q - %q: %w", table, chain, rulespec, err)
-		}
+	if err := ipt.AppendUnique(table, chain, rulespec...); err != nil {
+		return fmt.Errorf("failed to append %q rule in chain %q - %q: %w", table, chain, rulespec, err)
 	}
 
 	return nil
@@ -775,7 +776,7 @@ func delIPTRule(ipt *iptables.IPTables, table string, chain string, rulespec ...
 
 func addNftInputRule(nft *nftables.Conn, table *nftables.Table, link netlink.Link) error {
 	inputChain := &nftables.Chain{
-		Name:     "input",
+		Name:     nftChainInput,
 		Table:    table,
 		Type:     nftables.ChainTypeFilter,
 		Hooknum:  nftables.ChainHookInput,
@@ -806,9 +807,11 @@ func addNftInputRule(nft *nftables.Conn, table *nftables.Table, link netlink.Lin
 		return fmt.Errorf("failed to add set: %w", err)
 	}
 
+	ruleID := nftRuleIDInputPrefix + link.Attrs().Name
 	markRule := &nftables.Rule{
-		Table: table,
-		Chain: inputChain,
+		Table:    table,
+		Chain:    inputChain,
+		UserData: []byte(ruleID),
 		Exprs: []expr.Any{
 			&expr.Meta{
 				Key:      expr.MetaKeyIIFNAME,
@@ -862,7 +865,7 @@ func addNftInputRule(nft *nftables.Conn, table *nftables.Table, link netlink.Lin
 
 func addNftOutputRule(nft *nftables.Conn, table *nftables.Table, link netlink.Link) error {
 	outputChain := &nftables.Chain{
-		Name:     "output",
+		Name:     nftChainOutput,
 		Table:    table,
 		Type:     nftables.ChainTypeRoute,
 		Hooknum:  nftables.ChainHookOutput,
@@ -875,9 +878,11 @@ func addNftOutputRule(nft *nftables.Conn, table *nftables.Table, link netlink.Li
 		return fmt.Errorf("failed to add chain: %w", err)
 	}
 
+	ruleID := nftRuleIDOutputPrefix + link.Attrs().Name
 	restoreMarkRule := &nftables.Rule{
-		Table: table,
-		Chain: outputChain,
+		Table:    table,
+		Chain:    outputChain,
+		UserData: []byte(ruleID),
 		Exprs: []expr.Any{
 			&expr.Ct{
 				Register: 1,
@@ -966,53 +971,5 @@ func ptr[T any](v T) *T {
 }
 
 func ruleEqual(a, b *nftables.Rule) bool {
-	if !bytes.Equal(a.UserData, b.UserData) {
-		return false
-	}
-
-	for i := range a.Exprs {
-		switch a.Exprs[i].(type) {
-		case *expr.Meta:
-			if !exprEqual(&expr.Meta{}, a.Exprs[i], b.Exprs[i]) {
-				return false
-			}
-		case *expr.Lookup:
-			if !exprEqual(&expr.Lookup{}, a.Exprs[i], b.Exprs[i]) {
-				return false
-			}
-		case *expr.Cmp:
-			if !exprEqual(&expr.Cmp{}, a.Exprs[i], b.Exprs[i]) {
-				return false
-			}
-		case *expr.Ct:
-			if !exprEqual(&expr.Ct{}, a.Exprs[i], b.Exprs[i]) {
-				return false
-			}
-		case *expr.Bitwise:
-			if !exprEqual(&expr.Bitwise{}, a.Exprs[i], b.Exprs[i]) {
-				return false
-			}
-		case *expr.Immediate:
-			if !exprEqual(&expr.Immediate{}, a.Exprs[i], b.Exprs[i]) {
-				return false
-			}
-		}
-	}
-
-	return true
-}
-
-func exprEqual[V *expr.Meta | *expr.Lookup | *expr.Cmp | *expr.Ct | *expr.Bitwise | *expr.Immediate](_ V, aExpr, bExpr expr.Any) bool {
-	aExprCast, ok := aExpr.(V)
-	if !ok {
-		return false
-	}
-	bExprCast, ok := bExpr.(V)
-	if !ok {
-		return false
-	}
-	if reflect.DeepEqual(aExprCast, bExprCast) {
-		return true
-	}
-	return false
+	return bytes.Equal(a.UserData, b.UserData)
 }

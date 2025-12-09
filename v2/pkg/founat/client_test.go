@@ -829,8 +829,9 @@ func testOriginatingOnly(link netlink.Link, nc NatClient, addAddresses bool, add
 					}
 
 					markRule := &nftables.Rule{
-						Table: table,
-						Chain: inputChain,
+						Table:    table,
+						Chain:    inputChain,
+						UserData: []byte(nftRuleIDInputPrefix + link.Attrs().Name),
 						Exprs: []expr.Any{
 							&expr.Meta{
 								Key:      expr.MetaKeyIIFNAME,
@@ -879,8 +880,9 @@ func testOriginatingOnly(link netlink.Link, nc NatClient, addAddresses bool, add
 					}
 
 					restoreMarkRule := &nftables.Rule{
-						Table: table,
-						Chain: outputChain,
+						Table:    table,
+						Chain:    outputChain,
+						UserData: []byte(nftRuleIDOutputPrefix + link.Attrs().Name),
 						Exprs: []expr.Any{
 							&expr.Ct{
 								Register: 1,
