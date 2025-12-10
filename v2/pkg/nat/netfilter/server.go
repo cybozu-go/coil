@@ -140,13 +140,13 @@ func (n *NatServer) init() error {
 
 	if n.ipv4 != nil {
 		if err := n.initIPv4(); err != nil {
-			return fmt.Errorf("failed to init IPv4: %w", err)
+			return fmt.Errorf("failed to Init IPv4: %w", err)
 		}
 	}
 
 	if n.ipv6 != nil {
 		if err := n.initIPv6(); err != nil {
-			return fmt.Errorf("failed to init IPv6: %w", err)
+			return fmt.Errorf("failed to Init IPv6: %w", err)
 		}
 	}
 
