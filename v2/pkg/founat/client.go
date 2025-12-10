@@ -30,6 +30,7 @@ const (
 
 // rule priorities
 const (
+	ncFWMarkPrio    = 1000
 	ncLinkLocalPrio = 1800
 	ncNarrowPrio    = 1900
 	ncLocalPrioBase = 2000
@@ -720,6 +721,7 @@ func addFWMarkRule(link netlink.Link, table, family int) error {
 		rule.Mark = uint32(link.Attrs().Index)
 		rule.Table = table
 		rule.Family = family
+		rule.Priority = ncFWMarkPrio
 		if err := netlink.RuleAdd(rule); err != nil {
 			return fmt.Errorf("netlink: failed to add rule %q: %w", rule.String(), err)
 		}
