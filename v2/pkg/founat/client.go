@@ -345,17 +345,6 @@ func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet, originati
 		if err := c.addEgress1(link, n); err != nil {
 			return err
 		}
-
-		family := iptables.ProtocolIPv6
-		if n.IP.To4() != nil {
-			family = iptables.ProtocolIPv4
-		}
-
-		if originatingOnly {
-			if err := configureRoutes(family, c.backend); err != nil {
-				return err
-			}
-		}
 	}
 
 	if originatingOnly {
