@@ -15,6 +15,7 @@ import (
 	"github.com/google/nftables"
 	"github.com/vishvananda/netlink"
 
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/cybozu-go/coil/v2/pkg/nat"
 )
 
@@ -45,13 +46,13 @@ func TestNewNat(t *testing.T) {
 				iface:   iface,
 				ipv4:    ipv4,
 				ipv6:    ipv6,
-				backend: BackendIptables,
+				backend: constants.EgressBackendIPTables,
 			},
 			want: &NatServer{
 				iface:   iface,
 				ipv4:    ipv4,
 				ipv6:    ipv6,
-				backend: BackendIptables,
+				backend: constants.EgressBackendIPTables,
 				clients: make(map[string]struct{}),
 			},
 			wantErr: false,
@@ -61,13 +62,13 @@ func TestNewNat(t *testing.T) {
 				iface:   iface,
 				ipv4:    ipv4,
 				ipv6:    ipv6,
-				backend: BackendNftables,
+				backend: constants.EgressBackendNFTables,
 			},
 			want: &NatServer{
 				iface:   iface,
 				ipv4:    ipv4,
 				ipv6:    ipv6,
-				backend: BackendNftables,
+				backend: constants.EgressBackendNFTables,
 				clients: make(map[string]struct{}),
 			},
 			wantErr: false,
@@ -78,13 +79,13 @@ func TestNewNat(t *testing.T) {
 				iface:   iface,
 				ipv4:    ipv4,
 				ipv6:    nil,
-				backend: BackendIptables,
+				backend: constants.EgressBackendIPTables,
 			},
 			want: &NatServer{
 				iface:   iface,
 				ipv4:    ipv4,
 				ipv6:    nil,
-				backend: BackendIptables,
+				backend: constants.EgressBackendIPTables,
 				clients: make(map[string]struct{}),
 			},
 			wantErr: false,
@@ -95,13 +96,13 @@ func TestNewNat(t *testing.T) {
 				iface:   iface,
 				ipv4:    ipv4,
 				ipv6:    nil,
-				backend: BackendNftables,
+				backend: constants.EgressBackendNFTables,
 			},
 			want: &NatServer{
 				iface:   iface,
 				ipv4:    ipv4,
 				ipv6:    nil,
-				backend: BackendNftables,
+				backend: constants.EgressBackendNFTables,
 				clients: make(map[string]struct{}),
 			},
 			wantErr: false,
@@ -112,13 +113,13 @@ func TestNewNat(t *testing.T) {
 				iface:   iface,
 				ipv4:    nil,
 				ipv6:    ipv6,
-				backend: BackendIptables,
+				backend: constants.EgressBackendIPTables,
 			},
 			want: &NatServer{
 				iface:   iface,
 				ipv4:    nil,
 				ipv6:    ipv6,
-				backend: BackendIptables,
+				backend: constants.EgressBackendIPTables,
 				clients: make(map[string]struct{}),
 			},
 			wantErr: false,
@@ -129,13 +130,13 @@ func TestNewNat(t *testing.T) {
 				iface:   iface,
 				ipv4:    nil,
 				ipv6:    ipv6,
-				backend: BackendNftables,
+				backend: constants.EgressBackendNFTables,
 			},
 			want: &NatServer{
 				iface:   iface,
 				ipv4:    nil,
 				ipv6:    ipv6,
-				backend: BackendNftables,
+				backend: constants.EgressBackendNFTables,
 				clients: make(map[string]struct{}),
 			},
 			wantErr: false,
@@ -162,11 +163,11 @@ func TestNewNat(t *testing.T) {
 				}
 
 				switch tt.args.backend {
-				case BackendIptables:
+				case constants.EgressBackendIPTables:
 					if err := checkIptables(tt.args.iface, tt.args.ipv4, tt.args.ipv6); err != nil {
 						return err
 					}
-				case BackendNftables:
+				case constants.EgressBackendNFTables:
 					if err := checkNftables(tt.args.ipv4, tt.args.ipv6); err != nil {
 						return err
 					}
@@ -332,7 +333,7 @@ func TestNat_AddClient(t *testing.T) {
 	iface := "lo"
 	ipv4 := net.ParseIP("127.0.0.1")
 	ipv6 := net.ParseIP("::1")
-	backend := BackendIptables
+	backend := constants.EgressBackendIPTables
 
 	type fields struct {
 		iface   string
