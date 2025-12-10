@@ -333,6 +333,20 @@ func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet, originati
 		}
 	}
 
+	if originatingOnly {
+		for _, f := range getFamilies(subnets) {
+			if err := configureRoutes(f, c.backend); err != nil {
+				return err
+			}
+		}
+	} else {
+		for _, f := range []iptables.Protocol{iptables.ProtocolIPv4, iptables.ProtocolIPv6} {
+			if err := removeRoutes(f, c.backend); err != nil {
+				return err
+			}
+		}
+	}
+
 	for _, r := range deletes {
 		if c.logFunc != nil {
 			c.logFunc(fmt.Sprintf("removing a destination %s", r.Dst.String()))
@@ -345,31 +359,6 @@ func (c *natClient) AddEgress(link netlink.Link, subnets []*net.IPNet, originati
 	for _, n := range adds {
 		if err := c.addEgress1(link, n); err != nil {
 			return err
-		}
-
-		family := iptables.ProtocolIPv6
-		if n.IP.To4() != nil {
-			family = iptables.ProtocolIPv4
-		}
-
-		if originatingOnly {
-			if err := configureRoutes(family, c.backend); err != nil {
-				return err
-			}
-		}
-	}
-
-	if originatingOnly {
-		for _, f := range getFamilies(subnets) {
-			if err := configureRoutes(f, c.backend); err != nil {
-				return err
-			}
-		}
-	} else {
-		for _, f := range []iptables.Protocol{iptables.ProtocolIPv4, iptables.ProtocolIPv6} {
-			if err := removeRoutes(f, c.backend); err != nil {
-				return err
-			}
 		}
 	}
 
@@ -696,7 +685,10 @@ func checkLinkForGlobalScopeIP(link netlink.Link, family int) (bool, error) {
 }
 
 func checkFWMarkRule(link netlink.Link, table, family int) (*netlink.Rule, bool, error) {
-	rules, err := netlink.RuleList(family)
+	filter := &netlink.Rule{
+		Priority: ncFWMarkPrio,
+	}
+	rules, err := netlink.RuleListFiltered(family, filter, netlink.RT_FILTER_PRIORITY)
 	if err != nil {
 		return nil, false, fmt.Errorf("netlink: failed to list rules: %w", err)
 	}
