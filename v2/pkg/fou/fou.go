@@ -1,4 +1,4 @@
-package founat
+package fou
 
 import (
 	"crypto/sha1"

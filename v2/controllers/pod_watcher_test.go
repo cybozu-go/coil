@@ -240,7 +240,7 @@ var _ = Describe("Pod watcher", Ordered, func() {
 				"fd01::1":  {},
 				"10.1.1.2": {},
 				"fd01::2":  {},
-				"fd01::3":  {}, // founat.Egress does not have remove API
+				"fd01::3":  {}, // nat.Server does not have remove API
 				"10.1.1.7": {},
 				"fd01::7":  {},
 			})

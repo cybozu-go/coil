@@ -15,7 +15,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/cybozu-go/coil/v2/pkg/constants"
-	"github.com/cybozu-go/coil/v2/pkg/founat"
+	"github.com/cybozu-go/coil/v2/pkg/fou"
 	"github.com/cybozu-go/coil/v2/pkg/nat/netfilter"
 )
 
@@ -100,15 +100,12 @@ var _ = Describe("NAT", func() {
 func testNAT(clientNS, egressNS, targetNS ns.NetNS, backend string, originatingOnly bool) {
 	// Setup client namespace
 	err := clientNS.Do(func(ns.NetNS) error {
-		ft := founat.NewFoUTunnel(fouPort, clientIPv4, clientIPv6, nil)
+		ft := fou.NewFoUTunnel(fouPort, clientIPv4, clientIPv6, nil)
 		if err := ft.Init(); err != nil {
 			return fmt.Errorf("ft.Init on client failed: %w", err)
 		}
 
-		nc := founat.NewNatClient(clientIPv4, clientIPv6, nil, backend, nil)
-		if err := nc.Init(); err != nil {
-			return fmt.Errorf("nc.Init failed: %w", err)
-		}
+		nc := netfilter.NewNatClient(clientIPv4, clientIPv6, nil, backend, nil)
 
 		link4, err := ft.AddPeer(egressEth0IPv4, true)
 		if err != nil {
@@ -119,11 +116,11 @@ func testNAT(clientNS, egressNS, targetNS ns.NetNS, backend string, originatingO
 			return fmt.Errorf("ft.AddPeer failed for %s: %w", egressEth0IPv6, err)
 		}
 
-		if err := nc.AddEgress(link4, []*net.IPNet{targetNetworkIPv4}, originatingOnly); err != nil {
-			return fmt.Errorf("nc.AddEgress failed for %s: %w", targetNetworkIPv4, err)
+		if err := nc.SyncNat(link4, []*net.IPNet{targetNetworkIPv4}, originatingOnly); err != nil {
+			return fmt.Errorf("nc.SyncNat failed for %s: %w", targetNetworkIPv4, err)
 		}
-		if err := nc.AddEgress(link6, []*net.IPNet{targetNetworkIPv6}, originatingOnly); err != nil {
-			return fmt.Errorf("nc.AddEgress failed for %s: %w", targetNetworkIPv6, err)
+		if err := nc.SyncNat(link6, []*net.IPNet{targetNetworkIPv6}, originatingOnly); err != nil {
+			return fmt.Errorf("nc.SyncNat failed for %s: %w", targetNetworkIPv6, err)
 		}
 
 		return nil
@@ -132,7 +129,7 @@ func testNAT(clientNS, egressNS, targetNS ns.NetNS, backend string, originatingO
 
 	// Setup egress namespace
 	err = egressNS.Do(func(ns.NetNS) error {
-		ft := founat.NewFoUTunnel(fouPort, egressEth0IPv4, egressEth0IPv6, nil)
+		ft := fou.NewFoUTunnel(fouPort, egressEth0IPv4, egressEth0IPv6, nil)
 		if err := ft.Init(); err != nil {
 			return fmt.Errorf("ft.Init on egress failed: %w", err)
 		}

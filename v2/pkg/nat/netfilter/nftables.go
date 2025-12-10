@@ -1,8 +1,12 @@
 package netfilter
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"net"
+	"os"
+	"strings"
 
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
@@ -160,6 +164,240 @@ func setNFTablesMasqRules(family int, iface string, ip net.IP) (err error) {
 	return nil
 }
 
+func setNFTablesConnmarkRules(family int, link netlink.Link) error {
+	conn, err := nftables.New()
+	if err != nil {
+		return fmt.Errorf("failed to create nftables connection: %w", err)
+	}
+
+	nf, err := netlinkToNFTablesFamily(family)
+	if err != nil {
+		return err
+	}
+
+	mangle, err := conn.ListTableOfFamily(mangleTable, nf)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			mangle = &nftables.Table{Family: nf, Name: mangleTable}
+			mangle = conn.AddTable(mangle)
+		} else {
+			return fmt.Errorf("failed to list mangle table: %w", err)
+		}
+	}
+
+	if err := setNFTablesInputConnmarkRules(conn, mangle, link); err != nil {
+		return fmt.Errorf("failed to configure NFT input rules: %w", err)
+	}
+
+	if err := setNFTablesOutputConnmarkRules(conn, mangle, link); err != nil {
+		return fmt.Errorf("failed to configure NFT input rules: %w", err)
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("failed to flush nftables rules: %w", err)
+	}
+
+	return nil
+}
+
+func setNFTablesInputConnmarkRules(conn *nftables.Conn, table *nftables.Table, link netlink.Link) error {
+	input := &nftables.Chain{
+		Name:     strings.ToLower(inputChain),
+		Table:    table,
+		Type:     nftables.ChainTypeFilter,
+		Hooknum:  nftables.ChainHookInput,
+		Priority: nftables.ChainPriorityMangle,
+		Policy:   func() *nftables.ChainPolicy { p := nftables.ChainPolicyAccept; return &p }(),
+	}
+
+	input, err := addNFTablesChainIfNotExists(conn, input)
+	if err != nil {
+		return fmt.Errorf("failed to add chain: %w", err)
+	}
+
+	devices := &nftables.Set{
+		Table:        table,
+		Name:         link.Attrs().Name,
+		KeyType:      nftables.TypeIFName,
+		KeyByteOrder: binaryutil.NativeEndian,
+	}
+
+	elements := []nftables.SetElement{
+		{
+			Key: ifname(link.Attrs().Name),
+		},
+	}
+
+	devices, err = addNFTablesSetIfNotExists(conn, table, devices, elements)
+	if err != nil {
+		return fmt.Errorf("failed to add set: %w", err)
+	}
+
+	mark := &nftables.Rule{
+		Table: table,
+		Chain: input,
+		Exprs: []expr.Any{
+			&expr.Meta{
+				Key:      expr.MetaKeyIIFNAME,
+				Register: 1,
+			},
+			&expr.Lookup{
+				SetName:        devices.Name,
+				SetID:          devices.ID,
+				SourceRegister: 1,
+			},
+			&expr.Ct{
+				Register: 1,
+				Key:      expr.CtKeySTATE,
+			},
+			&expr.Bitwise{
+				SourceRegister: 1,
+				DestRegister:   1,
+				Len:            4,
+				Mask:           binaryutil.NativeEndian.PutUint32(expr.CtStateBitNEW | expr.CtStateBitESTABLISHED | expr.CtStateBitRELATED),
+				Xor:            binaryutil.NativeEndian.PutUint32(0),
+			},
+			&expr.Cmp{
+				Op:       expr.CmpOpNeq,
+				Register: 1,
+				Data:     []byte{0, 0, 0, 0},
+			},
+			&expr.Counter{},
+			&expr.Immediate{
+				Register: 1,
+				Data:     binaryutil.NativeEndian.PutUint32(uint32(link.Attrs().Index)),
+			},
+			&expr.Ct{
+				Key:            expr.CtKeyMARK,
+				SourceRegister: true,
+				Register:       1,
+			},
+		},
+	}
+
+	if _, err := addNFTablesRuleIfNotExists(conn, mark); err != nil {
+		return fmt.Errorf("faild to check input rule existance: %w", err)
+	}
+	return nil
+}
+
+func setNFTablesOutputConnmarkRules(conn *nftables.Conn, table *nftables.Table, link netlink.Link) error {
+	output := &nftables.Chain{
+		Name:     outputChain,
+		Table:    table,
+		Type:     nftables.ChainTypeRoute,
+		Hooknum:  nftables.ChainHookOutput,
+		Priority: nftables.ChainPriorityMangle,
+		Policy:   func() *nftables.ChainPolicy { p := nftables.ChainPolicyAccept; return &p }(),
+	}
+
+	output, err := addNFTablesChainIfNotExists(conn, output)
+	if err != nil {
+		return fmt.Errorf("failed to add chain: %w", err)
+	}
+
+	restoreMark := &nftables.Rule{
+		Table: table,
+		Chain: output,
+		Exprs: []expr.Any{
+			&expr.Ct{
+				Register: 1,
+				Key:      expr.CtKeyMARK,
+			},
+			&expr.Cmp{
+				Op:       expr.CmpOpEq,
+				Register: 1,
+				Data:     binaryutil.NativeEndian.PutUint32(uint32(link.Attrs().Index)),
+			},
+			&expr.Counter{},
+			&expr.Ct{
+				Register: 1,
+				Key:      expr.CtKeyMARK,
+			},
+			&expr.Meta{
+				Key:            expr.MetaKeyMARK,
+				SourceRegister: true,
+				Register:       1,
+			},
+		},
+	}
+
+	if _, err := addNFTablesRuleIfNotExists(conn, restoreMark); err != nil {
+		return fmt.Errorf("faild to check input rule existance: %w", err)
+	}
+	return nil
+}
+
+func removeNFTablesConnmarkRules(family int, link netlink.Link) error {
+	conn, err := nftables.New()
+	if err != nil {
+		return fmt.Errorf("failed to create nftables connection: %w", err)
+	}
+	nf, err := netlinkToNFTablesFamily(family)
+	if err != nil {
+		return err
+	}
+
+	mangle, err := conn.ListTableOfFamily(mangleTable, nf)
+	if err != nil {
+		return fmt.Errorf("failed to list mangle table: %w", err)
+	} else if mangle == nil {
+		return nil
+	}
+
+	conn.DelTable(mangle)
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("failed to flush nft rules: %w", err)
+	}
+	return nil
+}
+
+func addNFTablesChainIfNotExists(conn *nftables.Conn, chain *nftables.Chain) (*nftables.Chain, error) {
+	c, err := conn.ListChain(chain.Table, chain.Name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure chain %q in table %q: %w", chain.Name, chain.Table.Name, err)
+	}
+	if c != nil {
+		return c, nil
+	}
+	c = conn.AddChain(chain)
+	return c, nil
+}
+
+func addNFTablesSetIfNotExists(conn *nftables.Conn, table *nftables.Table, set *nftables.Set, elements []nftables.SetElement) (*nftables.Set, error) {
+	s, err := conn.GetSetByName(table, set.Name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get nftables set %q: %w", set.Name, err)
+	}
+	if s != nil {
+		return s, nil
+	}
+
+	if err := conn.AddSet(set, elements); err != nil {
+		return nil, fmt.Errorf("failed to add set %s : %w", set.Name, err)
+	}
+	return set, nil
+}
+
+func addNFTablesRuleIfNotExists(conn *nftables.Conn, target *nftables.Rule) (*nftables.Rule, error) {
+	rs, err := conn.GetRules(target.Table, target.Chain)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list rules in table %q, chain %q: %w", target.Table.Name, target.Chain.Name, err)
+	}
+
+	for _, r := range rs {
+		if same := compareNFTRules(r, target); same {
+			return r, nil
+		}
+	}
+
+	return conn.AddRule(target), nil
+}
+
+func compareNFTRules(a, b *nftables.Rule) bool {
+	return bytes.Equal(a.UserData, b.UserData)
+}
+
 func netlinkToNFTablesFamily(family int) (nftables.TableFamily, error) {
 	switch family {
 	case netlink.FAMILY_V4:
@@ -169,4 +407,10 @@ func netlinkToNFTablesFamily(family int) (nftables.TableFamily, error) {
 	default:
 		return 0, fmt.Errorf("invalid IP family %d", family)
 	}
+}
+
+func ifname(n string) []byte {
+	b := make([]byte, 16)
+	copy(b, []byte(n+"\x00"))
+	return b
 }
