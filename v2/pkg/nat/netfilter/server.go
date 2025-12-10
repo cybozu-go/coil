@@ -9,13 +9,8 @@ import (
 
 	"github.com/vishvananda/netlink"
 
+	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/cybozu-go/coil/v2/pkg/nat"
-)
-
-// Backend constants for NAT implementation.
-const (
-	BackendIptables = "iptables"
-	BackendNftables = "nftables"
 )
 
 const (
@@ -140,13 +135,13 @@ func (n *NatServer) init() error {
 
 	if n.ipv4 != nil {
 		if err := n.initIPv4(); err != nil {
-			return fmt.Errorf("failed to init IPv4: %w", err)
+			return fmt.Errorf("failed to Init IPv4: %w", err)
 		}
 	}
 
 	if n.ipv6 != nil {
 		if err := n.initIPv6(); err != nil {
-			return fmt.Errorf("failed to init IPv6: %w", err)
+			return fmt.Errorf("failed to Init IPv6: %w", err)
 		}
 	}
 
@@ -160,11 +155,11 @@ func (n *NatServer) init() error {
 
 func (n *NatServer) initIPv4() error {
 	switch n.backend {
-	case BackendIptables:
+	case constants.EgressBackendIPTables:
 		if err := setIPTablesMasqRules(netlink.FAMILY_V4, n.iface, n.ipv4); err != nil {
 			return err
 		}
-	case BackendNftables:
+	case constants.EgressBackendNFTables:
 		if err := setNFTablesMasqRules(netlink.FAMILY_V4, n.iface, n.ipv4); err != nil {
 			return err
 		}
@@ -177,11 +172,11 @@ func (n *NatServer) initIPv4() error {
 
 func (n *NatServer) initIPv6() error {
 	switch n.backend {
-	case BackendIptables:
+	case constants.EgressBackendIPTables:
 		if err := setIPTablesMasqRules(netlink.FAMILY_V6, n.iface, n.ipv6); err != nil {
 			return err
 		}
-	case BackendNftables:
+	case constants.EgressBackendNFTables:
 		if err := setNFTablesMasqRules(netlink.FAMILY_V6, n.iface, n.ipv6); err != nil {
 			return err
 		}
