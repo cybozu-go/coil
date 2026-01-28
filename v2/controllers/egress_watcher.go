@@ -16,7 +16,8 @@ import (
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
-	"github.com/cybozu-go/coil/v2/pkg/founat"
+	"github.com/cybozu-go/coil/v2/pkg/fou"
+	"github.com/cybozu-go/coil/v2/pkg/nat/netfilter"
 	"github.com/cybozu-go/coil/v2/pkg/nodenet"
 )
 
@@ -186,13 +187,13 @@ func (r *EgressWatcher) hook(gwn gwNets, log *logr.Logger) func(ipv4, ipv6 net.I
 	return func(ipv4, ipv6 net.IP) error {
 		// We assume that coild already has configured NAT for the client,
 		// so we ensure that both FoUTunnel and NATClient have been initialized.
-		ft := founat.NewFoUTunnel(r.EgressPort, ipv4, ipv6, func(message string) {
+		ft := fou.NewFoUTunnel(r.EgressPort, ipv4, ipv6, func(message string) {
 			log.Info(message)
 		})
 		if !ft.IsInitialized() {
 			return errors.New("fouTunnel hasn't been initialized")
 		}
-		cl := founat.NewNatClient(ipv4, ipv6, nil, r.Backend, func(message string) {
+		cl := netfilter.NewNatClient(ipv4, ipv6, nil, r.Backend, func(message string) {
 			log.Info(message)
 		})
 		initialized, err := cl.IsInitialized()
@@ -201,7 +202,7 @@ func (r *EgressWatcher) hook(gwn gwNets, log *logr.Logger) func(ipv4, ipv6 net.I
 		}
 
 		link, err := ft.AddPeer(gwn.gateway, gwn.sportAuto)
-		if errors.Is(err, founat.ErrIPFamilyMismatch) {
+		if errors.Is(err, fou.ErrIPFamilyMismatch) {
 			// ignore unsupported IP family link
 			log.Info("ignored unsupported gateway", "gw", gwn.gateway)
 			return nil
@@ -209,7 +210,7 @@ func (r *EgressWatcher) hook(gwn gwNets, log *logr.Logger) func(ipv4, ipv6 net.I
 		if err != nil {
 			return err
 		}
-		if err := cl.AddEgress(link, gwn.networks, gwn.originatingOnly); err != nil {
+		if err := cl.SyncNat(link, gwn.networks, gwn.originatingOnly); err != nil {
 			return err
 		}
 

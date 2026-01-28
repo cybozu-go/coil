@@ -22,7 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/cybozu-go/coil/v2/pkg/constants"
-	"github.com/cybozu-go/coil/v2/pkg/founat"
+	"github.com/cybozu-go/coil/v2/pkg/fou"
 	"github.com/cybozu-go/coil/v2/pkg/nat"
 )
 
@@ -56,7 +56,7 @@ func init() {
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 // SetupPodWatcher registers pod watching reconciler to mgr.
-func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, encapSportAuto bool, nat nat.Server, cfg *rest.Config) error {
+func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft fou.FoUTunnel, encapSportAuto bool, nat nat.Server, cfg *rest.Config) error {
 	ClientPods.Reset()
 	ClientPodInfo.Reset()
 
@@ -118,7 +118,7 @@ type podWatcher struct {
 	client         client.Client
 	myNS           string
 	myName         string
-	ft             founat.FoUTunnel
+	ft             fou.FoUTunnel
 	encapSportAuto bool
 	nat            nat.Server
 	clientPods     prometheus.Gauge
@@ -220,7 +220,7 @@ OUTER:
 		}
 
 		link, err := r.ft.AddPeer(ip, r.encapSportAuto)
-		if errors.Is(err, founat.ErrIPFamilyMismatch) {
+		if errors.Is(err, fou.ErrIPFamilyMismatch) {
 			logger.Info("skipping unsupported pod IP", "pod", pod.Namespace+"/"+pod.Name, "ip", ip.String())
 			continue
 		}
