@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-02-24
+
+### Changed
+- Support k8s 1.34 (#361)
+
 ## [2.13.0] - 2026-01-06
 
 ### Changed
@@ -415,7 +420,8 @@ The following `coil-controller` related resources are no longer needed, and you 
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.13.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.14.0...HEAD
+[2.14.0]: https://github.com/cybozu-go/coil/compare/v2.13.0...v2.14.0
 [2.13.0]: https://github.com/cybozu-go/coil/compare/v2.12.0...v2.13.0
 [2.12.0]: https://github.com/cybozu-go/coil/compare/v2.11.1...v2.12.0
 [2.11.1]: https://github.com/cybozu-go/coil/compare/v2.11.0...v2.11.1
