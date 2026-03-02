@@ -50,7 +50,7 @@ You should also update `sigs.k8s.io/controller-runtime` Go package periodically.
 
     ```console
     $ git switch main
-    $ git pull origin  main
+    $ git pull origin main
     $ git switch -c "bump-$VERSION"
     ```
 
