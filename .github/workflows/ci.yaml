@@ -36,7 +36,7 @@ jobs:
     - run: make test TEST_IPAM=${{ matrix.test-ipam }} TEST_EGRESS=true
     - run: make test-nodenet
       timeout-minutes: 10
-    - run: make test-founat
+    - run: make test-fou
       timeout-minutes: 10
     - run: make test-nat
     - run: make test-integration

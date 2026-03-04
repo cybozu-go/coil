@@ -20,7 +20,7 @@ import (
 	v2 "github.com/cybozu-go/coil/v2"
 	"github.com/cybozu-go/coil/v2/controllers"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
-	"github.com/cybozu-go/coil/v2/pkg/founat"
+	"github.com/cybozu-go/coil/v2/pkg/fou"
 	egressMetrics "github.com/cybozu-go/coil/v2/pkg/metrics"
 	"github.com/cybozu-go/coil/v2/pkg/nat/netfilter"
 )
@@ -109,7 +109,7 @@ func subMain() error {
 	}
 
 	setupLog.Info("initialize FoU tunnel", "port", config.port, "ipv4", ipv4.String(), "ipv6", ipv6.String())
-	ft := founat.NewFoUTunnel(config.port, ipv4, ipv6, nil)
+	ft := fou.NewFoUTunnel(config.port, ipv4, ipv6, nil)
 	if err := ft.Init(); err != nil {
 		return err
 	}

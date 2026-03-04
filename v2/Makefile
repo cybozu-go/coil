@@ -66,15 +66,15 @@ test-nodenet:
 	for i in $@ $(PODNSLIST); do $(SUDO) ip netns delete $$i; done
 	rm -f nodenet.test
 
-.PHONY: test-founat
-test-founat:
-	go test -c ./pkg/founat
+.PHONY: test-fou
+test-fou:
+	go test -c ./pkg/fou
 	for i in $(NATNSLIST) $(OTHERNSLIST); do $(SUDO) ip netns delete $$i 2>/dev/null || true; done
 	for i in $(NATNSLIST) $(OTHERNSLIST); do $(SUDO) ip netns add $$i; done
 	for i in $(NATNSLIST) $(OTHERNSLIST); do $(SUDO) ip netns exec $$i ip link set lo up; done
-	$(SUDO) ./founat.test -test.v
+	$(SUDO) ./fou.test -test.v
 	#for i in $(NATNSLIST) $(OTHERNSLIST); do $(SUDO) ip netns delete $$i; done
-	rm -f founat.test
+	rm -f fou.test
 
 .PHONY: test-nat
 test-nat:
