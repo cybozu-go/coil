@@ -5,20 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"strings"
 	"sync"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
-	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/cybozu-go/coil/v2/pkg/constants"
@@ -56,7 +56,7 @@ func init() {
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 // SetupPodWatcher registers pod watching reconciler to mgr.
-func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, encapSportAuto bool, nat nat.Server, cfg *rest.Config) error {
+func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, encapSportAuto bool, nat nat.Server) error {
 	ClientPods.Reset()
 	ClientPodInfo.Reset()
 
@@ -70,37 +70,46 @@ func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, enc
 		clientPods:     ClientPods.WithLabelValues(ns, name),
 		podAddrs:       make(map[string][]net.IP),
 		peers:          make(map[string]map[string]struct{}),
+		initDone:       make(chan struct{}),
 	}
 
-	if cfg == nil {
-		cfg = config.GetConfigOrDie()
-	}
+	// RunnableFunc starts after the informer cache is synced.
+	// Reconcile is blocked until this runnable completes to prevent race conditions;
+	// any pods deleted after the List will be correctly handled by the main reconcile loop.
+	// The readiness probe fails until setup for existing pods is complete.
+	// Any error returned here kills the process, ensuring the pod restarts before becoming Ready.
+	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		var pods corev1.PodList
+		if err := r.client.List(ctx, &pods); err != nil {
+			return err
+		}
 
-	client, err := client.New(cfg, client.Options{})
-	if err != nil {
-		return err
-	}
-
-	var pods corev1.PodList
-	ctx := context.Background()
-	if err := client.List(ctx, &pods); err != nil {
-		return err
-	}
-
-	g := new(errgroup.Group)
-	for _, pod := range pods.Items {
-		pod := pod
-		g.Go(func() error {
-			if isTerminated(&pod) {
-				return nil
-			}
+		for _, pod := range pods.Items {
 			if !r.shouldHandle(&pod) {
-				return nil
+				continue
 			}
-			return r.addPod(&pod, log.FromContext(ctx))
-		})
+			if !isTerminated(&pod) {
+				if err := r.addPod(&pod, log.FromContext(ctx)); err != nil {
+					return err
+				}
+			} else {
+				if err := r.delTerminatedPod(&pod, log.FromContext(ctx)); err != nil {
+					return err
+				}
+			}
+		}
+
+		log.FromContext(ctx).Info("initial pod sync complete", "count", len(pods.Items))
+		close(r.initDone)
+		return nil
+	})); err != nil {
+		return err
 	}
-	if err := g.Wait(); err != nil {
+
+	if err := mgr.AddHealthzCheck("ping", healthz.Ping); err != nil {
+		return err
+	}
+	if err := mgr.AddReadyzCheck("pod-sync", r.ReadyzCheck); err != nil {
 		return err
 	}
 
@@ -126,6 +135,17 @@ type podWatcher struct {
 	mu       sync.Mutex
 	podAddrs map[string][]net.IP
 	peers    map[string]map[string]struct{}
+
+	initDone chan struct{}
+}
+
+func (r *podWatcher) ReadyzCheck(req *http.Request) error {
+	select {
+	case <-r.initDone:
+		return nil
+	default:
+		return fmt.Errorf("initial pod sync not yet complete")
+	}
 }
 
 func (r *podWatcher) shouldHandle(pod *corev1.Pod) bool {
@@ -163,6 +183,12 @@ func isTerminated(pod *corev1.Pod) bool {
 
 func (r *podWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+	select {
+	case <-r.initDone:
+		// initial List is complete, proceed to regular reconciliation
+	case <-ctx.Done():
+		return ctrl.Result{}, ctx.Err()
+	}
 
 	pod := &corev1.Pod{}
 	err := r.client.Get(ctx, req.NamespacedName, pod)

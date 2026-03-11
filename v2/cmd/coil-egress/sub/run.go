@@ -12,7 +12,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -101,13 +100,6 @@ func subMain() error {
 		return err
 	}
 
-	if err := mgr.AddHealthzCheck("ping", healthz.Ping); err != nil {
-		return err
-	}
-	if err := mgr.AddReadyzCheck("ping", healthz.Ping); err != nil {
-		return err
-	}
-
 	setupLog.Info("initialize FoU tunnel", "port", config.port, "ipv4", ipv4.String(), "ipv6", ipv6.String())
 	ft := founat.NewFoUTunnel(config.port, ipv4, ipv6, nil)
 	if err := ft.Init(); err != nil {
@@ -121,7 +113,7 @@ func subMain() error {
 	}
 
 	setupLog.Info("setup Pod watcher")
-	if err := controllers.SetupPodWatcher(mgr, myNS, myName, ft, config.enableSportAuto, nat, nil); err != nil {
+	if err := controllers.SetupPodWatcher(mgr, myNS, myName, ft, config.enableSportAuto, nat); err != nil {
 		return err
 	}
 
