@@ -55,8 +55,9 @@ func init() {
 
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
-// SetupPodWatcher registers pod watching reconciler to mgr.
-func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, encapSportAuto bool, nat nat.Server) error {
+// SetupPodWatcher registers pod watching reconciler to mgr and returns a readiness checker
+// that reports whether the initial pod sync has completed.
+func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, encapSportAuto bool, nat nat.Server) (healthz.Checker, error) {
 	ClientPods.Reset()
 	ClientPodInfo.Reset()
 
@@ -103,19 +104,16 @@ func SetupPodWatcher(mgr ctrl.Manager, ns, name string, ft founat.FoUTunnel, enc
 		close(r.initDone)
 		return nil
 	})); err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := mgr.AddHealthzCheck("ping", healthz.Ping); err != nil {
-		return err
-	}
-	if err := mgr.AddReadyzCheck("pod-sync", r.ReadyzCheck); err != nil {
-		return err
-	}
-
-	return ctrl.NewControllerManagedBy(mgr).
+	if err := ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
-		Complete(r)
+		Complete(r); err != nil {
+		return nil, err
+	}
+
+	return r.ReadyzCheck, nil
 }
 
 // podWatcher adds FoU tunnels for new pods and removes them when pods are deleted.
