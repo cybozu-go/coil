@@ -101,13 +101,6 @@ func subMain() error {
 		return err
 	}
 
-	if err := mgr.AddHealthzCheck("ping", healthz.Ping); err != nil {
-		return err
-	}
-	if err := mgr.AddReadyzCheck("ping", healthz.Ping); err != nil {
-		return err
-	}
-
 	setupLog.Info("initialize FoU tunnel", "port", config.port, "ipv4", ipv4.String(), "ipv6", ipv6.String())
 	ft := founat.NewFoUTunnel(config.port, ipv4, ipv6, nil)
 	if err := ft.Init(); err != nil {
@@ -121,7 +114,14 @@ func subMain() error {
 	}
 
 	setupLog.Info("setup Pod watcher")
-	if err := controllers.SetupPodWatcher(mgr, myNS, myName, ft, config.enableSportAuto, nat, nil); err != nil {
+	podSyncChecker, err := controllers.SetupPodWatcher(mgr, myNS, myName, ft, config.enableSportAuto, nat)
+	if err != nil {
+		return err
+	}
+	if err := mgr.AddHealthzCheck("ping", healthz.Ping); err != nil {
+		return err
+	}
+	if err := mgr.AddReadyzCheck("pod-sync", podSyncChecker); err != nil {
 		return err
 	}
 
