@@ -7,7 +7,7 @@ defaults:
   run:
     working-directory: v2
 env:
-  go-version: "1.25.4"
+  go-version: "1.26.1"
   cache-version: 1
 jobs:
   image:

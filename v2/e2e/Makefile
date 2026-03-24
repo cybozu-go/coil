@@ -1,6 +1,6 @@
 KIND_VERSION=0.31.0
 KUBERNETES_VERSION=1.34.3
-KUSTOMIZE_VERSION = 5.6.0
+KUSTOMIZE_VERSION = 5.8.1
 BINDIR := $(abspath $(PWD)/../bin)
 
 ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
