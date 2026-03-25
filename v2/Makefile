@@ -3,13 +3,13 @@
 IMAGE_TAG := latest
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
 CONTROLLER_TOOLS_VERSION=0.19.0
-PROTOC_VERSION=31.1
+PROTOC_VERSION=34.1
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
-PROTOC_GEN_GO_GRPC_VERSON=1.5.1
+PROTOC_GEN_GO_GRPC_VERSON=1.6.1
 PROTOC_GEN_DOC_VERSION=1.5.1
 ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
-YQ_VERSION=4.45.4
+YQ_VERSION=4.52.4
 
 ## DON'T EDIT BELOW THIS LINE
 SUDO=sudo

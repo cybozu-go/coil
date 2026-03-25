@@ -626,7 +626,7 @@ func removeRoutes(family iptables.Protocol, backend string) error {
 		}, netlink.RT_FILTER_TABLE)
 
 		if err != nil {
-			return fmt.Errorf("netlink: failed to list routes for interface %q in table %q: %w", link.Attrs().Name, linkTable, err)
+			return fmt.Errorf("netlink: failed to list routes for interface %q in table %d: %w", link.Attrs().Name, linkTable, err)
 		}
 
 		if len(routes) > 0 {
