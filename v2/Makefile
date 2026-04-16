@@ -9,6 +9,9 @@ PROTOC_GEN_GO_GRPC_VERSON=1.6.1
 PROTOC_GEN_DOC_VERSION=1.5.1
 ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+SETUP_ENVTEST_VERSION=v0.0.0-20260405152528-6210f847b2c1
+STATICCHECK_VERSION=0.7.0
+GOIMPORTS_VERSION=0.43.0
 YQ_VERSION=4.52.4
 
 ## DON'T EDIT BELOW THIS LINE
@@ -289,7 +292,7 @@ setup:
 .PHONY: setup-envtest
 setup-envtest: ## Download setup-envtest locally if necessary
 	# see https://github.com/kubernetes-sigs/controller-runtime/tree/master/tools/setup-envtest
-	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-runtime/tools/setup-envtest@$(SETUP_ENVTEST_VERSION)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -307,14 +310,14 @@ test-tools: staticcheck goimports
 .PHONY: staticcheck
 staticcheck:
 	if ! which staticcheck >/dev/null; then \
-		env GOFLAGS= go install honnef.co/go/tools/cmd/staticcheck@latest; \
+		env GOFLAGS= go install honnef.co/go/tools/cmd/staticcheck@v$(STATICCHECK_VERSION); \
 	fi
 
 GOIMPORTS := $(SELF_DIR)/bin/goimports
 .PHONY: goimports
 goimports:
 	if ! which goimports >/dev/null; then \
-		env GOFLAGS= go install golang.org/x/tools/cmd/goimports@latest; \
+		env GOFLAGS= go install golang.org/x/tools/cmd/goimports@v$(GOIMPORTS_VERSION); \
 	fi
 
 define comment_certs
