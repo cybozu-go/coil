@@ -102,7 +102,8 @@ type podNetwork struct {
 	log              logr.Logger
 	enableIPAM       bool
 
-	mu sync.Mutex
+	mu      sync.Mutex // protects Check, Destroy, List
+	nsLocks keyedMutex // per-nsPath lock for SetupIPAM, SetupEgress, Update
 }
 
 func GenAlias(conf *PodNetConf, id string) string {
@@ -197,8 +198,8 @@ func (pn *podNetwork) initRule(family int) error {
 }
 
 func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf) (*current.Result, error) {
-	pn.mu.Lock()
-	defer pn.mu.Unlock()
+	pn.nsLocks.Lock(nsPath)
+	defer pn.nsLocks.Unlock(nsPath)
 
 	containerNS, err := ns.GetNS(nsPath)
 	if err != nil {
@@ -424,8 +425,8 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 }
 
 func (pn *podNetwork) SetupEgress(nsPath string, conf *PodNetConf, hook SetupHook) error {
-	pn.mu.Lock()
-	defer pn.mu.Unlock()
+	pn.nsLocks.Lock(nsPath)
+	defer pn.nsLocks.Unlock(nsPath)
 
 	containerNS, err := ns.GetNS(nsPath)
 	if err != nil {
@@ -448,9 +449,8 @@ func (pn *podNetwork) SetupEgress(nsPath string, conf *PodNetConf, hook SetupHoo
 }
 
 func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev1.Pod) error {
-	pn.mu.Lock()
-	defer pn.mu.Unlock()
-
+	// Discovery phase: read kernel state to find the netns path.
+	// netlink reads are safe without locking.
 	podConfigs, err := pn.list()
 	if err != nil {
 		return err
@@ -484,6 +484,10 @@ func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev
 	if len(netNsPath) == 0 {
 		return fmt.Errorf("failed to find netNsPath")
 	}
+
+	// Lock on the discovered netns path before entering the namespace.
+	pn.nsLocks.Lock(netNsPath)
+	defer pn.nsLocks.Unlock(netNsPath)
 
 	containerNS, err := ns.GetNS(netNsPath)
 	if err != nil {
