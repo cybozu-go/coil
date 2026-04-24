@@ -555,6 +555,23 @@ func testEgress() {
 		// dummy pod must be created after creating a net-client pod
 		kubectlSafe(nil, "apply", "-f", "manifests/dummy_pod.yaml")
 
+		By("waiting for the dummy pod to be ready")
+		Eventually(func() error {
+			pod := &corev1.Pod{}
+			err := getResource("default", "pods", "dummy", "", pod)
+			if err != nil {
+				return err
+			}
+			if len(pod.Status.ContainerStatuses) == 0 {
+				return errors.New("no container status")
+			}
+			cst := pod.Status.ContainerStatuses[0]
+			if !cst.Ready {
+				return errors.New("container is not ready")
+			}
+			return nil
+		}).Should(Succeed())
+
 		By("updating Egress in the internet namespace")
 		kubectlSafe(nil, "apply", "-f", "manifests/egress-updated.yaml")
 
