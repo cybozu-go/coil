@@ -96,7 +96,7 @@ func (n natSetup) Hook(l []GWNets, backend string, log *zap.Logger) func(ipv4, i
 
 // NewCoildServer returns an implementation of cnirpc.CNIServer for coild.
 func NewCoildServer(l net.Listener, mgr manager.Manager, nodeIPAM ipam.NodeIPAM, podNet nodenet.PodNetwork, setup NATSetup, cfg *config.Config, logger *zap.Logger,
-	aliasFunc func(conf *nodenet.PodNetConf, pod *corev1.Pod, ifName string) error) manager.Runnable {
+	aliasFunc func(conf *nodenet.PodNetConf, pod *corev1.Pod, ifName string) error, nodeName string) manager.Runnable {
 	return &coildServer{
 		listener:  l,
 		apiReader: mgr.GetAPIReader(),
@@ -107,12 +107,15 @@ func NewCoildServer(l net.Listener, mgr manager.Manager, nodeIPAM ipam.NodeIPAM,
 		logger:    logger,
 		cfg:       cfg,
 		aliasFunc: aliasFunc,
+		nodeName:  nodeName,
 	}
 }
 
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get
 // +kubebuilder:rbac:groups="",resources=namespaces;services,verbs=get;list;watch
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses,verbs=get;list;watch
+
+const nodeDeletedCleanupTimeout = 10 * time.Second
 
 var grpcMetrics = grpc_prometheus.NewServerMetrics()
 
@@ -132,6 +135,7 @@ type coildServer struct {
 	logger    *zap.Logger
 	cfg       *config.Config
 	aliasFunc func(conf *nodenet.PodNetConf, pod *corev1.Pod, ifName string) error
+	nodeName  string
 }
 
 var _ manager.LeaderElectionRunnable = &coildServer{}
@@ -159,6 +163,16 @@ func (s *coildServer) Start(ctx context.Context) error {
 
 	go func() {
 		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), nodeDeletedCleanupTimeout)
+		defer cancel()
+		node := &corev1.Node{}
+		err := s.apiReader.Get(shutdownCtx, client.ObjectKey{Name: s.nodeName}, node)
+		if apierrors.IsNotFound(err) {
+			s.logger.Info("node is deleted, clearing export routes")
+			if err := s.nodeIPAM.ClearRoutes(shutdownCtx); err != nil {
+				s.logger.Sugar().Errorw("failed to clear export routes on node deletion", "error", err)
+			}
+		}
 		grpcServer.GracefulStop()
 	}()
 
