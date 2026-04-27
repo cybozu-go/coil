@@ -59,6 +59,9 @@ func (n *mockNodeIPAM) Notify(*coilv2.BlockRequest) {
 func (n *mockNodeIPAM) NodeInternalIP(ctx context.Context) (net.IP, net.IP, error) {
 	panic("not implemented")
 }
+func (n *mockNodeIPAM) ClearRoutes(ctx context.Context) error {
+	return nil
+}
 
 func (n *mockNodeIPAM) Allocate(ctx context.Context, poolName, containerID, iface string) (ipv4, ipv6 net.IP, err error) {
 	n.nAllocate++
@@ -242,7 +245,7 @@ var _ = Describe("Coild server", func() {
 			AddressBlockGCInterval: 10 * time.Second,
 		}
 
-		serv := NewCoildServer(l, mgr, nodeIPAM, podNet, natsetup, cfg, logger, mockAlias)
+		serv := NewCoildServer(l, mgr, nodeIPAM, podNet, natsetup, cfg, logger, mockAlias, "test-node")
 		err = mgr.Add(serv)
 		Expect(err).ToNot(HaveOccurred())
 

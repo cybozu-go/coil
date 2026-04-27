@@ -139,6 +139,10 @@ func (n *mockNodeIPAM) NodeInternalIP(ctx context.Context) (net.IP, net.IP, erro
 	panic("not implemented")
 }
 
+func (n *mockNodeIPAM) ClearRoutes(ctx context.Context) error {
+	panic("not implemented")
+}
+
 type mockFoUTunnel struct {
 	mu    sync.Mutex
 	peers map[string]bool

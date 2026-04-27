@@ -23,7 +23,7 @@ spec:
       - effect: NoExecute
         operator: Exists
       serviceAccountName: coild
-      terminationGracePeriodSeconds: 1
+      terminationGracePeriodSeconds: 30
       containers:
       - name: coild
         image: coil:dev
