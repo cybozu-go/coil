@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	current "github.com/containernetworking/cni/pkg/types/100"
@@ -161,8 +162,14 @@ func (s *coildServer) Start(ctx context.Context) error {
 	// see https://github.com/grpc/grpc-go/blob/master/Documentation/server-reflection-tutorial.md
 	reflection.Register(grpcServer)
 
+	var gcWg sync.WaitGroup
 	go func() {
 		<-ctx.Done()
+		grpcServer.GracefulStop()
+		if !s.cfg.ClearRoutesOnShutdown {
+			return
+		}
+		gcWg.Wait()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), nodeDeletedCleanupTimeout)
 		defer cancel()
 		node := &corev1.Node{}
@@ -172,20 +179,26 @@ func (s *coildServer) Start(ctx context.Context) error {
 			if err := s.nodeIPAM.ClearRoutes(shutdownCtx); err != nil {
 				s.logger.Sugar().Errorw("failed to clear export routes on node deletion", "error", err)
 			}
+		} else if err != nil {
+			s.logger.Sugar().Warnw("failed to get node on shutdown, skipping route cleanup", "error", err)
 		}
-		grpcServer.GracefulStop()
 	}()
 
 	s.logger.Info("start periodic nodeIPAM GC")
 	gcTicker := time.NewTicker(s.cfg.AddressBlockGCInterval)
 	go func(ctx context.Context) {
 		for {
-			<-gcTicker.C
+			select {
+			case <-ctx.Done():
+				return
+			case <-gcTicker.C:
+			}
+			gcWg.Add(1)
 			if err := s.nodeIPAM.GC(ctx); err != nil {
 				s.logger.Sugar().Error("failed to run GC", "error", err)
 			}
+			gcWg.Done()
 		}
-
 	}(ctx)
 
 	return grpcServer.Serve(s.listener)

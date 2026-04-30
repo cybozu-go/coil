@@ -356,6 +356,23 @@ var _ = Describe("NodeIPAM", func() {
 		Expect(ipv4).To(BeNil())
 		Expect(ipv6).To(EqualIP(net.ParseIP("fd10::43")))
 	})
+
+	It("should clear export routes when exporter is set", func() {
+		e := &mockExporter{}
+		_, ipnet, err := net.ParseCIDR("10.2.0.0/24")
+		Expect(err).ToNot(HaveOccurred())
+		e.Sync([]*net.IPNet{ipnet})
+		Expect(e.Equal([]string{"10.2.0.0/24"})).To(BeTrue())
+
+		nodeIPAM := NewNodeIPAM("node1", ctrl.Log.WithName("NodeIPAM-clear"), mgr, e)
+		Expect(nodeIPAM.ClearRoutes(ctx)).To(Succeed())
+		Expect(e.Equal([]string{})).To(BeTrue())
+	})
+
+	It("should do nothing when exporter is nil", func() {
+		nodeIPAM := NewNodeIPAM("node1", ctrl.Log.WithName("NodeIPAM-clear-nil"), mgr, nil)
+		Expect(nodeIPAM.ClearRoutes(ctx)).To(Succeed())
+	})
 })
 
 type equalIP struct {
