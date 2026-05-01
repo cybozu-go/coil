@@ -163,6 +163,21 @@ func (s *coildServer) Start(ctx context.Context) error {
 	reflection.Register(grpcServer)
 
 	var gcWg sync.WaitGroup
+	s.logger.Info("start periodic nodeIPAM GC")
+	gcTicker := time.NewTicker(s.cfg.AddressBlockGCInterval)
+	gcWg.Go(func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-gcTicker.C:
+				if err := s.nodeIPAM.GC(ctx); err != nil {
+					s.logger.Sugar().Error("failed to run GC", "error", err)
+				}
+			}
+		}
+	})
+
 	go func() {
 		<-ctx.Done()
 		grpcServer.GracefulStop()
@@ -183,23 +198,6 @@ func (s *coildServer) Start(ctx context.Context) error {
 			s.logger.Sugar().Warnw("failed to get node on shutdown, skipping route cleanup", "error", err)
 		}
 	}()
-
-	s.logger.Info("start periodic nodeIPAM GC")
-	gcTicker := time.NewTicker(s.cfg.AddressBlockGCInterval)
-	go func(ctx context.Context) {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-gcTicker.C:
-			}
-			gcWg.Add(1)
-			if err := s.nodeIPAM.GC(ctx); err != nil {
-				s.logger.Sugar().Error("failed to run GC", "error", err)
-			}
-			gcWg.Done()
-		}
-	}(ctx)
 
 	return grpcServer.Serve(s.listener)
 }
