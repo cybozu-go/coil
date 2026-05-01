@@ -390,7 +390,8 @@ var _ = Describe("Coild server", func() {
 				"grpc_code":   "OK",
 			})
 			Expect(metric).NotTo(BeNil())
-			Expect(metric.GetCounter().GetValue()).To(BeNumerically("==", 1))
+			// Expecting at least 1 call, because there may be other calls in BeforeEach.
+			Expect(metric.GetCounter().GetValue()).To(BeNumerically(">=", 1))
 
 			By("creating a pod in ns2")
 			pod = &corev1.Pod{}
