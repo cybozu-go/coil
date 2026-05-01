@@ -173,29 +173,32 @@ func testIPAM() {
 
 	It("should persist IPAM status between coild restarts", func() {
 		By("removing coild pods")
+		oldPods := &corev1.PodList{}
+		getResourceSafe("kube-system", "pods", "", "app.kubernetes.io/component=coild", oldPods)
+		oldUIDs := make(map[string]struct{})
+		for _, pod := range oldPods.Items {
+			oldUIDs[string(pod.UID)] = struct{}{}
+		}
 		kubectlSafe(nil, "-n", "kube-system", "delete", "pods", "-l", "app.kubernetes.io/component=coild")
 		Eventually(func() error {
 			ds := &appsv1.DaemonSet{}
-			err := getResource("kube-system", "daemonsets", "coild", "", ds)
-			if err != nil {
-				return err
-			}
-			if ds.Status.NumberReady == 4 {
-				return errors.New("not yet deleted")
-			}
-			return nil
-		}).Should(Succeed())
-		Eventually(func() error {
-			ds := &appsv1.DaemonSet{}
-			err := getResource("kube-system", "daemonsets", "coild", "", ds)
-			if err != nil {
+			if err := getResource("kube-system", "daemonsets", "coild", "", ds); err != nil {
 				return err
 			}
 			if ds.Status.NumberReady != 4 {
 				return errors.New("not yet recreated")
 			}
+			newPods := &corev1.PodList{}
+			if err := getResource("kube-system", "pods", "", "app.kubernetes.io/component=coild", newPods); err != nil {
+				return err
+			}
+			for _, pod := range newPods.Items {
+				if _, old := oldUIDs[string(pod.UID)]; old {
+					return errors.New("old pod still present")
+				}
+			}
 			return nil
-		})
+		}).Should(Succeed())
 
 		By("checking AddressBlock")
 		// This needs to be Eventually because sometimes coild has extra AddressBlock.
