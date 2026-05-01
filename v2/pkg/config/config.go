@@ -28,6 +28,7 @@ type Config struct {
 	AddressBlockGCInterval time.Duration
 	Backend                string
 	OriginatingOnly        bool
+	ClearRoutesOnShutdown  bool
 }
 
 func Parse(rootCmd *cobra.Command) *Config {
@@ -48,6 +49,7 @@ func Parse(rootCmd *cobra.Command) *Config {
 	pf.DurationVar(&config.AddressBlockGCInterval, "addressblock-gc-interval", constants.DefaultAddressBlockGCInterval, "interval for address block GC")
 	pf.StringVar(&config.Backend, "backend", constants.DefaultEgressBackend, "backend for egress NAT rules: iptables or nftables (default: iptables)")
 	pf.BoolVar(&config.OriginatingOnly, "enable-originating-only", constants.DefaultOriginatingOnly, "egress should be used only for connections originating in the pod (default: false)")
+	pf.BoolVar(&config.ClearRoutesOnShutdown, "clear-routes-on-shutdown", constants.DefaultClearRoutesOnShutdown, "clear export routes when the node is deleted")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)

@@ -108,3 +108,6 @@ const DefaultEgressBackend = EgressBackendIPTables
 
 // Default originating only
 const DefaultOriginatingOnly = false
+
+// DefaultClearRoutesOnShutdown is the default value for clearing export routes on node deletion
+const DefaultClearRoutesOnShutdown = false

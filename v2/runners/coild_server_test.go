@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync/atomic"
 	"time"
 
 	current "github.com/containernetworking/cni/pkg/types/100"
@@ -42,9 +43,10 @@ const (
 )
 
 type mockNodeIPAM struct {
-	nAllocate int
-	nFree     int
-	errFree   bool
+	nAllocate    int
+	nFree        int
+	errFree      bool
+	nClearRoutes atomic.Int32
 }
 
 func (n *mockNodeIPAM) Register(ctx context.Context, poolName, containerID, iface string, ipv4, ipv6 net.IP) error {
@@ -58,6 +60,10 @@ func (n *mockNodeIPAM) Notify(*coilv2.BlockRequest) {
 }
 func (n *mockNodeIPAM) NodeInternalIP(ctx context.Context) (net.IP, net.IP, error) {
 	panic("not implemented")
+}
+func (n *mockNodeIPAM) ClearRoutes(ctx context.Context) error {
+	n.nClearRoutes.Add(1)
+	return nil
 }
 
 func (n *mockNodeIPAM) Allocate(ctx context.Context, poolName, containerID, iface string) (ipv4, ipv6 net.IP, err error) {
@@ -242,7 +248,7 @@ var _ = Describe("Coild server", func() {
 			AddressBlockGCInterval: 10 * time.Second,
 		}
 
-		serv := NewCoildServer(l, mgr, nodeIPAM, podNet, natsetup, cfg, logger, mockAlias)
+		serv := NewCoildServer(l, mgr, nodeIPAM, podNet, natsetup, cfg, logger, mockAlias, "test-node")
 		err = mgr.Add(serv)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -575,4 +581,85 @@ var _ = Describe("Coild server", func() {
 			Expect(subnet.IP.Equal(net.ParseIP("192.168.0.0"))).To(BeTrue())
 		})
 	}
+})
+
+var _ = Describe("shutdown route cleanup", func() {
+	var nodeIPAM *mockNodeIPAM
+	var mgrDone chan struct{}
+	var cancel context.CancelFunc
+	var socketPath string
+
+	BeforeEach(func() {
+		// Initialize with safe defaults so AfterEach does not crash if startServer is never called.
+		cancel = func() {}
+		mgrDone = make(chan struct{})
+		close(mgrDone)
+	})
+
+	AfterEach(func() {
+		cancel()
+		Eventually(mgrDone, "15s").Should(BeClosed())
+		os.Remove(socketPath)
+	})
+
+	startServer := func(nodeName string, clearRoutes bool) {
+		tmpFile, err := os.CreateTemp("", "")
+		Expect(err).ToNot(HaveOccurred())
+		socketPath = tmpFile.Name()
+		tmpFile.Close()
+		os.Remove(socketPath)
+
+		var ctx context.Context
+		ctx, cancel = context.WithCancel(context.Background())
+
+		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+			Scheme:         scheme,
+			LeaderElection: false,
+			Metrics: metricsserver.Options{
+				BindAddress: "0",
+			},
+		})
+		Expect(err).ToNot(HaveOccurred())
+
+		l, err := net.Listen("unix", socketPath)
+		Expect(err).ToNot(HaveOccurred())
+
+		nodeIPAM = &mockNodeIPAM{}
+		logger := zap.NewRaw(zap.StacktraceLevel(zapcore.DPanicLevel))
+		servCfg := &config.Config{
+			AddressBlockGCInterval: 1 * time.Hour,
+			ClearRoutesOnShutdown:  clearRoutes,
+		}
+
+		serv := NewCoildServer(l, mgr, nodeIPAM, &mockPodNetwork{}, &mockNATSetup{}, servCfg, logger, mockAlias, nodeName)
+		err = mgr.Add(serv)
+		Expect(err).ToNot(HaveOccurred())
+
+		mgrDone = make(chan struct{})
+		go func() {
+			defer close(mgrDone)
+			_ = mgr.Start(ctx)
+		}()
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	It("clears routes when node does not exist and flag is enabled", func() {
+		startServer("nonexistent-node", true)
+		cancel()
+		Eventually(func() int32 { return nodeIPAM.nClearRoutes.Load() }, "5s").Should(Equal(int32(1)))
+	})
+
+	It("does not clear routes when node exists and flag is enabled", func() {
+		startServer("node1", true)
+		cancel()
+		Eventually(mgrDone, "5s").Should(BeClosed())
+		Consistently(func() int32 { return nodeIPAM.nClearRoutes.Load() }, "200ms").Should(Equal(int32(0)))
+	})
+
+	It("does not clear routes when flag is disabled", func() {
+		startServer("nonexistent-node", false)
+		cancel()
+		Eventually(mgrDone, "5s").Should(BeClosed())
+		Consistently(func() int32 { return nodeIPAM.nClearRoutes.Load() }, "200ms").Should(Equal(int32(0)))
+	})
 })

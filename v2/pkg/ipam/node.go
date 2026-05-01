@@ -70,6 +70,10 @@ type NodeIPAM interface {
 
 	// NodeInternalIP returns node's internal IP addresses
 	NodeInternalIP(ctx context.Context) (ipv4, ipv6 net.IP, err error)
+
+	// ClearRoutes removes all exported routes from the kernel routing table.
+	// This should be called when the node is being deleted to stop BGP advertisement.
+	ClearRoutes(ctx context.Context) error
 }
 
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=addressblocks,verbs=get;list;update;patch;delete
@@ -106,6 +110,13 @@ func NewNodeIPAM(nodeName string, l logr.Logger, mgr manager.Manager, exporter n
 		exporter:  exporter,
 		pools:     make(map[string]*nodePool),
 	}
+}
+
+func (n *nodeIPAM) ClearRoutes(ctx context.Context) error {
+	if n.exporter == nil {
+		return nil
+	}
+	return n.exporter.Sync(nil)
 }
 
 func (n *nodeIPAM) sync(ctx context.Context) error {
