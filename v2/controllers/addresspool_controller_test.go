@@ -7,7 +7,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -135,30 +134,24 @@ var _ = Describe("AddressPool reconciler", func() {
 			return k8sClient.Get(ctx, client.ObjectKey{Name: "default"}, ap)
 		}).Should(Succeed())
 
-		By("marking the pool as not-used")
+		By("marking the pool as not-used and waiting for the pool to be removed")
 		poolMgr.SetUsed(false)
 
-		// Update the pool to trigger reconciliation.
+		// Touch the pool to trigger reconciliation, then wait for it to be garbage-collected.
 		// In the real environment, reconciliation will be triggered by the deletion of dependent AddressBlocks.
-		err = k8sClient.Get(ctx, client.ObjectKey{Name: "default"}, ap)
-		Expect(err).To(Succeed())
-		if ap.Annotations == nil {
-			ap.Annotations = make(map[string]string)
-		}
-		ap.Annotations["foo"] = "bar"
-		err = k8sClient.Update(ctx, ap)
-		Expect(err).To(Succeed())
-
+		// The reconciler may race ahead between Get and Update; treat NotFound as success in either step.
 		Eventually(func() error {
 			ap := &coilv2.AddressPool{}
-			err := k8sClient.Get(ctx, client.ObjectKey{Name: "default"}, ap)
-			if apierrors.IsNotFound(err) {
-				return nil
+			if err := k8sClient.Get(ctx, client.ObjectKey{Name: "default"}, ap); err != nil {
+				return client.IgnoreNotFound(err)
 			}
-			if err != nil {
-				return err
+			if ap.Annotations == nil {
+				ap.Annotations = make(map[string]string)
 			}
-
+			ap.Annotations["foo"] = "bar"
+			if err := k8sClient.Update(ctx, ap); err != nil {
+				return client.IgnoreNotFound(err)
+			}
 			return errors.New("pool still exists")
 		}).Should(Succeed())
 	})
