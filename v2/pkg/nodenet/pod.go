@@ -107,8 +107,8 @@ type podNetwork struct {
 	log              logr.Logger
 	enableIPAM       bool
 
-	mu      sync.Mutex
-	nsLocks keymutex.KeyMutex
+	mu     sync.Mutex
+	cLocks keymutex.KeyMutex
 }
 
 func GenAlias(conf *PodNetConf, id string) string {
@@ -176,7 +176,7 @@ func (pn *podNetwork) Init() error {
 	} else {
 		pn.mtu = mtu
 	}
-	pn.nsLocks = keymutex.NewHashed(concurrentLocks)
+	pn.cLocks = keymutex.NewHashed(concurrentLocks)
 
 	return nil
 }
@@ -204,8 +204,8 @@ func (pn *podNetwork) initRule(family int) error {
 }
 
 func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf) (*current.Result, error) {
-	pn.nsLocks.LockKey(nsPath)
-	defer pn.nsLocks.UnlockKey(nsPath)
+	pn.cLocks.LockKey(conf.ContainerId)
+	defer pn.cLocks.UnlockKey(conf.ContainerId)
 
 	containerNS, err := ns.GetNS(nsPath)
 	if err != nil {
@@ -431,8 +431,8 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 }
 
 func (pn *podNetwork) SetupEgress(nsPath string, conf *PodNetConf, hook SetupHook) error {
-	pn.nsLocks.LockKey(nsPath)
-	defer pn.nsLocks.UnlockKey(nsPath)
+	pn.cLocks.LockKey(conf.ContainerId)
+	defer pn.cLocks.UnlockKey(conf.ContainerId)
 
 	containerNS, err := ns.GetNS(nsPath)
 	if err != nil {
@@ -464,12 +464,14 @@ func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev
 	}
 
 	var netNsPath string
+	var containerId string
 	for _, c := range podConfigs {
 		if pn.enableIPAM {
 			// When both c.IPvX and podIPvX are nil, net.IP.Equal() returns always true.
 			// To avoid comparing nil to nil, confirm c.IPvX is not nil.
 			if (c.IPv4 != nil && c.IPv4.Equal(podIPv4)) || (c.IPv6 != nil && c.IPv6.Equal(podIPv6)) {
 				netNsPath, err = getNetNsPath(c.HostVethName)
+				containerId = c.ContainerId
 				if err != nil {
 					return err
 				}
@@ -481,6 +483,7 @@ func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev
 			// used to create particular PodNetConf.
 			if c.ContainerId == string(pod.UID) {
 				netNsPath, err = getNetNsPath(c.HostVethName)
+				containerId = c.ContainerId
 				if err != nil {
 					return err
 				}
@@ -491,9 +494,12 @@ func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev
 	if len(netNsPath) == 0 {
 		return fmt.Errorf("failed to find netNsPath")
 	}
+	if len(containerId) == 0 {
+		return fmt.Errorf("failed to find containerId for locking")
+	}
 
-	pn.nsLocks.LockKey(netNsPath)
-	defer pn.nsLocks.UnlockKey(netNsPath)
+	pn.cLocks.LockKey(containerId)
+	defer pn.cLocks.UnlockKey(containerId)
 
 	containerNS, err := ns.GetNS(netNsPath)
 	if err != nil {
@@ -579,8 +585,8 @@ func getNsRunDir() string {
 }
 
 func (pn *podNetwork) Check(containerId, iface string) error {
-	pn.mu.Lock()
-	defer pn.mu.Unlock()
+	pn.cLocks.LockKey(containerId)
+	defer pn.cLocks.UnlockKey(containerId)
 
 	_, err := lookup(containerId, iface)
 	if err != nil {
@@ -593,8 +599,8 @@ func (pn *podNetwork) Check(containerId, iface string) error {
 }
 
 func (pn *podNetwork) Destroy(containerId, iface string) error {
-	pn.mu.Lock()
-	defer pn.mu.Unlock()
+	pn.cLocks.LockKey(containerId)
+	defer pn.cLocks.UnlockKey(containerId)
 
 	l, err := lookup(containerId, iface)
 	if err == errNotFound {
