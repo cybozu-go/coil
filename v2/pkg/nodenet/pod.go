@@ -23,6 +23,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/keymutex"
 )
 
 var (
@@ -30,6 +31,10 @@ var (
 
 	defaultGWv4 = &net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: net.CIDRMask(0, 32)}
 	defaultGWv6 = &net.IPNet{IP: net.ParseIP("::"), Mask: net.CIDRMask(0, 128)}
+)
+
+const (
+	concurrentLocks = int(128)
 )
 
 // SetupHook is a signature of hook function for PodNetwork.Setup
@@ -102,8 +107,8 @@ type podNetwork struct {
 	log              logr.Logger
 	enableIPAM       bool
 
-	mu      sync.Mutex // protects Check, Destroy, List
-	nsLocks keyedMutex // per-nsPath lock for SetupIPAM, SetupEgress, Update
+	mu      sync.Mutex
+	nsLocks keymutex.KeyMutex
 }
 
 func GenAlias(conf *PodNetConf, id string) string {
@@ -171,6 +176,7 @@ func (pn *podNetwork) Init() error {
 	} else {
 		pn.mtu = mtu
 	}
+	pn.nsLocks = keymutex.NewHashed(concurrentLocks)
 
 	return nil
 }
@@ -198,8 +204,8 @@ func (pn *podNetwork) initRule(family int) error {
 }
 
 func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf) (*current.Result, error) {
-	pn.nsLocks.Lock(nsPath)
-	defer pn.nsLocks.Unlock(nsPath)
+	pn.nsLocks.LockKey(nsPath)
+	defer pn.nsLocks.UnlockKey(nsPath)
 
 	containerNS, err := ns.GetNS(nsPath)
 	if err != nil {
@@ -425,8 +431,8 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 }
 
 func (pn *podNetwork) SetupEgress(nsPath string, conf *PodNetConf, hook SetupHook) error {
-	pn.nsLocks.Lock(nsPath)
-	defer pn.nsLocks.Unlock(nsPath)
+	pn.nsLocks.LockKey(nsPath)
+	defer pn.nsLocks.UnlockKey(nsPath)
 
 	containerNS, err := ns.GetNS(nsPath)
 	if err != nil {
@@ -449,8 +455,9 @@ func (pn *podNetwork) SetupEgress(nsPath string, conf *PodNetConf, hook SetupHoo
 }
 
 func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev1.Pod) error {
-	// Discovery phase: read kernel state to find the netns path.
-	// netlink reads are safe without locking.
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+
 	podConfigs, err := pn.list()
 	if err != nil {
 		return err
@@ -485,9 +492,8 @@ func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev
 		return fmt.Errorf("failed to find netNsPath")
 	}
 
-	// Lock on the discovered netns path before entering the namespace.
-	pn.nsLocks.Lock(netNsPath)
-	defer pn.nsLocks.Unlock(netNsPath)
+	pn.nsLocks.LockKey(netNsPath)
+	defer pn.nsLocks.UnlockKey(netNsPath)
 
 	containerNS, err := ns.GetNS(netNsPath)
 	if err != nil {
