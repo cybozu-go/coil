@@ -57,7 +57,6 @@ type PodNetwork interface {
 
 	// SetupIPAM connects the host network and the container network with a veth pair.
 	// `nsPath` is the container network namespace's (possibly bind-mounted) file.
-	// If `hook` is non-nil, it is called in the Pod network.
 	SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf) (*current.Result, error)
 
 	// SetupEgress configures egress for container.
@@ -67,6 +66,7 @@ type PodNetwork interface {
 
 	// Update updates the container network configuration
 	// Currently, it only updates configuration using a SetupHook, e.g. NAT setting
+	// If `hook` is non-nil, it is called in the Pod network.
 	Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev1.Pod) error
 
 	// Check checks the pod network's status.
