@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/resolver"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/keymutex"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -173,11 +174,23 @@ type vethCollisionPodNetwork struct {
 	veths sync.Map // vethName -> struct{}
 
 	// simulateCleanup controls whether the mock simulates calico-style cleanup
-	// (delete existing veth before create). When true, mimics the fixed SetupIPAM.
+	// (delete existing veth before create). When true, mimics the fixed SetupIPAM
+	// which performs cleanup + create atomically under a per-pod lock.
 	simulateCleanup bool
+
+	// podLocks uses the same keymutex as the real podNetwork to serialize
+	// SetupIPAM calls for the same pod identity.
+	podLocks keymutex.KeyMutex
 
 	collisions atomic.Int32
 	setupCount atomic.Int64
+}
+
+func newVethCollisionPodNetwork(simulateCleanup bool) *vethCollisionPodNetwork {
+	return &vethCollisionPodNetwork{
+		simulateCleanup: simulateCleanup,
+		podLocks:        keymutex.NewHashed(128),
+	}
 }
 
 func (p *vethCollisionPodNetwork) Init() error                          { return nil }
@@ -197,8 +210,12 @@ func (p *vethCollisionPodNetwork) SetupIPAM(nsPath, podName, podNS string, conf 
 	// Simulate the real code path: generate deterministic veth name from (podName, podNS)
 	vethName := fmt.Sprintf("veth-%s-%s", podNS, podName)
 
-	// Simulate calico-style cleanup: delete stale veth by name before creating
+	// Simulate per-pod lock + calico-style cleanup (atomic under lock),
+	// mirroring what the real podNetwork.SetupIPAM does.
 	if p.simulateCleanup {
+		podKey := fmt.Sprintf("%s/%s", podNS, podName)
+		p.podLocks.LockKey(podKey)
+		defer p.podLocks.UnlockKey(podKey)
 		p.veths.Delete(vethName)
 	}
 
@@ -257,7 +274,7 @@ var _ = Describe("Coild server veth collision", Label("race", "veth-collision"),
 		l, err := net.Listen("unix", coildSocket)
 		Expect(err).ToNot(HaveOccurred())
 
-		podNet = &vethCollisionPodNetwork{simulateCleanup: true}
+		podNet = newVethCollisionPodNetwork(true)
 		logger := zap.NewRaw(zap.WriteTo(GinkgoWriter), zap.StacktraceLevel(zapcore.DPanicLevel))
 		serverCfg := &config.Config{
 			MetricsAddr:            constants.DefautlMetricsAddr,
