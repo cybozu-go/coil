@@ -210,7 +210,7 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 	// Lock on pod to prevent concurrent Adds (different ContainerIDs) from
 	// colliding on the same veth name.
 	if pn.compatCalico {
-		podKey := podNS + "/" + podName
+		podKey := fmt.Sprintf("%s/%s", podNS, podName)
 		pn.podLocks.LockKey(podKey)
 		defer pn.podLocks.UnlockKey(podKey)
 	}
