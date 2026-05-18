@@ -39,7 +39,7 @@ type raceNodeIPAM struct {
 func (n *raceNodeIPAM) Register(ctx context.Context, poolName, containerID, iface string, ipv4, ipv6 net.IP) error {
 	return nil
 }
-func (n *raceNodeIPAM) GC(ctx context.Context) error { return nil }
+func (n *raceNodeIPAM) GC(ctx context.Context) error   { return nil }
 func (n *raceNodeIPAM) Notify(br *coilv2.BlockRequest) {}
 func (n *raceNodeIPAM) NodeInternalIP(ctx context.Context) (net.IP, net.IP, error) {
 	return nil, nil, nil
@@ -63,9 +63,9 @@ type racePodNetwork struct {
 	// Track concurrent entries per containerId to detect unsafe overlap.
 	active sync.Map // containerId -> *int32
 
-	setupCount  atomic.Int64
-	egressCount atomic.Int64
-	checkCount  atomic.Int64
+	setupCount   atomic.Int64
+	egressCount  atomic.Int64
+	checkCount   atomic.Int64
 	destroyCount atomic.Int64
 
 	// maxConcurrentSame records the max concurrency seen for same containerId operations.
@@ -180,7 +180,7 @@ type vethCollisionPodNetwork struct {
 	setupCount atomic.Int64
 }
 
-func (p *vethCollisionPodNetwork) Init() error                { return nil }
+func (p *vethCollisionPodNetwork) Init() error                          { return nil }
 func (p *vethCollisionPodNetwork) List() ([]*nodenet.PodNetConf, error) { return nil, nil }
 func (p *vethCollisionPodNetwork) SetupEgress(nsPath string, conf *nodenet.PodNetConf, hook nodenet.SetupHook) error {
 	return nil
@@ -188,7 +188,7 @@ func (p *vethCollisionPodNetwork) SetupEgress(nsPath string, conf *nodenet.PodNe
 func (p *vethCollisionPodNetwork) Update(podIPv4, podIPv6 net.IP, hook nodenet.SetupHook, pod *corev1.Pod) error {
 	return nil
 }
-func (p *vethCollisionPodNetwork) Check(containerId, iface string) error { return nil }
+func (p *vethCollisionPodNetwork) Check(containerId, iface string) error   { return nil }
 func (p *vethCollisionPodNetwork) Destroy(containerId, iface string) error { return nil }
 
 func (p *vethCollisionPodNetwork) SetupIPAM(nsPath, podName, podNS string, conf *nodenet.PodNetConf) (*current.Result, error) {
