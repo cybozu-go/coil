@@ -793,6 +793,35 @@ func testCoild() {
 		const namespace = "default"
 		const nodeName = "coil-worker"
 
+		By("pre-pulling the image with a warmup pod")
+		warmupYAML := fmt.Sprintf(`apiVersion: v1
+kind: Pod
+metadata:
+  name: concurrent-warmup
+  namespace: %s
+spec:
+  tolerations:
+  - key: test
+    operator: Exists
+  nodeName: %s
+  containers:
+  - name: pause
+    image: registry.k8s.io/pause:3.9
+`, namespace, nodeName)
+		_, err := kubectl([]byte(warmupYAML), "apply", "-f", "-")
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(func() error {
+			pod := &corev1.Pod{}
+			if err := getResource(namespace, "pods", "concurrent-warmup", "", pod); err != nil {
+				return err
+			}
+			if pod.Status.Phase != corev1.PodRunning {
+				return fmt.Errorf("warmup pod not running yet")
+			}
+			return nil
+		}).WithTimeout(2 * time.Minute).WithPolling(1 * time.Second).Should(Succeed())
+		_, _ = kubectl(nil, "delete", "pod", "concurrent-warmup", "-n", namespace, "--grace-period=0", "--force")
+
 		By("creating many pods targeting the same node concurrently")
 		for i := 0; i < numPods; i++ {
 			podYAML := fmt.Sprintf(`apiVersion: v1
@@ -840,8 +869,8 @@ spec:
 		By(fmt.Sprintf("verifying pods started in parallel (elapsed: %v)", elapsed))
 		// With a global mutex and ~100ms per pod setup, 10 pods would take >1s sequentially.
 		// With fine-grained locks, they run in parallel and should complete much faster.
-		// We use a generous threshold (30s) to account for image pull and scheduler latency,
-		// but in practice they should come up within a few seconds.
+		// Image pull is excluded via the warmup pod. The threshold accounts for scheduler
+		// latency and CI overhead only.
 		Expect(elapsed).To(BeNumerically("<", 30*time.Second),
 			"concurrent pod creation took too long (%v), possible serialization", elapsed)
 
