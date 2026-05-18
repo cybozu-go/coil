@@ -107,8 +107,9 @@ type podNetwork struct {
 	log              logr.Logger
 	enableIPAM       bool
 
-	mu     sync.Mutex
-	cLocks keymutex.KeyMutex
+	mu       sync.Mutex
+	cLocks   keymutex.KeyMutex
+	podLocks keymutex.KeyMutex // per-pod lock to serialize Adds in compatCalico mode
 }
 
 func GenAlias(conf *PodNetConf, id string) string {
@@ -177,6 +178,7 @@ func (pn *podNetwork) Init() error {
 		pn.mtu = mtu
 	}
 	pn.cLocks = keymutex.NewHashed(concurrentLocks)
+	pn.podLocks = keymutex.NewHashed(concurrentLocks)
 
 	return nil
 }
@@ -204,6 +206,15 @@ func (pn *podNetwork) initRule(family int) error {
 }
 
 func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf) (*current.Result, error) {
+	// In compatCalico mode, veth names are deterministic per pod identity.
+	// Lock on pod to prevent concurrent Adds (different ContainerIDs) from
+	// colliding on the same veth name.
+	if pn.compatCalico {
+		podKey := podNS + "/" + podName
+		pn.podLocks.LockKey(podKey)
+		defer pn.podLocks.UnlockKey(podKey)
+	}
+
 	pn.cLocks.LockKey(conf.ContainerId)
 	defer pn.cLocks.UnlockKey(conf.ContainerId)
 
@@ -230,6 +241,18 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 		}
 	default:
 		return nil, err
+	}
+
+	// In compatCalico mode, veth names are deterministic per pod.
+	// A stale veth from a previous sandbox (different ContainerId) won't be
+	// found by the alias-based lookup above. Clean it up by name, like Calico does.
+	if pn.compatCalico {
+		vethName := calicoVethName(podName, podNS)
+		if old, err := netlink.LinkByName(vethName); err == nil {
+			if err := netlink.LinkDel(old); err != nil {
+				return nil, fmt.Errorf("netlink: failed to delete stale calico veth %s: %w", vethName, err)
+			}
+		}
 	}
 
 	// setup veth and configure IP addresses
