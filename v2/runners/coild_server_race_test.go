@@ -599,3 +599,139 @@ var _ = Describe("Coild server race conditions", Label("race"), func() {
 		Expect(totalOps).To(BeNumerically(">", 0), "no operations were executed")
 	})
 })
+
+var _ = Describe("Coild server throughput", Label("race", "throughput"), func() {
+	tmpFile, err := os.CreateTemp("", "coild-throughput-*.sock")
+	if err != nil {
+		panic(err)
+	}
+	coildSocket := tmpFile.Name()
+	tmpFile.Close()
+	os.Remove(coildSocket)
+
+	ctx := context.Background()
+	var cancel context.CancelFunc
+	var podNet *racePodNetwork
+	var conn *grpc.ClientConn
+	var cniClient cnirpc.CNIClient
+	metricPort := 13450
+
+	BeforeEach(func() {
+		ctx, cancel = context.WithCancel(context.TODO())
+		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+			Scheme:         scheme,
+			LeaderElection: false,
+			Metrics: metricsserver.Options{
+				BindAddress: fmt.Sprintf("localhost:%d", metricPort),
+			},
+		})
+		metricPort--
+		Expect(err).ToNot(HaveOccurred())
+
+		l, err := net.Listen("unix", coildSocket)
+		Expect(err).ToNot(HaveOccurred())
+
+		podNet = &racePodNetwork{}
+		logger := zap.NewRaw(zap.WriteTo(GinkgoWriter), zap.StacktraceLevel(zapcore.DPanicLevel))
+		serverCfg := &config.Config{
+			MetricsAddr:            constants.DefautlMetricsAddr,
+			HealthAddr:             constants.DefautlMetricsAddr,
+			PodTableId:             constants.DefautlPodTableId,
+			PodRulePrio:            constants.DefautlPodRulePrio,
+			ExportTableId:          constants.DefautlExportTableId,
+			ProtocolId:             constants.DefautlProtocolId,
+			SocketPath:             constants.DefaultSocketPath,
+			CompatCalico:           true,
+			EgressPort:             constants.DefaultEgressPort,
+			RegisterFromMain:       constants.DefaultRegisterFromMain,
+			EnableIPAM:             true,
+			EnableEgress:           true,
+			AddressBlockGCInterval: 10 * time.Second,
+		}
+
+		serv := NewCoildServer(l, mgr, &raceNodeIPAM{}, podNet, &mockNATSetup{}, serverCfg, logger, raceAlias, "test-node")
+		err = mgr.Add(serv)
+		Expect(err).ToNot(HaveOccurred())
+
+		go func() {
+			err := mgr.Start(ctx)
+			if err != nil {
+				panic(err)
+			}
+		}()
+		time.Sleep(100 * time.Millisecond)
+
+		dialer := &net.Dialer{}
+		dialFunc := func(ctx context.Context, a string) (net.Conn, error) {
+			return dialer.DialContext(ctx, "unix", a)
+		}
+		resolver.SetDefaultScheme("passthrough")
+		conn, err = grpc.NewClient(coildSocket, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(dialFunc))
+		Expect(err).ToNot(HaveOccurred())
+		cniClient = cnirpc.NewCNIClient(conn)
+	})
+
+	AfterEach(func() {
+		if conn != nil {
+			conn.Close()
+			conn = nil
+		}
+		cancel()
+		time.Sleep(10 * time.Millisecond)
+		os.Remove(coildSocket)
+	})
+
+	It("should run concurrent Adds for different pods in parallel, not serialized", func() {
+		// This test verifies that the per-pod lock does NOT serialize Adds for
+		// DIFFERENT pods. If a global mutex is present, 20 pods × 20ms sleep each
+		// would take ~400ms sequentially. With fine-grained locks they run in parallel
+		// and complete in ~20-40ms (plus overhead).
+		const numPods = 20
+
+		for i := 0; i < numPods; i++ {
+			pod := &corev1.Pod{}
+			pod.Namespace = "ns1"
+			pod.Name = fmt.Sprintf("throughput-pod-%d", i)
+			pod.Spec.Containers = []corev1.Container{
+				{Name: "app", Image: "nginx"},
+			}
+			err := k8sClient.Create(ctx, pod)
+			Expect(err).NotTo(HaveOccurred())
+		}
+
+		var wg sync.WaitGroup
+		errs := make([]error, numPods)
+
+		start := time.Now()
+		for i := 0; i < numPods; i++ {
+			wg.Add(1)
+			go func(idx int) {
+				defer wg.Done()
+				_, err := cniClient.Add(ctx, &cnirpc.CNIArgs{
+					Args:        map[string]string{"K8S_POD_NAME": fmt.Sprintf("throughput-pod-%d", idx), "K8S_POD_NAMESPACE": "ns1"},
+					ContainerId: fmt.Sprintf("throughput-container-%d", idx),
+					Ifname:      "eth0",
+					Netns:       fmt.Sprintf("/run/netns/throughput-pod-%d", idx),
+					Interfaces:  map[string]bool{"eth0": false},
+				})
+				errs[idx] = err
+			}(i)
+		}
+		wg.Wait()
+		elapsed := time.Since(start)
+
+		// All should succeed
+		for i := 0; i < numPods; i++ {
+			Expect(errs[i]).NotTo(HaveOccurred(), "Add failed for throughput-pod-%d", i)
+		}
+		Expect(podNet.setupCount.Load()).To(Equal(int64(numPods)))
+
+		// With the mock's 20ms sleep per SetupIPAM call:
+		// - Global mutex: ~20 pods × 20ms = 400ms minimum (sequential)
+		// - Per-pod lock: ~20ms + overhead (parallel) → well under 200ms
+		// Use 200ms as threshold to detect serialization.
+		GinkgoWriter.Printf("Elapsed time for %d concurrent Adds: %v\n", numPods, elapsed)
+		Expect(elapsed).To(BeNumerically("<", 200*time.Millisecond),
+			"concurrent Adds for different pods took %v — likely serialized by a global mutex (expected <200ms with parallel execution)", elapsed)
+	})
+})

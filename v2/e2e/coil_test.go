@@ -783,6 +783,98 @@ func testCoild() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(mfs).NotTo(BeEmpty())
 	})
+
+	It("should handle concurrent pod creation on the same node without serialization", func() {
+		if !enableIPAMTests {
+			Skip("IPAM tests disabled")
+		}
+
+		const numPods = 10
+		const namespace = "default"
+		const nodeName = "coil-worker"
+
+		By("creating many pods targeting the same node concurrently")
+		for i := 0; i < numPods; i++ {
+			podYAML := fmt.Sprintf(`apiVersion: v1
+kind: Pod
+metadata:
+  name: concurrent-pod-%d
+  namespace: %s
+spec:
+  tolerations:
+  - key: test
+    operator: Exists
+  nodeName: %s
+  containers:
+  - name: pause
+    image: registry.k8s.io/pause:3.9
+`, i, namespace, nodeName)
+			_, err := kubectl([]byte(podYAML), "apply", "-f", "-")
+			Expect(err).NotTo(HaveOccurred())
+		}
+
+		By("waiting for all pods to become Running")
+		start := time.Now()
+		Eventually(func() error {
+			pods := &corev1.PodList{}
+			err := getResource(namespace, "pods", "", "", pods)
+			if err != nil {
+				return err
+			}
+			readyCount := 0
+			for _, pod := range pods.Items {
+				if !strings.HasPrefix(pod.Name, "concurrent-pod-") {
+					continue
+				}
+				if pod.Status.Phase == corev1.PodRunning {
+					readyCount++
+				}
+			}
+			if readyCount < numPods {
+				return fmt.Errorf("only %d/%d pods running", readyCount, numPods)
+			}
+			return nil
+		}).WithTimeout(2 * time.Minute).WithPolling(1 * time.Second).Should(Succeed())
+		elapsed := time.Since(start)
+
+		By(fmt.Sprintf("verifying pods started in parallel (elapsed: %v)", elapsed))
+		// With a global mutex and ~100ms per pod setup, 10 pods would take >1s sequentially.
+		// With fine-grained locks, they run in parallel and should complete much faster.
+		// We use a generous threshold (30s) to account for image pull and scheduler latency,
+		// but in practice they should come up within a few seconds.
+		Expect(elapsed).To(BeNumerically("<", 30*time.Second),
+			"concurrent pod creation took too long (%v), possible serialization", elapsed)
+
+		By("verifying each pod has an IP address")
+		pods := &corev1.PodList{}
+		getResourceSafe(namespace, "pods", "", "", pods)
+		ipCount := 0
+		for _, pod := range pods.Items {
+			if !strings.HasPrefix(pod.Name, "concurrent-pod-") {
+				continue
+			}
+			if len(pod.Status.PodIPs) > 0 {
+				ipCount++
+			}
+		}
+		Expect(ipCount).To(Equal(numPods), "not all pods received IP addresses")
+
+		By("cleaning up concurrent test pods")
+		for i := 0; i < numPods; i++ {
+			_, _ = kubectl(nil, "delete", "pod", fmt.Sprintf("concurrent-pod-%d", i), "--grace-period=0", "--force")
+		}
+		Eventually(func() int {
+			pods := &corev1.PodList{}
+			_ = getResource(namespace, "pods", "", "", pods)
+			count := 0
+			for _, pod := range pods.Items {
+				if strings.HasPrefix(pod.Name, "concurrent-pod-") {
+					count++
+				}
+			}
+			return count
+		}).Should(Equal(0))
+	})
 }
 
 func testNAT(data []byte, clientPod, fakeURL string, natAddresses []string, ipamEnabled bool) {
