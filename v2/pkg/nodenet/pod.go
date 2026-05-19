@@ -487,7 +487,10 @@ func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev
 	}
 
 	var netNsPath string
-	var containerId string
+    var (
+        netNsPath string
+        containerId string
+)
 	for _, c := range podConfigs {
 		if pn.enableIPAM {
 			// When both c.IPvX and podIPvX are nil, net.IP.Equal() returns always true.
