@@ -23,6 +23,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/keymutex"
 )
 
 var (
@@ -30,6 +31,10 @@ var (
 
 	defaultGWv4 = &net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: net.CIDRMask(0, 32)}
 	defaultGWv6 = &net.IPNet{IP: net.ParseIP("::"), Mask: net.CIDRMask(0, 128)}
+)
+
+const (
+	concurrentLocks int = 128
 )
 
 // SetupHook is a signature of hook function for PodNetwork.Setup
@@ -52,7 +57,6 @@ type PodNetwork interface {
 
 	// SetupIPAM connects the host network and the container network with a veth pair.
 	// `nsPath` is the container network namespace's (possibly bind-mounted) file.
-	// If `hook` is non-nil, it is called in the Pod network.
 	SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf) (*current.Result, error)
 
 	// SetupEgress configures egress for container.
@@ -62,6 +66,7 @@ type PodNetwork interface {
 
 	// Update updates the container network configuration
 	// Currently, it only updates configuration using a SetupHook, e.g. NAT setting
+	// If `hook` is non-nil, it is called in the Pod network.
 	Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev1.Pod) error
 
 	// Check checks the pod network's status.
@@ -102,7 +107,9 @@ type podNetwork struct {
 	log              logr.Logger
 	enableIPAM       bool
 
-	mu sync.Mutex
+	mu       sync.Mutex
+	cLocks   keymutex.KeyMutex
+	podLocks keymutex.KeyMutex // per-pod lock to serialize Adds in compatCalico mode
 }
 
 func GenAlias(conf *PodNetConf, id string) string {
@@ -170,6 +177,8 @@ func (pn *podNetwork) Init() error {
 	} else {
 		pn.mtu = mtu
 	}
+	pn.cLocks = keymutex.NewHashed(concurrentLocks)
+	pn.podLocks = keymutex.NewHashed(concurrentLocks)
 
 	return nil
 }
@@ -197,8 +206,17 @@ func (pn *podNetwork) initRule(family int) error {
 }
 
 func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf) (*current.Result, error) {
-	pn.mu.Lock()
-	defer pn.mu.Unlock()
+	// In compatCalico mode, veth names are deterministic per pod identity.
+	// Lock on pod to prevent concurrent Adds (different ContainerIDs) from
+	// colliding on the same veth name.
+	if pn.compatCalico {
+		podKey := fmt.Sprintf("%s/%s", podNS, podName)
+		pn.podLocks.LockKey(podKey)
+		defer pn.podLocks.UnlockKey(podKey)
+	}
+
+	pn.cLocks.LockKey(conf.ContainerId)
+	defer pn.cLocks.UnlockKey(conf.ContainerId)
 
 	containerNS, err := ns.GetNS(nsPath)
 	if err != nil {
@@ -223,6 +241,18 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 		}
 	default:
 		return nil, err
+	}
+
+	// In compatCalico mode, veth names are deterministic per pod.
+	// A stale veth from a previous sandbox (different ContainerId) won't be
+	// found by the alias-based lookup above. Clean it up by name, like Calico does.
+	if pn.compatCalico {
+		vethName := calicoVethName(podName, podNS)
+		if old, err := netlink.LinkByName(vethName); err == nil {
+			if err := netlink.LinkDel(old); err != nil {
+				return nil, fmt.Errorf("netlink: failed to delete stale calico veth %s: %w", vethName, err)
+			}
+		}
 	}
 
 	// setup veth and configure IP addresses
@@ -424,8 +454,8 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 }
 
 func (pn *podNetwork) SetupEgress(nsPath string, conf *PodNetConf, hook SetupHook) error {
-	pn.mu.Lock()
-	defer pn.mu.Unlock()
+	pn.cLocks.LockKey(conf.ContainerId)
+	defer pn.cLocks.UnlockKey(conf.ContainerId)
 
 	containerNS, err := ns.GetNS(nsPath)
 	if err != nil {
@@ -457,12 +487,17 @@ func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev
 	}
 
 	var netNsPath string
+    var (
+        netNsPath string
+        containerId string
+)
 	for _, c := range podConfigs {
 		if pn.enableIPAM {
 			// When both c.IPvX and podIPvX are nil, net.IP.Equal() returns always true.
 			// To avoid comparing nil to nil, confirm c.IPvX is not nil.
 			if (c.IPv4 != nil && c.IPv4.Equal(podIPv4)) || (c.IPv6 != nil && c.IPv6.Equal(podIPv6)) {
 				netNsPath, err = getNetNsPath(c.HostVethName)
+				containerId = c.ContainerId
 				if err != nil {
 					return err
 				}
@@ -474,6 +509,7 @@ func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev
 			// used to create particular PodNetConf.
 			if c.ContainerId == string(pod.UID) {
 				netNsPath, err = getNetNsPath(c.HostVethName)
+				containerId = c.ContainerId
 				if err != nil {
 					return err
 				}
@@ -484,6 +520,12 @@ func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev
 	if len(netNsPath) == 0 {
 		return fmt.Errorf("failed to find netNsPath")
 	}
+	if len(containerId) == 0 {
+		return fmt.Errorf("failed to find containerId for locking")
+	}
+
+	pn.cLocks.LockKey(containerId)
+	defer pn.cLocks.UnlockKey(containerId)
 
 	containerNS, err := ns.GetNS(netNsPath)
 	if err != nil {
@@ -569,8 +611,8 @@ func getNsRunDir() string {
 }
 
 func (pn *podNetwork) Check(containerId, iface string) error {
-	pn.mu.Lock()
-	defer pn.mu.Unlock()
+	pn.cLocks.LockKey(containerId)
+	defer pn.cLocks.UnlockKey(containerId)
 
 	_, err := lookup(containerId, iface)
 	if err != nil {
@@ -583,8 +625,8 @@ func (pn *podNetwork) Check(containerId, iface string) error {
 }
 
 func (pn *podNetwork) Destroy(containerId, iface string) error {
-	pn.mu.Lock()
-	defer pn.mu.Unlock()
+	pn.cLocks.LockKey(containerId)
+	defer pn.cLocks.UnlockKey(containerId)
 
 	l, err := lookup(containerId, iface)
 	if err == errNotFound {

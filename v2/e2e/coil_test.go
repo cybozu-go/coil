@@ -558,6 +558,23 @@ func testEgress() {
 		// dummy pod must be created after creating a net-client pod
 		kubectlSafe(nil, "apply", "-f", "manifests/dummy_pod.yaml")
 
+		By("waiting for the dummy pod to be ready")
+		Eventually(func() error {
+			pod := &corev1.Pod{}
+			err := getResource("default", "pods", "dummy", "", pod)
+			if err != nil {
+				return err
+			}
+			if len(pod.Status.ContainerStatuses) == 0 {
+				return errors.New("no container status")
+			}
+			cst := pod.Status.ContainerStatuses[0]
+			if !cst.Ready {
+				return errors.New("container is not ready")
+			}
+			return nil
+		}).Should(Succeed())
+
 		By("updating Egress in the internet namespace")
 		kubectlSafe(nil, "apply", "-f", "manifests/egress-updated.yaml")
 
@@ -765,6 +782,127 @@ func testCoild() {
 		mfs, err := textParser.TextToMetricFamilies(bytes.NewBuffer(out))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(mfs).NotTo(BeEmpty())
+	})
+
+	It("should handle concurrent pod creation on the same node without serialization", func() {
+		if !enableIPAMTests {
+			Skip("IPAM tests disabled")
+		}
+
+		const numPods = 10
+		const namespace = "default"
+		const nodeName = "coil-worker"
+
+		By("pre-pulling the image with a warmup pod")
+		warmupYAML := fmt.Sprintf(`apiVersion: v1
+kind: Pod
+metadata:
+  name: concurrent-warmup
+  namespace: %s
+spec:
+  tolerations:
+  - key: test
+    operator: Exists
+  nodeName: %s
+  containers:
+  - name: pause
+    image: registry.k8s.io/pause:3.9
+`, namespace, nodeName)
+		_, err := kubectl([]byte(warmupYAML), "apply", "-f", "-")
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(func() error {
+			pod := &corev1.Pod{}
+			if err := getResource(namespace, "pods", "concurrent-warmup", "", pod); err != nil {
+				return err
+			}
+			if pod.Status.Phase != corev1.PodRunning {
+				return fmt.Errorf("warmup pod not running yet")
+			}
+			return nil
+		}).WithTimeout(2 * time.Minute).WithPolling(1 * time.Second).Should(Succeed())
+		_, _ = kubectl(nil, "delete", "pod", "concurrent-warmup", "-n", namespace, "--grace-period=0", "--force")
+
+		By("creating many pods targeting the same node concurrently")
+		for i := 0; i < numPods; i++ {
+			podYAML := fmt.Sprintf(`apiVersion: v1
+kind: Pod
+metadata:
+  name: concurrent-pod-%d
+  namespace: %s
+spec:
+  tolerations:
+  - key: test
+    operator: Exists
+  nodeName: %s
+  containers:
+  - name: pause
+    image: registry.k8s.io/pause:3.9
+`, i, namespace, nodeName)
+			_, err := kubectl([]byte(podYAML), "apply", "-f", "-")
+			Expect(err).NotTo(HaveOccurred())
+		}
+
+		By("waiting for all pods to become Running")
+		start := time.Now()
+		Eventually(func() error {
+			pods := &corev1.PodList{}
+			err := getResource(namespace, "pods", "", "", pods)
+			if err != nil {
+				return err
+			}
+			readyCount := 0
+			for _, pod := range pods.Items {
+				if !strings.HasPrefix(pod.Name, "concurrent-pod-") {
+					continue
+				}
+				if pod.Status.Phase == corev1.PodRunning {
+					readyCount++
+				}
+			}
+			if readyCount < numPods {
+				return fmt.Errorf("only %d/%d pods running", readyCount, numPods)
+			}
+			return nil
+		}).WithTimeout(2 * time.Minute).WithPolling(1 * time.Second).Should(Succeed())
+		elapsed := time.Since(start)
+
+		By(fmt.Sprintf("verifying pods started in parallel (elapsed: %v)", elapsed))
+		// With a global mutex and ~100ms per pod setup, 10 pods would take >1s sequentially.
+		// With fine-grained locks, they run in parallel and should complete much faster.
+		// Image pull is excluded via the warmup pod. The threshold accounts for scheduler
+		// latency and CI overhead only.
+		Expect(elapsed).To(BeNumerically("<", 30*time.Second),
+			"concurrent pod creation took too long (%v), possible serialization", elapsed)
+
+		By("verifying each pod has an IP address")
+		pods := &corev1.PodList{}
+		getResourceSafe(namespace, "pods", "", "", pods)
+		ipCount := 0
+		for _, pod := range pods.Items {
+			if !strings.HasPrefix(pod.Name, "concurrent-pod-") {
+				continue
+			}
+			if len(pod.Status.PodIPs) > 0 {
+				ipCount++
+			}
+		}
+		Expect(ipCount).To(Equal(numPods), "not all pods received IP addresses")
+
+		By("cleaning up concurrent test pods")
+		for i := 0; i < numPods; i++ {
+			_, _ = kubectl(nil, "delete", "pod", fmt.Sprintf("concurrent-pod-%d", i), "--grace-period=0", "--force")
+		}
+		Eventually(func() int {
+			pods := &corev1.PodList{}
+			_ = getResource(namespace, "pods", "", "", pods)
+			count := 0
+			for _, pod := range pods.Items {
+				if strings.HasPrefix(pod.Name, "concurrent-pod-") {
+					count++
+				}
+			}
+			return count
+		}).Should(Equal(0))
 	})
 }
 
