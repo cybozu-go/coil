@@ -34,7 +34,7 @@ var (
 )
 
 const (
-	concurrentLocks = int(128)
+	concurrentLocks int = 128
 )
 
 // SetupHook is a signature of hook function for PodNetwork.Setup
