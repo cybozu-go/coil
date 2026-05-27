@@ -10,6 +10,11 @@ defaults:
 env:
   go-version: "1.26.3"
   cache-version: 1
+  # Supported Kubernetes versions. Bump these three values when adding/dropping
+  # versions; all matrix entries below reference the YAML anchors.
+  K8S_LATEST: &k8s-latest "1.35.1"
+  K8S_PREV1:  &k8s-prev1  "1.34.3"
+  K8S_PREV2:  &k8s-prev2  "1.33.7"
 jobs:
   test:
     name: Small test
@@ -42,28 +47,55 @@ jobs:
     - run: make test-integration
     - run: make check-generate
   e2e:
-    name: End-to-end Test
+    name: e2e ${{ matrix.kindest-node }} ${{ matrix.label }}
+    needs: test
     strategy:
+      fail-fast: false
+      # Sparse matrix: K8S_LATEST covers representative scenarios;
+      # K8S_PREV1 / K8S_PREV2 only run a small set of API compatibility
+      # checks. originatingonly=true is exercised once per mode because
+      # its branch (v2/e2e/coil_test.go) is orthogonal to IP family and
+      # backend.
       matrix:
-        kindest-node: ["1.33.7", "1.34.3", "1.35.1"]
-        with-ipam: ["false", "true"]
-        ipv4: ["false", "true"]
-        ipv6: ["false", "true"]
-        ipv6-primary: ["false", "true"]
-        backend: ["iptables", "nftables"]
-        originatingonly: ["false", "true"]
-        exclude:
-        - ipv4: "false"
-          ipv6: "false"
-        - ipv4: "false"
-          ipv6: "true"
-          ipv6-primary: "true"
-        - ipv4: "true"
-          ipv6: "false"
-          ipv6-primary: "true"
-        - with-ipam: "true"
-          backend: "nftables"
+        include:
+        # K8S_LATEST: 15 scenarios
+        # Group A: IPAM mode (with-ipam=true, backend=iptables)
+        - { kindest-node: *k8s-latest, with-ipam: "true",  ipv4: "true",  ipv6: "false", ipv6-primary: "false", backend: "iptables", originatingonly: "false", label: "ipam v4" }
+        - { kindest-node: *k8s-latest, with-ipam: "true",  ipv4: "false", ipv6: "true",  ipv6-primary: "false", backend: "iptables", originatingonly: "false", label: "ipam v6" }
+        - { kindest-node: *k8s-latest, with-ipam: "true",  ipv4: "true",  ipv6: "true",  ipv6-primary: "false", backend: "iptables", originatingonly: "false", label: "ipam dual" }
+        - { kindest-node: *k8s-latest, with-ipam: "true",  ipv4: "true",  ipv6: "true",  ipv6-primary: "true",  backend: "iptables", originatingonly: "false", label: "ipam dual-v6p" }
+        - { kindest-node: *k8s-latest, with-ipam: "true",  ipv4: "true",  ipv6: "false", ipv6-primary: "false", backend: "iptables", originatingonly: "true",  label: "ipam v4 orig-only" }
+        # Group B: standalone egress with iptables backend
+        - { kindest-node: *k8s-latest, with-ipam: "false", ipv4: "true",  ipv6: "false", ipv6-primary: "false", backend: "iptables", originatingonly: "false", label: "egress v4 iptables" }
+        - { kindest-node: *k8s-latest, with-ipam: "false", ipv4: "false", ipv6: "true",  ipv6-primary: "false", backend: "iptables", originatingonly: "false", label: "egress v6 iptables" }
+        - { kindest-node: *k8s-latest, with-ipam: "false", ipv4: "true",  ipv6: "true",  ipv6-primary: "false", backend: "iptables", originatingonly: "false", label: "egress dual iptables" }
+        - { kindest-node: *k8s-latest, with-ipam: "false", ipv4: "true",  ipv6: "true",  ipv6-primary: "true",  backend: "iptables", originatingonly: "false", label: "egress dual-v6p iptables" }
+        - { kindest-node: *k8s-latest, with-ipam: "false", ipv4: "true",  ipv6: "true",  ipv6-primary: "true",  backend: "iptables", originatingonly: "true",  label: "egress dual-v6p iptables orig-only" }
+        # Group C: standalone egress with nftables backend
+        - { kindest-node: *k8s-latest, with-ipam: "false", ipv4: "true",  ipv6: "false", ipv6-primary: "false", backend: "nftables", originatingonly: "false", label: "egress v4 nftables" }
+        - { kindest-node: *k8s-latest, with-ipam: "false", ipv4: "false", ipv6: "true",  ipv6-primary: "false", backend: "nftables", originatingonly: "false", label: "egress v6 nftables" }
+        - { kindest-node: *k8s-latest, with-ipam: "false", ipv4: "true",  ipv6: "true",  ipv6-primary: "false", backend: "nftables", originatingonly: "false", label: "egress dual nftables" }
+        - { kindest-node: *k8s-latest, with-ipam: "false", ipv4: "true",  ipv6: "true",  ipv6-primary: "true",  backend: "nftables", originatingonly: "false", label: "egress dual-v6p nftables" }
+        - { kindest-node: *k8s-latest, with-ipam: "false", ipv4: "true",  ipv6: "false", ipv6-primary: "false", backend: "nftables", originatingonly: "true",  label: "egress v4 nftables orig-only" }
+        # K8S_PREV1: 4 representative scenarios
+        - { kindest-node: *k8s-prev1,  with-ipam: "true",  ipv4: "true", ipv6: "false", ipv6-primary: "false", backend: "iptables", originatingonly: "false", label: "ipam v4" }
+        - { kindest-node: *k8s-prev1,  with-ipam: "true",  ipv4: "true", ipv6: "true",  ipv6-primary: "false", backend: "iptables", originatingonly: "false", label: "ipam dual" }
+        - { kindest-node: *k8s-prev1,  with-ipam: "false", ipv4: "true", ipv6: "false", ipv6-primary: "false", backend: "iptables", originatingonly: "false", label: "egress v4 iptables" }
+        - { kindest-node: *k8s-prev1,  with-ipam: "false", ipv4: "true", ipv6: "false", ipv6-primary: "false", backend: "nftables", originatingonly: "false", label: "egress v4 nftables" }
+        # K8S_PREV2: 4 representative scenarios
+        - { kindest-node: *k8s-prev2, with-ipam: "true",  ipv4: "true", ipv6: "false", ipv6-primary: "false", backend: "iptables", originatingonly: "false", label: "ipam v4" }
+        - { kindest-node: *k8s-prev2, with-ipam: "true",  ipv4: "true", ipv6: "true",  ipv6-primary: "false", backend: "iptables", originatingonly: "false", label: "ipam dual" }
+        - { kindest-node: *k8s-prev2, with-ipam: "false", ipv4: "true", ipv6: "false", ipv6-primary: "false", backend: "iptables", originatingonly: "false", label: "egress v4 iptables" }
+        - { kindest-node: *k8s-prev2, with-ipam: "false", ipv4: "true", ipv6: "false", ipv6-primary: "false", backend: "nftables", originatingonly: "false", label: "egress v4 nftables" }
     runs-on: ubuntu-24.04
+    env:
+      KUBERNETES_VERSION: ${{ matrix.kindest-node }}
+      WITH_IPAM:          ${{ matrix.with-ipam }}
+      TEST_IPV4:          ${{ matrix.ipv4 }}
+      TEST_IPV6:          ${{ matrix.ipv6 }}
+      IPV6_PRIMARY:       ${{ matrix.ipv6-primary }}
+      BACKEND:            ${{ matrix.backend }}
+      ORIGINATINGONLY:    ${{ matrix.originatingonly }}
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
@@ -72,64 +104,13 @@ jobs:
         cache-dependency-path: "**/go.sum"
     - run: make image
     - run: make certs
-    - name: Enable docker IPv6 mode
-      if: matrix.ipv6 == 'true'
+    - run: make ci-enable-docker-ipv6
       working-directory: v2/e2e
-      run: |
-        sudo mkdir -p /etc/docker
-        sudo cp daemon.json /etc/docker/daemon.json
-        sudo systemctl restart docker.service
-        sleep 10
-        echo TEST_IPV6=true >> $GITHUB_ENV
-    - run: make start KUBERNETES_VERSION=${{ matrix.kindest-node }} WITH_KINDNET=false TEST_IPV4=${{ matrix.ipv4 }} TEST_IPV6=${{ matrix.ipv6 }} IPV6_PRIMARY=${{ matrix.ipv6-primary }}
-      if: matrix.with-ipam == 'true'
-      working-directory: v2/e2e
-    - run: make start KUBERNETES_VERSION=${{ matrix.kindest-node }} WITH_KINDNET=true TEST_IPV4=${{ matrix.ipv4 }} TEST_IPV6=${{ matrix.ipv6 }} IPV6_PRIMARY=${{ matrix.ipv6-primary }}
-      if: matrix.with-ipam == 'false'
+    - run: make start
       working-directory: v2/e2e
     - run: make install-coil
-      if: matrix.with-ipam == 'true' && matrix.originatingonly == 'false'
       working-directory: v2/e2e
-    - run: make install-coil-originatingonly
-      if: matrix.with-ipam == 'true' && matrix.originatingonly == 'true'
-      working-directory: v2/e2e
-    - run: make install-coil-egress-v4
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'false' && matrix.backend == 'iptables' && matrix.originatingonly == 'false'
-      working-directory: v2/e2e
-    - run: make install-coil-egress-v4-nft
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'false' && matrix.backend == 'nftables' && matrix.originatingonly == 'false'
-      working-directory: v2/e2e
-    - run: make install-coil-egress-v6
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'false' && matrix.ipv6 == 'true' && matrix.backend == 'iptables' && matrix.originatingonly == 'false'
-      working-directory: v2/e2e
-    - run: make install-coil-egress-v6-nft
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'false' && matrix.ipv6 == 'true' && matrix.backend == 'nftables' && matrix.originatingonly == 'false'
-      working-directory: v2/e2e
-    - run: make install-coil-egress-dualstack
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'true' && matrix.backend == 'iptables' && matrix.originatingonly == 'false'
-      working-directory: v2/e2e
-    - run: make install-coil-egress-dualstack-nft
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'true' && matrix.backend == 'nftables' && matrix.originatingonly == 'false'
-      working-directory: v2/e2e
-    - run: make install-coil-egress-v4-originatingonly
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'false' && matrix.backend == 'iptables' && matrix.originatingonly == 'true'
-      working-directory: v2/e2e
-    - run: make install-coil-egress-v4-nft-originatingonly
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'false' && matrix.backend == 'nftables' && matrix.originatingonly == 'true'
-      working-directory: v2/e2e
-    - run: make install-coil-egress-v6-originatingonly
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'false' && matrix.ipv6 == 'true' && matrix.backend == 'iptables' && matrix.originatingonly == 'true'
-      working-directory: v2/e2e
-    - run: make install-coil-egress-v6-nft-originatingonly
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'false' && matrix.ipv6 == 'true' && matrix.backend == 'nftables' && matrix.originatingonly == 'true'
-      working-directory: v2/e2e
-    - run: make install-coil-egress-dualstack-originatingonly
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'true' && matrix.backend == 'iptables' && matrix.originatingonly == 'true'
-      working-directory: v2/e2e
-    - run: make install-coil-egress-dualstack-nft-originatingonly
-      if: matrix.with-ipam == 'false' && matrix.ipv4 == 'true' && matrix.ipv6 == 'true' && matrix.backend == 'nftables' && matrix.originatingonly == 'true'
-      working-directory: v2/e2e
-    - run: make test TEST_IPAM=${{ matrix.with-ipam }} TEST_EGRESS=true TEST_IPV4=${{ matrix.ipv4 }} TEST_IPV6=${{ matrix.ipv6 }} TEST_ORIGINATINGONLY=${{ matrix.originatingonly }}
+    - run: make test
       working-directory: v2/e2e
     - run: make logs
       working-directory: v2/e2e
@@ -137,13 +118,15 @@ jobs:
     - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
       if: always()
       with:
-        name: logs-ipv4-${{ matrix.ipv4 }}-ipv6-${{ matrix.ipv6 }}-with-ipam-${{ matrix.with-ipam }}-ipv6-primary-${{ matrix.ipv6-primary }}-backend-${{ matrix.backend }}-${{ matrix.originatingonly }}-${{ matrix.kindest-node }}.tar.gz
+        name: logs-${{ matrix.kindest-node }}-ipam${{ matrix.with-ipam }}-v4${{ matrix.ipv4 }}-v6${{ matrix.ipv6 }}-v6p${{ matrix.ipv6-primary }}-${{ matrix.backend }}-oo${{ matrix.originatingonly }}.tar.gz
         path: v2/e2e/logs.tar.gz
   certs-generation:
     name: Cert generation test
+    needs: test
     strategy:
+      fail-fast: false
       matrix:
-        kindest-node: ["1.33.7", "1.34.3", "1.35.1"]
+        kindest-node: [*k8s-prev2, *k8s-prev1, *k8s-latest]
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

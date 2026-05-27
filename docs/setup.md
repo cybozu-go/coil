@@ -301,17 +301,21 @@ To deploy Coil with only egress feature enabled the following changes are requir
     ```bash
     cd e2e
     ```
+1. Export the scenario environment (egress-only IPv4):
+    ```bash
+    export WITH_IPAM=false TEST_IPV4=true TEST_IPV6=false
+    ```
 1. Create IPv4 based Kind cluster with Kindnet CNI deployed:
     ```bash
-    WITH_KINDNET=true TEST_IPV6=false make start
+    make start
     ```
 1. Install Coil on the cluster:
     ```bash
-    make install-coil-egress-v4
+    make install-coil
     ```
 1. Run egress-only IPv4 tests:
     ```bash
-    TEST_IPAM=false TEST_EGRESS=true TEST_IPV6=false make test
+    make test
     ```
 
 #### Testing with Kindnet using IPv6
@@ -323,15 +327,19 @@ To deploy Coil with only egress feature enabled the following changes are requir
     ```bash
     cd e2e
     ```
+1. Export the scenario environment (egress-only IPv6):
+    ```bash
+    export WITH_IPAM=false TEST_IPV4=false TEST_IPV6=true
+    ```
 1. Create IPv6 based Kind cluster with Kindnet CNI deployed:
     ```bash
-    WITH_KINDNET=true TEST_IPV6=true make start
+    make start
     ```
 1. Install Coil on the cluster:
     ```bash
-    make install-coil-egress-v6
+    make install-coil
     ```
 1. Run egress-only IPv6 tests:
     ```bash
-    TEST_IPAM=false TEST_EGRESS=true TEST_IPV6=true make test
+    make test
     ```
