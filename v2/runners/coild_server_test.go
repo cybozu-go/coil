@@ -175,7 +175,7 @@ func (ns *mockNATSetup) Hook(gwnets []GWNets, _ string, _ *uberzap.Logger) func(
 	return nil
 }
 
-func mockAlias(conf *nodenet.PodNetConf, pod *corev1.Pod, ifName string) error {
+func mockAlias(conf *nodenet.PodNetConf, ifName string) error {
 	return nil
 }
 
@@ -390,7 +390,8 @@ var _ = Describe("Coild server", func() {
 				"grpc_code":   "OK",
 			})
 			Expect(metric).NotTo(BeNil())
-			Expect(metric.GetCounter().GetValue()).To(BeNumerically("==", 1))
+			// Expecting at least 1 call, because there may be other calls in BeforeEach.
+			Expect(metric.GetCounter().GetValue()).To(BeNumerically(">=", 1))
 
 			By("creating a pod in ns2")
 			pod = &corev1.Pod{}
