@@ -98,7 +98,7 @@ func (n natSetup) Hook(l []GWNets, backend string, log *zap.Logger) func(ipv4, i
 
 // NewCoildServer returns an implementation of cnirpc.CNIServer for coild.
 func NewCoildServer(l net.Listener, mgr manager.Manager, nodeIPAM ipam.NodeIPAM, podNet nodenet.PodNetwork, setup NATSetup, cfg *config.Config, logger *zap.Logger,
-	aliasFunc func(conf *nodenet.PodNetConf, pod *corev1.Pod, ifName string) error, nodeName string) manager.Runnable {
+	aliasFunc func(conf *nodenet.PodNetConf, ifName string) error, nodeName string) manager.Runnable {
 	return &coildServer{
 		listener:  l,
 		apiReader: mgr.GetAPIReader(),
@@ -136,7 +136,7 @@ type coildServer struct {
 	natSetup  NATSetup
 	logger    *zap.Logger
 	cfg       *config.Config
-	aliasFunc func(conf *nodenet.PodNetConf, pod *corev1.Pod, ifName string) error
+	aliasFunc func(conf *nodenet.PodNetConf, ifName string) error
 	nodeName  string
 }
 
@@ -261,8 +261,18 @@ func (s *coildServer) Add(ctx context.Context, args *cnirpc.CNIArgs) (*cnirpc.Ad
 		CNIVersion: current.ImplementedSpecVersion,
 	}
 
+	// In egress-only mode (IPAM disabled) the CNI runtime owns the IP
+	// allocation and the sandbox ContainerId. Other operations (Check,
+	// Update) look up the pod via the pod.UID-based link alias set by
+	// setCoilInterfaceAlias, and therefore lock on pod.UID. To keep
+	// SetupEgress on the same lock key, use pod.UID as ContainerId here.
+	containerId := args.ContainerId
+	if !s.cfg.EnableIPAM {
+		containerId = string(pod.UID)
+	}
+
 	config := &nodenet.PodNetConf{
-		ContainerId: args.ContainerId,
+		ContainerId: containerId,
 		IFace:       args.Ifname,
 		IPv4:        ipv4,
 		IPv6:        ipv6,
@@ -282,7 +292,7 @@ func (s *coildServer) Add(ctx context.Context, args *cnirpc.CNIArgs) (*cnirpc.Ad
 
 	if s.cfg.EnableEgress {
 		if !s.cfg.EnableIPAM {
-			if err := s.setCoilInterfaceAlias(args.Interfaces, config, pod); err != nil {
+			if err := s.setCoilInterfaceAlias(args.Interfaces, config); err != nil {
 				return nil, fmt.Errorf("failed to set interface alias: %w", err)
 			}
 		}
@@ -317,7 +327,7 @@ func (s *coildServer) Add(ctx context.Context, args *cnirpc.CNIArgs) (*cnirpc.Ad
 	return &cnirpc.AddResponse{Result: data}, nil
 }
 
-func (s *coildServer) setCoilInterfaceAlias(interfaces map[string]bool, conf *nodenet.PodNetConf, pod *corev1.Pod) error {
+func (s *coildServer) setCoilInterfaceAlias(interfaces map[string]bool, conf *nodenet.PodNetConf) error {
 	ifName := ""
 	for name, isSandbox := range interfaces {
 		if !isSandbox {
@@ -326,21 +336,21 @@ func (s *coildServer) setCoilInterfaceAlias(interfaces map[string]bool, conf *no
 		}
 	}
 
-	if err := s.aliasFunc(conf, pod, ifName); err != nil {
+	if err := s.aliasFunc(conf, ifName); err != nil {
 		return fmt.Errorf("failed to add link alias: %w", err)
 	}
 
 	return nil
 }
 
-func ProcessLinkAlias(conf *nodenet.PodNetConf, pod *corev1.Pod, ifName string) error {
+func ProcessLinkAlias(conf *nodenet.PodNetConf, ifName string) error {
 	hLink, err := netlink.LinkByName(ifName)
 	if err != nil {
 		return fmt.Errorf("netlink: failed to look up the host-side veth [%s]: %w", ifName, err)
 	}
 
 	// give identifier as an alias of host veth
-	if err := netlink.LinkSetAlias(hLink, nodenet.GenAlias(conf, string(pod.UID))); err != nil {
+	if err := netlink.LinkSetAlias(hLink, nodenet.GenAlias(conf, conf.ContainerId)); err != nil {
 		return fmt.Errorf("netlink: failed to set alias: %w", err)
 	}
 	return nil
