@@ -639,22 +639,30 @@ func testEgress() {
 		}
 
 		By("confirming that the exact number of fou devices are present in dummy_pod")
-		out, err := kubectl(nil, "exec", "dummy", "--", "ip", "-j", "link", "show")
-		Expect(err).NotTo(HaveOccurred())
-		var dummyPodLinks []link
-		err = json.Unmarshal(out, &dummyPodLinks)
-		Expect(err).NotTo(HaveOccurred())
-		fouCount := 0
-		for _, l := range dummyPodLinks {
-			if strings.HasPrefix(l.Ifname, "fou") && l.Ifname != "fou-dummy" {
-				fouCount += 1
-			}
-		}
 		expectedFouCount := 1
 		if enableIPv4Tests && enableIPv6Tests {
 			expectedFouCount = 2
 		}
-		Expect(fouCount).To(Equal(expectedFouCount))
+		Eventually(func() error {
+			out, err := kubectl(nil, "exec", "dummy", "--", "ip", "-j", "link", "show")
+			if err != nil {
+				return err
+			}
+			var dummyPodLinks []link
+			if err := json.Unmarshal(out, &dummyPodLinks); err != nil {
+				return err
+			}
+			fouCount := 0
+			for _, l := range dummyPodLinks {
+				if strings.HasPrefix(l.Ifname, "fou") && l.Ifname != "fou-dummy" {
+					fouCount += 1
+				}
+			}
+			if fouCount != expectedFouCount {
+				return fmt.Errorf("fou count mismatch: got %d, want %d", fouCount, expectedFouCount)
+			}
+			return nil
+		}).Should(Succeed())
 
 		natAddresses = []string{}
 		if !enableIPAMTests {
@@ -769,16 +777,21 @@ func testCoild() {
 }
 
 func testNAT(data []byte, clientPod, fakeURL string, natAddresses []string, ipamEnabled bool) {
-	resp := kubectlSafe(data, "exec", "-i", clientPod, "--", "curl", "--max-time", "5", "-sf", "-T", "-", fakeURL)
+	// curl --max-time 5 ensures the in-pod side gives up after 5s.
+	// Wrap kubectl exec itself with a hard timeout (30s) so a stuck exec
+	// stream (e.g. dead kubelet pipe) does not blow past `go test -timeout`
+	// and skip the make-logs step.
+	resp, err := kubectlWithTimeout(30*time.Second, data, "exec", "-i", clientPod, "--", "curl", "--max-time", "5", "-sf", "-T", "-", fakeURL)
+	ExpectWithOffset(1, err).ShouldNot(HaveOccurred(), "kubectl exec curl failed or timed out for %s", fakeURL)
 
 	if !ipamEnabled {
 		respStr := string(resp)
 		idx := strings.Index(respStr, "|")
 		ipAddr := respStr[:idx]
 		resp = []byte(respStr[idx+1:])
-		Expect(natAddresses).To(ContainElement(ipAddr))
+		ExpectWithOffset(1, natAddresses).To(ContainElement(ipAddr))
 	}
-	Expect(resp).To(HaveLen(1 << 20))
+	ExpectWithOffset(1, resp).To(HaveLen(1 << 20))
 }
 
 func getNATAddresses(name string) []string {
@@ -815,16 +828,18 @@ func getLocalIP(ifName string, family int) (*net.IP, *net.IPNet, error) {
 		if strings.Contains(link.Attrs().Name, ifName) {
 			ip, ipnet, err := getNetwork(link, family)
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to get address: %w", err)
+				// This interface matched the name but has no suitable address
+				// for the requested family. Continue searching other interfaces.
+				continue
 			}
 			if ip == nil {
-				return nil, nil, fmt.Errorf("failed to find address on the interface %q", ifName)
+				continue
 			}
 			return ip, ipnet, nil
 		}
 	}
 
-	return nil, nil, fmt.Errorf("netlink: failed to find suitable addresses: %w", err)
+	return nil, nil, fmt.Errorf("netlink: failed to find suitable %d addresses on interfaces matching %q", family, ifName)
 }
 
 func getNetwork(link netlink.Link, family int) (*net.IP, *net.IPNet, error) {
