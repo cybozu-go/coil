@@ -30,6 +30,16 @@ var (
 
 	defaultGWv4 = &net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: net.CIDRMask(0, 32)}
 	defaultGWv6 = &net.IPNet{IP: net.ParseIP("::"), Mask: net.CIDRMask(0, 128)}
+
+	// ErrPodNetConfNotReady marks a transient failure where the Pod's network
+	// configuration is not yet (or no longer) observable in kernel state.
+	// Callers should log at Info and return the error from Reconcile unchanged,
+	// so the workqueue's exponential backoff handles requeue.
+	ErrPodNetConfNotReady = errors.New("pod network configuration not ready")
+)
+
+const (
+	concurrentLocks int = 128
 )
 
 // SetupHook is a signature of hook function for PodNetwork.Setup
@@ -52,7 +62,6 @@ type PodNetwork interface {
 
 	// SetupIPAM connects the host network and the container network with a veth pair.
 	// `nsPath` is the container network namespace's (possibly bind-mounted) file.
-	// If `hook` is non-nil, it is called in the Pod network.
 	SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf) (*current.Result, error)
 
 	// SetupEgress configures egress for container.
@@ -62,6 +71,7 @@ type PodNetwork interface {
 
 	// Update updates the container network configuration
 	// Currently, it only updates configuration using a SetupHook, e.g. NAT setting
+	// If `hook` is non-nil, it is called in the Pod network.
 	Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev1.Pod) error
 
 	// Check checks the pod network's status.
