@@ -32,8 +32,9 @@ import (
 	"github.com/cybozu-go/coil/v2/pkg/cnirpc"
 	"github.com/cybozu-go/coil/v2/pkg/config"
 	"github.com/cybozu-go/coil/v2/pkg/constants"
-	"github.com/cybozu-go/coil/v2/pkg/founat"
+	"github.com/cybozu-go/coil/v2/pkg/fou"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
+	"github.com/cybozu-go/coil/v2/pkg/nat/netfilter"
 	"github.com/cybozu-go/coil/v2/pkg/nodenet"
 )
 
@@ -50,7 +51,7 @@ type NATSetup interface {
 	Hook([]GWNets, string, *zap.Logger) func(ipv4, ipv6 net.IP) error
 }
 
-// NewNATSetup creates a NATSetup using founat package.
+// NewNATSetup creates a NATSetup using fou and nat/netfilter packages.
 // `port` is the UDP port number to accept Foo-over-UDP packets.
 func NewNATSetup(port int) NATSetup {
 	return natSetup{port: port}
@@ -62,14 +63,14 @@ type natSetup struct {
 
 func (n natSetup) Hook(l []GWNets, backend string, log *zap.Logger) func(ipv4, ipv6 net.IP) error {
 	return func(ipv4, ipv6 net.IP) error {
-		ft := founat.NewFoUTunnel(n.port, ipv4, ipv6, func(message string) {
+		ft := fou.NewFoUTunnel(n.port, ipv4, ipv6, func(message string) {
 			log.Sugar().Info(message)
 		})
 		if err := ft.Init(); err != nil {
 			return err
 		}
 
-		cl := founat.NewNatClient(ipv4, ipv6, nil, backend, func(message string) {
+		cl := netfilter.NewNatClient(ipv4, ipv6, nil, backend, func(message string) {
 			log.Sugar().Info(message)
 		})
 		if err := cl.Init(); err != nil {
@@ -78,7 +79,7 @@ func (n natSetup) Hook(l []GWNets, backend string, log *zap.Logger) func(ipv4, i
 
 		for _, gwn := range l {
 			link, err := ft.AddPeer(gwn.Gateway, gwn.SportAuto)
-			if errors.Is(err, founat.ErrIPFamilyMismatch) {
+			if errors.Is(err, fou.ErrIPFamilyMismatch) {
 				// ignore unsupported IP family link
 				log.Sugar().Infow("ignored unsupported gateway", "gw", gwn.Gateway)
 				continue
@@ -86,7 +87,7 @@ func (n natSetup) Hook(l []GWNets, backend string, log *zap.Logger) func(ipv4, i
 			if err != nil {
 				return err
 			}
-			if err := cl.AddEgress(link, gwn.Networks, gwn.OriginatingOnly); err != nil {
+			if err := cl.SyncNat(link, gwn.Networks, gwn.OriginatingOnly); err != nil {
 				return err
 			}
 		}
