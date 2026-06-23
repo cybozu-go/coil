@@ -25,3 +25,9 @@ commonLabels:
 
 patches:
   - path: ../coil-egress-controller-nft-patch.yaml
+  - path: ../coild-addressblock-gc-interval-patch.yaml
+    target:
+      group: apps
+      version: v1
+      kind: DaemonSet
+      name: coild
