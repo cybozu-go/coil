@@ -128,6 +128,37 @@ func GenAlias(conf *PodNetConf, id string) string {
 	return fmt.Sprintf("COIL:%s:%s:%s", conf.PoolName, id, conf.IFace)
 }
 
+// dumpRetryLimit bounds how many times a netlink dump is retried when the
+// kernel reports that the dump was interrupted.
+//
+// Removing the process-wide mutex (so concurrent CNI ADDs can run in parallel)
+// means a veth create/delete in another goroutine can bump the rtnetlink
+// generation counter while a dump (RTM_GETLINK/RTM_GETADDR/RTM_GETROUTE) is in
+// flight. The kernel then sets NLM_F_DUMP_INTR and netlink returns
+// netlink.ErrDumpInterrupted together with a possibly partial result set.
+// Treating that as fatal would surface as a spurious CNI failure or a false
+// "not found". The interruption is transient, so a few retries reliably yield a
+// consistent snapshot.
+const dumpRetryLimit = 5
+
+// retryDump runs a netlink dump function, retrying while it reports
+// netlink.ErrDumpInterrupted. It returns the first consistent result, or the
+// last error once the retry budget is exhausted. Errors other than
+// ErrDumpInterrupted are returned immediately.
+func retryDump[T any](dump func() (T, error)) (T, error) {
+	var (
+		res T
+		err error
+	)
+	for range dumpRetryLimit {
+		res, err = dump()
+		if !errors.Is(err, netlink.ErrDumpInterrupted) {
+			return res, err
+		}
+	}
+	return res, err
+}
+
 func parseLink(l netlink.Link) *PodNetConf {
 	cols := strings.Split(l.Attrs().Alias, ":")
 	if len(cols) != 4 {
@@ -150,7 +181,7 @@ func calicoVethName(podName, podNS string) string {
 }
 
 func lookup(containerId, iface string) (netlink.Link, error) {
-	links, err := netlink.LinkList()
+	links, err := retryDump(netlink.LinkList)
 	if err != nil {
 		return nil, fmt.Errorf("netlink: failed to list links: %w", err)
 	}
@@ -375,7 +406,9 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 			return nil, fmt.Errorf("netlink: failed to settle a host IPv6 address: %w", err)
 		}
 
-		v6Addrs, err := netlink.AddrList(hLink, netlink.FAMILY_V6)
+		v6Addrs, err := retryDump(func() ([]netlink.Addr, error) {
+			return netlink.AddrList(hLink, netlink.FAMILY_V6)
+		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to get v6 addresses: %w", err)
 		}
@@ -658,12 +691,14 @@ func (pn *podNetwork) List() ([]*PodNetConf, error) {
 }
 
 func (pn *podNetwork) list() ([]*PodNetConf, error) {
-	links, err := netlink.LinkList()
+	links, err := retryDump(netlink.LinkList)
 	if err != nil {
 		return nil, fmt.Errorf("netlink: failed to list links: %w", err)
 	}
 
-	v4Routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Table: pn.podTableId}, netlink.RT_FILTER_TABLE)
+	v4Routes, err := retryDump(func() ([]netlink.Route, error) {
+		return netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Table: pn.podTableId}, netlink.RT_FILTER_TABLE)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("netlink: failed to list IPv4 routes in table %d: %w", pn.podTableId, err)
 	}
@@ -674,7 +709,9 @@ func (pn *podNetwork) list() ([]*PodNetConf, error) {
 
 	// TODO: remove this when releasing Coil 2.1
 	if pn.registerFromMain {
-		v4Routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
+		v4Routes, err := retryDump(func() ([]netlink.Route, error) {
+			return netlink.RouteList(nil, netlink.FAMILY_V4)
+		})
 		if err != nil {
 			return nil, fmt.Errorf("netlink: failed to list IPv4 routes: %w", err)
 		}
@@ -690,7 +727,9 @@ func (pn *podNetwork) list() ([]*PodNetConf, error) {
 		}
 	}
 
-	v6Routes, err := netlink.RouteListFiltered(netlink.FAMILY_V6, &netlink.Route{Table: pn.podTableId}, netlink.RT_FILTER_TABLE)
+	v6Routes, err := retryDump(func() ([]netlink.Route, error) {
+		return netlink.RouteListFiltered(netlink.FAMILY_V6, &netlink.Route{Table: pn.podTableId}, netlink.RT_FILTER_TABLE)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("netlink: failed to list IPv6 routes in table %d: %w", pn.podTableId, err)
 	}
@@ -701,7 +740,9 @@ func (pn *podNetwork) list() ([]*PodNetConf, error) {
 
 	// TODO: remove this when releasing Coil 2.1
 	if pn.registerFromMain {
-		v6Routes, err := netlink.RouteList(nil, netlink.FAMILY_V6)
+		v6Routes, err := retryDump(func() ([]netlink.Route, error) {
+			return netlink.RouteList(nil, netlink.FAMILY_V6)
+		})
 		if err != nil {
 			return nil, fmt.Errorf("netlink: failed to list IPv6 routes: %w", err)
 		}
