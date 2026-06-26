@@ -43,6 +43,7 @@ const (
 
 	// dumpRetryLimit is the number of times a netlink dump is retried after the
 	// initial attempt when it reports netlink.ErrDumpInterrupted (see retryDump).
+	// it is on purpose to, not retry indefinitely and forward back to the kubelet if it cannot be solved in a reasonable time.
 	dumpRetryLimit = 5
 	// dumpRetryBackoff is the base delay between dump retries, doubled before
 	// each subsequent retry.
