@@ -40,6 +40,13 @@ var (
 
 const (
 	concurrentLocks int = 128
+
+	// dumpRetryLimit is the number of times a netlink dump is retried after the
+	// initial attempt when it reports netlink.ErrDumpInterrupted (see retryDump).
+	dumpRetryLimit = 5
+	// dumpRetryBackoff is the base delay between dump retries, doubled before
+	// each subsequent retry.
+	dumpRetryBackoff = 200 * time.Microsecond
 )
 
 // SetupHook is a signature of hook function for PodNetwork.Setup
@@ -128,32 +135,28 @@ func GenAlias(conf *PodNetConf, id string) string {
 	return fmt.Sprintf("COIL:%s:%s:%s", conf.PoolName, id, conf.IFace)
 }
 
-// dumpRetryLimit bounds how many times a netlink dump is retried when the
-// kernel reports that the dump was interrupted.
+// Netlink dumps (RTM_GETLINK/RTM_GETADDR/RTM_GETROUTE) can be interrupted by
+// concurrent rtnetlink mutations.
 //
-// Removing the process-wide mutex (so concurrent CNI ADDs can run in parallel)
-// means a veth create/delete in another goroutine can bump the rtnetlink
-// generation counter while a dump (RTM_GETLINK/RTM_GETADDR/RTM_GETROUTE) is in
-// flight. The kernel then sets NLM_F_DUMP_INTR and netlink returns
-// netlink.ErrDumpInterrupted together with a possibly partial result set.
-// Treating that as fatal would surface as a spurious CNI failure or a false
-// "not found". The interruption is transient, so a few retries reliably yield a
-// consistent snapshot.
-const dumpRetryLimit = 5
-
-// retryDump runs a netlink dump function, retrying while it reports
-// netlink.ErrDumpInterrupted. It returns the first consistent result, or the
-// last error once the retry budget is exhausted. Errors other than
-// ErrDumpInterrupted are returned immediately.
+// The interruption is transient, so retryDump re-runs the dump a bounded number
+// of times.
+//
+// If we still fail to fully dump after the retry limit, we return with probably a ErrDumpInterrupted error.
+// Then we rely on kubelet retrying instead of us as the cni plugin.
 func retryDump[T any](dump func() (T, error)) (T, error) {
 	var (
 		res T
 		err error
 	)
-	for range dumpRetryLimit {
+	backoff := dumpRetryBackoff
+	for attempt := 0; attempt <= dumpRetryLimit; attempt++ {
 		res, err = dump()
 		if !errors.Is(err, netlink.ErrDumpInterrupted) {
 			return res, err
+		}
+		if attempt < dumpRetryLimit {
+			time.Sleep(backoff)
+			backoff *= 2
 		}
 	}
 	return res, err
