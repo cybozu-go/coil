@@ -150,14 +150,14 @@ func retryDump[T any](dump func() (T, error)) (T, error) {
 		err error
 	)
 	backoff := dumpRetryBackoff
-	for attempt := 0; attempt <= dumpRetryLimit; attempt++ {
+	for attempt := range dumpRetryLimit + 1 {
+		if attempt > 0 {
+			time.Sleep(backoff)
+			backoff *= 2
+		}
 		res, err = dump()
 		if !errors.Is(err, netlink.ErrDumpInterrupted) {
 			return res, err
-		}
-		if attempt < dumpRetryLimit {
-			time.Sleep(backoff)
-			backoff *= 2
 		}
 	}
 	return res, err
