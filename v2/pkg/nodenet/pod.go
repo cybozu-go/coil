@@ -41,9 +41,9 @@ var (
 const (
 	concurrentLocks int = 128
 
-	// dumpRetryLimit is the number of times a netlink dump is retried after the
-	// initial attempt when it reports netlink.ErrDumpInterrupted (see retryDump).
-	// it is on purpose to, not retry indefinitely and forward back to the kubelet if it cannot be solved in a reasonable time.
+	// dumpRetryLimit intentional retry limit for netlink dump operations:
+	// it absorbs short-lived interruptions, and once exhausted we let the ADD fail so kubelet retries,
+	// rather than looping forever.
 	dumpRetryLimit = 5
 	// dumpRetryBackoff is the base delay between dump retries, doubled before
 	// each subsequent retry.
