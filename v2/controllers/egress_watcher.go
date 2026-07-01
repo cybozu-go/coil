@@ -92,6 +92,13 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			if v == eg.Name {
 				// Do reconcile
 				if err := r.reconcileEgressClient(ctx, eg, targetPod, &logger); err != nil {
+					if errors.Is(err, nodenet.ErrPodNetConfNotReady) {
+						// Transient race with concurrent Pod setup/teardown.
+						// Requeue with a small backoff instead of surfacing
+						// as a hard error.
+						logger.Info("transient netns lookup race; requeueing", "pod", fmt.Sprintf("%s/%s", targetPod.Namespace, targetPod.Name), "error", err.Error())
+						return ctrl.Result{}, err
+					}
 					logger.Error(err, "failed to reconcile Egress client pod")
 					return ctrl.Result{}, err
 				}
@@ -101,6 +108,10 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			for _, n := range strings.Split(v, ",") {
 				if n == eg.Name {
 					if err := r.reconcileEgressClient(ctx, eg, targetPod, &logger); err != nil {
+						if errors.Is(err, nodenet.ErrPodNetConfNotReady) {
+							logger.Info("transient netns lookup race; requeueing", "pod", fmt.Sprintf("%s/%s", targetPod.Namespace, targetPod.Name), "error", err.Error())
+							return ctrl.Result{}, err
+						}
 						logger.Error(err, "failed to reconcile Egress client pod")
 						return ctrl.Result{}, err
 					}

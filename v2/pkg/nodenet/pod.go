@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"path"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -23,6 +22,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/keymutex"
 )
 
 var (
@@ -30,6 +30,24 @@ var (
 
 	defaultGWv4 = &net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: net.CIDRMask(0, 32)}
 	defaultGWv6 = &net.IPNet{IP: net.ParseIP("::"), Mask: net.CIDRMask(0, 128)}
+
+	// ErrPodNetConfNotReady marks a transient failure where the Pod's network
+	// configuration is not yet (or no longer) observable in kernel state.
+	// Callers should log at Info and return the error from Reconcile unchanged,
+	// so the workqueue's exponential backoff handles requeue.
+	ErrPodNetConfNotReady = errors.New("pod network configuration not ready")
+)
+
+const (
+	concurrentLocks int = 128
+
+	// dumpRetryLimit intentional retry limit for netlink dump operations:
+	// it absorbs short-lived interruptions, and once exhausted we let the ADD fail so kubelet retries,
+	// rather than looping forever.
+	dumpRetryLimit = 5
+	// dumpRetryBackoff is the base delay between dump retries, doubled before
+	// each subsequent retry.
+	dumpRetryBackoff = 200 * time.Microsecond
 )
 
 // SetupHook is a signature of hook function for PodNetwork.Setup
@@ -52,7 +70,6 @@ type PodNetwork interface {
 
 	// SetupIPAM connects the host network and the container network with a veth pair.
 	// `nsPath` is the container network namespace's (possibly bind-mounted) file.
-	// If `hook` is non-nil, it is called in the Pod network.
 	SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf) (*current.Result, error)
 
 	// SetupEgress configures egress for container.
@@ -62,6 +79,7 @@ type PodNetwork interface {
 
 	// Update updates the container network configuration
 	// Currently, it only updates configuration using a SetupHook, e.g. NAT setting
+	// If `hook` is non-nil, it is called in the Pod network.
 	Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev1.Pod) error
 
 	// Check checks the pod network's status.
@@ -87,6 +105,8 @@ func NewPodNetwork(podTableID, podRulePrio, protocolId int, hostIPv4, hostIPv6 n
 		registerFromMain: registerFromMain,
 		log:              log,
 		enableIPAM:       enableIPAM,
+		cLocks:           keymutex.NewHashed(concurrentLocks),
+		podLocks:         keymutex.NewHashed(concurrentLocks),
 	}
 }
 
@@ -102,11 +122,45 @@ type podNetwork struct {
 	log              logr.Logger
 	enableIPAM       bool
 
-	mu sync.Mutex
+	// cLocks: LockMap for concurrent operations on different containerIDs.
+	// always lock operations on the containerId and its netns to avoid conflicts.
+	cLocks keymutex.KeyMutex
+	// podLocks: LockMap for per-pod operations to serialize Adds in compatCalico mode.
+	// In compatCalico mode, veth names are deterministic per pod identity,
+	// so concurrent Adds for the same pod can collide on the same veth name.
+	// Lock on pod identity (name/namespace) to prevent that.
+	podLocks keymutex.KeyMutex
 }
 
 func GenAlias(conf *PodNetConf, id string) string {
 	return fmt.Sprintf("COIL:%s:%s:%s", conf.PoolName, id, conf.IFace)
+}
+
+// Netlink dumps (RTM_GETLINK/RTM_GETADDR/RTM_GETROUTE) can be interrupted by
+// concurrent rtnetlink mutations.
+//
+// The interruption is transient, so retryDump re-runs the dump a bounded number
+// of times.
+//
+// If we still fail to fully dump after the retry limit, we return with probably a ErrDumpInterrupted error.
+// Then we rely on kubelet retrying instead of us as the cni plugin.
+func retryDump[T any](dump func() (T, error)) (T, error) {
+	var (
+		res T
+		err error
+	)
+	backoff := dumpRetryBackoff
+	for attempt := range dumpRetryLimit + 1 {
+		if attempt > 0 {
+			time.Sleep(backoff)
+			backoff *= 2
+		}
+		res, err = dump()
+		if !errors.Is(err, netlink.ErrDumpInterrupted) {
+			return res, err
+		}
+	}
+	return res, err
 }
 
 func parseLink(l netlink.Link) *PodNetConf {
@@ -131,7 +185,7 @@ func calicoVethName(podName, podNS string) string {
 }
 
 func lookup(containerId, iface string) (netlink.Link, error) {
-	links, err := netlink.LinkList()
+	links, err := retryDump(netlink.LinkList)
 	if err != nil {
 		return nil, fmt.Errorf("netlink: failed to list links: %w", err)
 	}
@@ -197,8 +251,17 @@ func (pn *podNetwork) initRule(family int) error {
 }
 
 func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf) (*current.Result, error) {
-	pn.mu.Lock()
-	defer pn.mu.Unlock()
+	// In compatCalico mode, veth names are deterministic per pod identity.
+	// Lock on pod to prevent concurrent Adds (different ContainerIDs) from
+	// colliding on the same veth name.
+	if pn.compatCalico {
+		podKey := fmt.Sprintf("%s/%s", podNS, podName)
+		pn.podLocks.LockKey(podKey)
+		defer pn.podLocks.UnlockKey(podKey)
+	}
+
+	pn.cLocks.LockKey(conf.ContainerId)
+	defer pn.cLocks.UnlockKey(conf.ContainerId)
 
 	containerNS, err := ns.GetNS(nsPath)
 	if err != nil {
@@ -223,6 +286,22 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 		}
 	default:
 		return nil, err
+	}
+
+	// In compatCalico mode, veth names are deterministic per pod.
+	// A stale veth from a previous sandbox (different ContainerId) won't be
+	// found by the alias-based lookup above. Clean it up by name, like Calico does.
+	if pn.compatCalico {
+		vethName := calicoVethName(podName, podNS)
+		if old, err := netlink.LinkByName(vethName); err == nil {
+			if err := netlink.LinkDel(old); err != nil {
+				if !errors.Is(err, syscall.ENODEV) {
+					return nil, fmt.Errorf("netlink: failed to delete stale calico veth %s: %w", vethName, err)
+				}
+				// If the link is already gone (ENODEV), ignore the error and continue.
+				pn.log.Info("netlink: stale calico veth already deleted", "name", vethName, "pod", podName, "namespace", podNS)
+			}
+		}
 	}
 
 	// setup veth and configure IP addresses
@@ -331,7 +410,9 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 			return nil, fmt.Errorf("netlink: failed to settle a host IPv6 address: %w", err)
 		}
 
-		v6Addrs, err := netlink.AddrList(hLink, netlink.FAMILY_V6)
+		v6Addrs, err := retryDump(func() ([]netlink.Addr, error) {
+			return netlink.AddrList(hLink, netlink.FAMILY_V6)
+		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to get v6 addresses: %w", err)
 		}
@@ -424,8 +505,8 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 }
 
 func (pn *podNetwork) SetupEgress(nsPath string, conf *PodNetConf, hook SetupHook) error {
-	pn.mu.Lock()
-	defer pn.mu.Unlock()
+	pn.cLocks.LockKey(conf.ContainerId)
+	defer pn.cLocks.UnlockKey(conf.ContainerId)
 
 	containerNS, err := ns.GetNS(nsPath)
 	if err != nil {
@@ -447,61 +528,70 @@ func (pn *podNetwork) SetupEgress(nsPath string, conf *PodNetConf, hook SetupHoo
 	return nil
 }
 
+// Update updates the container network configuration using a SetupHook, e.g. for NAT setting.
+// Returns ErrPodNetConfNotReady when no entry matches, signalling that callers
+// should retry (e.g. transient race with concurrent CNI ADD/DEL).
 func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev1.Pod) error {
-	pn.mu.Lock()
-	defer pn.mu.Unlock()
-
-	podConfigs, err := pn.list()
+	conf, err := pn.findPodConf(podIPv4, podIPv6, pod)
 	if err != nil {
 		return err
 	}
 
-	var netNsPath string
-	for _, c := range podConfigs {
-		if pn.enableIPAM {
-			// When both c.IPvX and podIPvX are nil, net.IP.Equal() returns always true.
-			// To avoid comparing nil to nil, confirm c.IPvX is not nil.
-			if (c.IPv4 != nil && c.IPv4.Equal(podIPv4)) || (c.IPv6 != nil && c.IPv6.Equal(podIPv6)) {
-				netNsPath, err = getNetNsPath(c.HostVethName)
-				if err != nil {
-					return err
-				}
-			}
-		} else {
-			// We need to bind PodNetConf with Pod. When Coil is a primary CNI IP address can be used for that.
-			// However different CNIs manage IP addresses differently, therefore, in egress-only mode instead of
-			// storing container's ID in ContainerId, we store pod's UID there to be able to identify pod that was
-			// used to create particular PodNetConf.
-			if c.ContainerId == string(pod.UID) {
-				netNsPath, err = getNetNsPath(c.HostVethName)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
+	pn.cLocks.LockKey(conf.ContainerId)
+	defer pn.cLocks.UnlockKey(conf.ContainerId)
 
-	if len(netNsPath) == 0 {
-		return fmt.Errorf("failed to find netNsPath")
+	netNsPath, err := getNetNsPath(conf.HostVethName)
+	if err != nil {
+		// The host veth may have been deleted between list() and
+		// getNetNsPath() by a concurrent Destroy. Surface this as a
+		// retryable error so callers can re-list and try again.
+		return fmt.Errorf("failed to resolve netNsPath for veth %s: %w: %w", conf.HostVethName, err, ErrPodNetConfNotReady)
 	}
 
 	containerNS, err := ns.GetNS(netNsPath)
 	if err != nil {
+		// The netns can disappear between resolving its path (lock-free) and
+		// opening it under the per-container lock. Treat as retryable.
+		if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOENT) {
+			return fmt.Errorf("netns %s no longer exists: %w: %w", netNsPath, err, ErrPodNetConfNotReady)
+		}
 		return fmt.Errorf("failed to open netns path %s: %w", netNsPath, err)
 	}
 	defer containerNS.Close()
 
-	err = containerNS.Do(func(ns.NetNS) error {
-		if hook != nil {
-			return hook(podIPv4, podIPv6)
-		}
+	if hook == nil {
 		return nil
-	})
-	if err != nil {
-		return err
 	}
+	return containerNS.Do(func(ns.NetNS) error {
+		return hook(podIPv4, podIPv6)
+	})
+}
 
-	return nil
+// findPodConf returns the PodNetConf for the given Pod from the current link list.
+// In IPAM mode the entry is identified by IP, in egress-only mode by pod UID
+// (see coildServer.Add: ContainerId is set to string(pod.UID) there).
+// Returns ErrPodNetConfNotReady when no entry matches, signalling that callers
+// should retry (e.g. transient race with concurrent CNI ADD/DEL).
+func (pn *podNetwork) findPodConf(podIPv4, podIPv6 net.IP, pod *corev1.Pod) (*PodNetConf, error) {
+	podConfigs, err := pn.list()
+	if err != nil {
+		return nil, fmt.Errorf("calling list for pod %s/%s: %w: %w", pod.Namespace, pod.Name, err, ErrPodNetConfNotReady)
+	}
+	for _, c := range podConfigs {
+		if pn.matchesPod(c, podIPv4, podIPv6, pod) {
+			return c, nil
+		}
+	}
+	return nil, fmt.Errorf("not found for pod %s/%s: %w", pod.Namespace, pod.Name, ErrPodNetConfNotReady)
+}
+
+func (pn *podNetwork) matchesPod(c *PodNetConf, podIPv4, podIPv6 net.IP, pod *corev1.Pod) bool {
+	if !pn.enableIPAM {
+		return c.ContainerId == string(pod.UID)
+	}
+	// c.IPvX may be nil when a family is disabled; avoid the nil==nil match
+	// that net.IP.Equal would return as true.
+	return (c.IPv4 != nil && c.IPv4.Equal(podIPv4)) || (c.IPv6 != nil && c.IPv6.Equal(podIPv6))
 }
 
 type linkData struct {
@@ -569,8 +659,8 @@ func getNsRunDir() string {
 }
 
 func (pn *podNetwork) Check(containerId, iface string) error {
-	pn.mu.Lock()
-	defer pn.mu.Unlock()
+	pn.cLocks.LockKey(containerId)
+	defer pn.cLocks.UnlockKey(containerId)
 
 	_, err := lookup(containerId, iface)
 	if err != nil {
@@ -583,8 +673,8 @@ func (pn *podNetwork) Check(containerId, iface string) error {
 }
 
 func (pn *podNetwork) Destroy(containerId, iface string) error {
-	pn.mu.Lock()
-	defer pn.mu.Unlock()
+	pn.cLocks.LockKey(containerId)
+	defer pn.cLocks.UnlockKey(containerId)
 
 	l, err := lookup(containerId, iface)
 	if err == errNotFound {
@@ -601,19 +691,18 @@ func (pn *podNetwork) Destroy(containerId, iface string) error {
 }
 
 func (pn *podNetwork) List() ([]*PodNetConf, error) {
-	pn.mu.Lock()
-	defer pn.mu.Unlock()
-
 	return pn.list()
 }
 
 func (pn *podNetwork) list() ([]*PodNetConf, error) {
-	links, err := netlink.LinkList()
+	links, err := retryDump(netlink.LinkList)
 	if err != nil {
 		return nil, fmt.Errorf("netlink: failed to list links: %w", err)
 	}
 
-	v4Routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Table: pn.podTableId}, netlink.RT_FILTER_TABLE)
+	v4Routes, err := retryDump(func() ([]netlink.Route, error) {
+		return netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Table: pn.podTableId}, netlink.RT_FILTER_TABLE)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("netlink: failed to list IPv4 routes in table %d: %w", pn.podTableId, err)
 	}
@@ -624,7 +713,9 @@ func (pn *podNetwork) list() ([]*PodNetConf, error) {
 
 	// TODO: remove this when releasing Coil 2.1
 	if pn.registerFromMain {
-		v4Routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
+		v4Routes, err := retryDump(func() ([]netlink.Route, error) {
+			return netlink.RouteList(nil, netlink.FAMILY_V4)
+		})
 		if err != nil {
 			return nil, fmt.Errorf("netlink: failed to list IPv4 routes: %w", err)
 		}
@@ -640,7 +731,9 @@ func (pn *podNetwork) list() ([]*PodNetConf, error) {
 		}
 	}
 
-	v6Routes, err := netlink.RouteListFiltered(netlink.FAMILY_V6, &netlink.Route{Table: pn.podTableId}, netlink.RT_FILTER_TABLE)
+	v6Routes, err := retryDump(func() ([]netlink.Route, error) {
+		return netlink.RouteListFiltered(netlink.FAMILY_V6, &netlink.Route{Table: pn.podTableId}, netlink.RT_FILTER_TABLE)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("netlink: failed to list IPv6 routes in table %d: %w", pn.podTableId, err)
 	}
@@ -651,7 +744,9 @@ func (pn *podNetwork) list() ([]*PodNetConf, error) {
 
 	// TODO: remove this when releasing Coil 2.1
 	if pn.registerFromMain {
-		v6Routes, err := netlink.RouteList(nil, netlink.FAMILY_V6)
+		v6Routes, err := retryDump(func() ([]netlink.Route, error) {
+			return netlink.RouteList(nil, netlink.FAMILY_V6)
+		})
 		if err != nil {
 			return nil, fmt.Errorf("netlink: failed to list IPv6 routes: %w", err)
 		}

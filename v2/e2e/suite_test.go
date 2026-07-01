@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -25,11 +26,26 @@ func TestE2e(t *testing.T) {
 var kubectlCmd = os.Getenv("KUBECTL")
 
 func kubectl(input []byte, args ...string) (stdout []byte, err error) {
+	return kubectlWithTimeout(0, input, args...)
+}
+
+// kubectlWithTimeout runs kubectl with a hard wall-clock timeout. A timeout of
+// zero disables the limit. This is a safety net against hung exec/streams that
+// would otherwise let `go test` hit its global -timeout and kill the suite
+// without running the post-test `make logs` step.
+func kubectlWithTimeout(timeout time.Duration, input []byte, args ...string) (stdout []byte, err error) {
 	if kubectlCmd == "" {
 		panic("KUBECTL environment variable must be set")
 	}
 
-	cmd := exec.Command(kubectlCmd, args...)
+	ctx := context.Background()
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+
+	cmd := exec.CommandContext(ctx, kubectlCmd, args...)
 	if input != nil {
 		cmd.Stdin = bytes.NewReader(input)
 	}
