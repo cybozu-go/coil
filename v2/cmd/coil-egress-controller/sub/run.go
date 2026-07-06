@@ -1,7 +1,6 @@
 package sub
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
@@ -53,6 +52,10 @@ func subMain() error {
 		return fmt.Errorf("invalid webhook address: %w", err)
 	}
 
+	// Load the webhook certificates lazily on TLS handshakes so that the
+	// webhook server can start before the cert rotator generates them.
+	reloader := cert.NewReloader(config.certDir, ctrl.Log.WithName("cert-reloader"))
+
 	timeout := gracefulTimeout
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                  scheme,
@@ -67,7 +70,7 @@ func subMain() error {
 		WebhookServer: webhook.NewServer(webhook.Options{
 			Host:    host,
 			Port:    port,
-			CertDir: config.certDir,
+			TLSOpts: reloader.TLSOpts(),
 		}),
 	})
 	if err != nil {
@@ -81,39 +84,27 @@ func subMain() error {
 		return err
 	}
 
-	certCompleted := make(chan struct{})
-
 	if config.enableCertRotation {
-		if certCompleted, err = cert.SetupRotator(mgr, "egress", config.enableRestartOnCertRefresh, certCompleted); err != nil {
+		if err := cert.SetupRotator(mgr, "egress", config.enableRestartOnCertRefresh, config.certDir); err != nil {
 			return fmt.Errorf("failed to setup Rotator: %w", err)
 		}
-	} else {
-		close(certCompleted)
 	}
 
-	setupErr := make(chan error)
+	// StartedChecker dials the webhook server with TLS, so this keeps the
+	// pod not ready until the certificates become available.
+	if err := mgr.AddReadyzCheck("webhook", mgr.GetWebhookServer().StartedChecker()); err != nil {
+		return err
+	}
 
-	go func() {
-		setupErr <- setupManager(mgr, certCompleted)
-		close(setupErr)
-	}()
+	if err := setupManager(mgr); err != nil {
+		return err
+	}
 
-	mgrCtx, cancel := context.WithCancel(ctrl.SetupSignalHandler())
-	defer cancel()
-
-	mgrErr := make(chan error)
-	go func() {
-		setupLog.Info(fmt.Sprintf("starting manager (version: %s)", v2.Version()))
-		if err := mgr.Start(mgrCtx); err != nil {
-			mgrErr <- err
-		}
-		close(mgrErr)
-	}()
-
-	return cert.WaitForExit(setupErr, mgrErr, cancel)
+	setupLog.Info(fmt.Sprintf("starting manager (version: %s)", v2.Version()))
+	return mgr.Start(ctrl.SetupSignalHandler())
 }
 
-func setupManager(mgr ctrl.Manager, certCompleted chan struct{}) error {
+func setupManager(mgr ctrl.Manager) error {
 	// register controllers
 
 	podNS := os.Getenv(constants.EnvPodNamespace)
@@ -139,9 +130,6 @@ func setupManager(mgr ctrl.Manager, certCompleted chan struct{}) error {
 	if err := controllers.SetupCRBReconciler(mgr); err != nil {
 		return err
 	}
-
-	// wait for certificates to be configured
-	<-certCompleted
 
 	// register webhooks
 	if err := (&coilv2.Egress{}).SetupWebhookWithManager(mgr); err != nil {
