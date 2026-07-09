@@ -103,6 +103,8 @@ The user manual is [docs/usage.md](./docs/usage.md).
 
 [docs](docs/) directory contains other documents about designs and specifications.
 
+Steps for updating dependencies and supported Kubernetes versions are described in [docs/maintenance.md](./docs/maintenance.md).
+
 ### Upgrade from v1
 
 See [coil-migrator.md](https://github.com/cybozu-go/coil/blob/v2.0.11/docs/coil-migrator.md)
