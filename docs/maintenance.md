@@ -49,7 +49,7 @@ Keep these three in sync:
 
 - `go` directive in `v2/go.mod`
 - `go-version` in `.github/workflows/ci.yaml` and `.github/workflows/release.yaml`
-- base image tag in `v2/Dockerfile` (`ghcr.io/cybozu/golang:<major.minor>-noble`)
+- base image tag in `v2/Dockerfile` (`ghcr.io/cybozu/golang:<major.minor>-<ubuntu codename>`)
 
 ## Support a new Kubernetes version
 
