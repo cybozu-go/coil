@@ -5,6 +5,16 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-07-09
+
+### Changed
+- Refactor NatClient from founat package to nat/netfilter package and rename AddEgress to SyncNat (#357)
+- coild: fix pod-creation stalls by processing CNI ADD requests concurrently (#369)
+- coild: clear export routes when node is deleted (#370)
+- Support Kubernetes 1.35 (#372)
+- Fix cert-rotator busy loop (#376)
+- Update dependencies (#377)
+
 ## [2.14.2] - 2026-04-01
 
 ### Changed
@@ -430,7 +440,8 @@ The following `coil-controller` related resources are no longer needed, and you 
 Coil version 2 is a complete rewrite of Coil version 1.
 This is the first release candidate with all the planned features implemented.
 
-[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.14.2...HEAD
+[Unreleased]: https://github.com/cybozu-go/coil/compare/v2.15.0...HEAD
+[2.15.0]: https://github.com/cybozu-go/coil/compare/v2.14.2...v2.15.0
 [2.14.2]: https://github.com/cybozu-go/coil/compare/v2.14.1...v2.14.2
 [2.14.1]: https://github.com/cybozu-go/coil/compare/v2.14.0...v2.14.1
 [2.14.0]: https://github.com/cybozu-go/coil/compare/v2.13.0...v2.14.0
