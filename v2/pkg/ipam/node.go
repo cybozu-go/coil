@@ -79,7 +79,6 @@ type NodeIPAM interface {
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=addressblocks,verbs=get;list;update;patch;delete
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=blockrequests,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=blockrequests/status,verbs=get
-// +kubebuilder:rbac:groups="",resources=nodes,verbs=get
 
 type nodeIPAM struct {
 	nodeName  string

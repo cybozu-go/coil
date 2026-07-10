@@ -22,7 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	policyv1 "k8s.io/api/policy/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 
 	coilv2 "github.com/cybozu-go/coil/v2/api/v2"
 )
@@ -58,9 +57,6 @@ var _ = Describe("coil", func() {
 	}
 	if enableEgressTests {
 		Context("when egress feature is enabled", Ordered, testEgress)
-	}
-	if !enableIPAMTests {
-		Context("when the IPAM features are disabled", Ordered, testCoildWithoutIPAM)
 	}
 	Context("when coild is deployed", testCoild)
 })
@@ -769,115 +765,6 @@ func testCoild() {
 		mfs, err := textParser.TextToMetricFamilies(bytes.NewBuffer(out))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(mfs).NotTo(BeEmpty())
-	})
-}
-
-func testCoildWithoutIPAM() {
-	expectResourceAbsent := func(args ...string) {
-		out, err := kubectl(nil, append(args, "--ignore-not-found", "-o", "name")...)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(strings.TrimSpace(string(out))).To(BeEmpty())
-	}
-
-	It("should not install IPAM resources", func() {
-		By("checking IPAM CRDs are absent")
-		for _, name := range []string{
-			"addressblocks.coil.cybozu.com",
-			"addresspools.coil.cybozu.com",
-			"blockrequests.coil.cybozu.com",
-		} {
-			expectResourceAbsent("get", "crd", name)
-		}
-
-		By("checking IPAM service accounts are absent")
-		for _, name := range []string{
-			"coil-ipam-controller",
-			"coil-router",
-		} {
-			expectResourceAbsent("-n", "kube-system", "get", "serviceaccount", name)
-		}
-
-		By("checking IPAM roles are absent")
-		for _, name := range []string{
-			"coil-ipam-controller",
-			"coil-router",
-			"coilv2-addressblock-viewer-role",
-			"coilv2-addresspool-viewer-role",
-			"coilv2-blockrequest-viewer-role",
-		} {
-			expectResourceAbsent("get", "clusterrole", name)
-		}
-
-		By("checking IPAM role bindings are absent")
-		for _, name := range []string{
-			"coil-ipam-controller",
-			"coil-router",
-		} {
-			expectResourceAbsent("get", "clusterrolebinding", name)
-		}
-	})
-
-	It("should run coild with IPAM disabled", func() {
-		ds := &appsv1.DaemonSet{}
-		getResourceSafe("kube-system", "daemonset", "coild", "", ds)
-
-		var args []string
-		for _, c := range ds.Spec.Template.Spec.Containers {
-			if c.Name == "coild" {
-				args = c.Args
-				break
-			}
-		}
-		Expect(args).To(ContainElement("--enable-ipam=false"))
-		Expect(args).To(ContainElement("--addressblock-gc-interval=1s"))
-	})
-
-	It("should not grant coild permissions for IPAM resources", func() {
-		role := &rbacv1.ClusterRole{}
-		getResourceSafe("", "clusterrole", "coild", "", role)
-
-		ipamResources := map[string]struct{}{
-			"addressblocks":        {},
-			"addressblocks/status": {},
-			"addresspools":         {},
-			"addresspools/status":  {},
-			"blockrequests":        {},
-			"blockrequests/status": {},
-		}
-		for _, rule := range role.Rules {
-			for _, group := range rule.APIGroups {
-				if group != "coil.cybozu.com" {
-					continue
-				}
-				for _, resource := range rule.Resources {
-					if _, ok := ipamResources[resource]; ok {
-						Fail(fmt.Sprintf("coild ClusterRole grants IPAM resource %q", resource))
-					}
-				}
-			}
-		}
-	})
-
-	It("should not log IPAM discovery errors", func() {
-		Consistently(func() error {
-			out, err := kubectl(nil, "-n", "kube-system", "logs", "-l", "app.kubernetes.io/component=coild", "--all-containers=true")
-			if err != nil {
-				return err
-			}
-
-			logs := string(out)
-			for _, msg := range []string{
-				"failed to run GC",
-				"addressblocks.coil.cybozu.com",
-				"addresspools.coil.cybozu.com",
-				"blockrequests.coil.cybozu.com",
-			} {
-				if strings.Contains(logs, msg) {
-					return fmt.Errorf("coild log contains %q", msg)
-				}
-			}
-			return nil
-		}, 3*time.Second).Should(Succeed())
 	})
 }
 

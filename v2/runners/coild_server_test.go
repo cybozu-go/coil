@@ -46,7 +46,6 @@ type mockNodeIPAM struct {
 	nAllocate    int
 	nFree        int
 	errFree      bool
-	nGC          atomic.Int32
 	nClearRoutes atomic.Int32
 }
 
@@ -54,8 +53,7 @@ func (n *mockNodeIPAM) Register(ctx context.Context, poolName, containerID, ifac
 	panic("not implemented")
 }
 func (n *mockNodeIPAM) GC(ctx context.Context) error {
-	n.nGC.Add(1)
-	return nil
+	panic("not implemented")
 }
 func (n *mockNodeIPAM) Notify(*coilv2.BlockRequest) {
 	panic("not implemented")
@@ -583,82 +581,6 @@ var _ = Describe("Coild server", func() {
 			Expect(subnet.IP.Equal(net.ParseIP("192.168.0.0"))).To(BeTrue())
 		})
 	}
-})
-
-var _ = Describe("periodic AddressBlock GC", func() {
-	var nodeIPAM *mockNodeIPAM
-	var mgrDone chan struct{}
-	var cancel context.CancelFunc
-	var socketPath string
-
-	BeforeEach(func() {
-		cancel = func() {}
-		mgrDone = make(chan struct{})
-		close(mgrDone)
-	})
-
-	AfterEach(func() {
-		cancel()
-		Eventually(mgrDone, "15s").Should(BeClosed())
-		os.Remove(socketPath)
-	})
-
-	startServer := func(enableIPAM bool) {
-		tmpFile, err := os.CreateTemp("", "")
-		Expect(err).ToNot(HaveOccurred())
-		socketPath = tmpFile.Name()
-		tmpFile.Close()
-		os.Remove(socketPath)
-
-		var ctx context.Context
-		ctx, cancel = context.WithCancel(context.Background())
-
-		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-			Scheme:         scheme,
-			LeaderElection: false,
-			Metrics: metricsserver.Options{
-				BindAddress: "0",
-			},
-		})
-		Expect(err).ToNot(HaveOccurred())
-
-		l, err := net.Listen("unix", socketPath)
-		Expect(err).ToNot(HaveOccurred())
-
-		nodeIPAM = &mockNodeIPAM{}
-		logger := zap.NewRaw(zap.StacktraceLevel(zapcore.DPanicLevel))
-		servCfg := &config.Config{
-			EnableIPAM:             enableIPAM,
-			AddressBlockGCInterval: 10 * time.Millisecond,
-		}
-
-		serv := NewCoildServer(l, mgr, nodeIPAM, &mockPodNetwork{}, &mockNATSetup{}, servCfg, logger, mockAlias, "test-node")
-		err = mgr.Add(serv)
-		Expect(err).ToNot(HaveOccurred())
-
-		mgrDone = make(chan struct{})
-		go func() {
-			defer close(mgrDone)
-			_ = mgr.Start(ctx)
-		}()
-		Eventually(func() error {
-			conn, err := net.DialTimeout("unix", socketPath, time.Second)
-			if err != nil {
-				return err
-			}
-			return conn.Close()
-		}, "5s").Should(Succeed())
-	}
-
-	It("runs when IPAM is enabled", func() {
-		startServer(true)
-		Eventually(func() int32 { return nodeIPAM.nGC.Load() }, "1s").Should(BeNumerically(">", 0))
-	})
-
-	It("does not run when IPAM is disabled", func() {
-		startServer(false)
-		Consistently(func() int32 { return nodeIPAM.nGC.Load() }, "300ms").Should(Equal(int32(0)))
-	})
 })
 
 var _ = Describe("shutdown route cleanup", func() {

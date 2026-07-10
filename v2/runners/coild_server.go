@@ -176,7 +176,7 @@ func (s *coildServer) Start(ctx context.Context) error {
 					return
 				case <-gcTicker.C:
 					if err := s.nodeIPAM.GC(ctx); err != nil {
-						s.logger.Sugar().Error("failed to run GC", "error", err)
+						s.logger.Sugar().Errorw("failed to run GC", "error", err)
 					}
 				}
 			}
