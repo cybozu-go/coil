@@ -26,7 +26,11 @@ ROLES = config/rbac/coil-ipam-controller_role.yaml \
 	config/rbac/coil-egress-controller-certs_role.yaml \
 	config/rbac/coild_role.yaml \
 	config/rbac/coil-router_role.yaml \
-	config/rbac/coil-egress_role.yaml
+	config/rbac/coil-egress_role.yaml \
+	config/rbac/egress/coild_role.yaml \
+	config/rbac/egress/serviceaccount.yaml \
+	config/rbac/egress/role_binding.yaml \
+	config/rbac/egress/leader_election_role_binding.yaml
 PROTOC_OUTPUTS = pkg/cnirpc/cni.pb.go pkg/cnirpc/cni_grpc.pb.go ../docs/cni-grpc.md
 GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
@@ -196,6 +200,26 @@ config/rbac/coild_role.yaml: $(COILD_DEPENDS)
 	sed '0,/^package/s/.*/package work/' runners/coild_server.go > work/coild_server.go
 	$(CONTROLLER_GEN) rbac:roleName=coild paths=./work output:stdout > $@
 	rm -rf work
+
+EGRESS_COILD_DEPENDS = controllers/egress_watcher.go \
+	runners/coild_server.go
+
+config/rbac/egress/coild_role.yaml: $(EGRESS_COILD_DEPENDS)
+	-rm -rf work
+	mkdir work
+	sed '0,/^package/s/.*/package work/' controllers/egress_watcher.go > work/egress_watcher.go
+	sed '0,/^package/s/.*/package work/' runners/coild_server.go > work/coild_server.go
+	$(CONTROLLER_GEN) rbac:roleName=coild paths=./work output:stdout > $@
+	rm -rf work
+
+config/rbac/egress/serviceaccount.yaml: config/rbac/serviceaccount.yaml $(YQ)
+	$(YQ) -c 'select(.metadata.name == "coil-egress-controller" or .metadata.name == "coild")' $< > $@
+
+config/rbac/egress/role_binding.yaml: config/rbac/role_binding.yaml $(YQ)
+	$(YQ) -c 'select(.metadata.name == "coil-egress-controller" or .metadata.name == "coild" or .metadata.name == "coil-egress")' $< > $@
+
+config/rbac/egress/leader_election_role_binding.yaml: config/rbac/leader_election_role_binding.yaml $(YQ)
+	$(YQ) -c 'select(.metadata.name == "coil-leader-election") | .subjects = [.subjects[] | select(.name == "coil-egress-controller")]' $< > $@
 
 COIL_ROUTER_DEPENDS = controllers/addressblock_controller.go \
 	runners/router.go

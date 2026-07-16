@@ -115,6 +115,7 @@ func NewCoildServer(l net.Listener, mgr manager.Manager, nodeIPAM ipam.NodeIPAM,
 
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get
 // +kubebuilder:rbac:groups="",resources=namespaces;services,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=get
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses,verbs=get;list;watch
 
 const nodeDeletedCleanupTimeout = 10 * time.Second
@@ -164,20 +165,23 @@ func (s *coildServer) Start(ctx context.Context) error {
 	reflection.Register(grpcServer)
 
 	var gcWg sync.WaitGroup
-	s.logger.Info("start periodic nodeIPAM GC")
-	gcTicker := time.NewTicker(s.cfg.AddressBlockGCInterval)
-	gcWg.Go(func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-gcTicker.C:
-				if err := s.nodeIPAM.GC(ctx); err != nil {
-					s.logger.Sugar().Error("failed to run GC", "error", err)
+	if s.cfg.EnableIPAM {
+		s.logger.Info("start periodic nodeIPAM GC")
+		gcTicker := time.NewTicker(s.cfg.AddressBlockGCInterval)
+		gcWg.Go(func() {
+			defer gcTicker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-gcTicker.C:
+					if err := s.nodeIPAM.GC(ctx); err != nil {
+						s.logger.Sugar().Errorw("failed to run GC", "error", err)
+					}
 				}
 			}
-		}
-	})
+		})
+	}
 
 	go func() {
 		<-ctx.Done()
