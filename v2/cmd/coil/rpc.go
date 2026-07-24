@@ -82,7 +82,7 @@ func convertError(err error) error {
 
 	cniErr, ok := details[0].(*cnirpc.CNIError)
 	if !ok {
-		types.NewError(types.ErrInternal, st.Message(), err.Error())
+		return types.NewError(types.ErrInternal, st.Message(), err.Error())
 	}
 
 	return types.NewError(uint(cniErr.Code), cniErr.Msg, cniErr.Details)

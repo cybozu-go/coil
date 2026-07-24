@@ -38,9 +38,9 @@ var _ = Describe("AddressPool Webhook", func() {
 		r := &unstructured.Unstructured{}
 		r.SetGroupVersionKind(GroupVersion.WithKind("AddressPool"))
 		r.SetName("test")
-		r.UnstructuredContent()["spec"] = map[string]interface{}{
-			"subnets": []interface{}{
-				map[string]interface{}{
+		r.UnstructuredContent()["spec"] = map[string]any{
+			"subnets": []any{
+				map[string]any{
 					"ipv4": "10.2.0.0/24",
 				},
 			},

@@ -88,7 +88,6 @@ func testSubnetSetIs(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func testSubnetSetEqual(t *testing.T) {

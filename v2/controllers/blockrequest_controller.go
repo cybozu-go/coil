@@ -35,8 +35,7 @@ type BlockRequestReconciler struct {
 func (r *BlockRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	br := &coilv2.BlockRequest{}
-	err := r.Client.Get(ctx, req.NamespacedName, br)
-
+	err := r.Get(ctx, req.NamespacedName, br)
 	if err != nil {
 		// as Delete event is ignored, this is unlikely to happen.
 		logger.Error(err, "failed to get")
@@ -49,7 +48,7 @@ func (r *BlockRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	blocks := &coilv2.AddressBlockList{}
-	err = r.Client.List(ctx, blocks, client.MatchingFields{
+	err = r.List(ctx, blocks, client.MatchingFields{
 		constants.AddressBlockRequestKey: string(br.UID),
 	})
 	if err != nil {

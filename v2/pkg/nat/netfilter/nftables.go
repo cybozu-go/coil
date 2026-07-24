@@ -344,6 +344,7 @@ func removeNFTablesConnmarkRules(family int) error {
 	tables, err := conn.ListTables()
 	if err != nil {
 		// If we can't list tables, the mangle table probably doesn't exist
+		//nolint:nilerr
 		return nil
 	}
 
@@ -396,6 +397,7 @@ func addNFTablesRuleIfNotExists(conn *nftables.Conn, target *nftables.Rule) (*nf
 		// We proceed to add the rule in this case.
 		// On subsequent calls (after flush), GetRules should succeed
 		// and we can properly deduplicate.
+		//nolint:nilerr
 		return conn.AddRule(target), nil
 	}
 

@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,11 +33,11 @@ func main() {
 	flag.Parse()
 
 	if *protocol != ipv4 && *protocol != ipv6 {
-		log.Fatalf("invalid protocol [%s]", *protocol)
+		panic(fmt.Sprintf("invalid protocol [%s]", *protocol))
 	}
 
 	containers := []string{}
-	for i := 0; i < numOfNodes; i++ {
+	for i := range numOfNodes {
 		c := fmt.Sprintf("%s-worker", *container)
 		if i == 0 {
 			c = fmt.Sprintf("%s-control-plane", *container)
@@ -52,14 +51,14 @@ func main() {
 	switch *action {
 	case getAction:
 		if err := get(*cniConfig, *protocol, *file, containers); err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 	case setAction:
 		if err := set(*cniConfig, *protocol, *file, containers); err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 	default:
-		log.Fatalf("command [%s] not supported", *action)
+		panic(fmt.Sprintf("command [%s] not supported", *action))
 	}
 }
 
@@ -80,7 +79,7 @@ func get(conflistName, protoVer, tmpFilename string, containers []string) error 
 		var err error
 		var output string
 		var errOutput string
-		for i := 0; i < 120; i++ {
+		for range 120 {
 			cmd := exec.Command("docker", "exec", container, "cat", "/etc/cni/net.d/"+conflistName)
 			var buffer bytes.Buffer
 			cmd.Stdout = &buffer

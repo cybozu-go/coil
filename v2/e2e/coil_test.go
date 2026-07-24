@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -168,7 +168,6 @@ func testIPAM() {
 				Expect(string(out)).To(Equal("Hello"))
 			}
 		}
-
 	})
 
 	It("should persist IPAM status between coild restarts", func() {
@@ -267,7 +266,6 @@ func testIPAM() {
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(routes).NotTo(BeEmpty())
 		}
-
 	})
 
 	It("should free unused AddressBlocks", func() {
@@ -300,7 +298,6 @@ func testIPAM() {
 		mfs, err := textParser.TextToMetricFamilies(bytes.NewBuffer(out))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(mfs).NotTo(BeEmpty())
-
 	})
 
 	It("should delete address pool", func() {
@@ -498,9 +495,13 @@ func testEgress() {
 
 		By("running HTTP server on coil-control-plane")
 		if enableIPAMTests {
-			go runOnNode("coil-control-plane", "/usr/local/bin/echotest")
+			go func() {
+				_, _ = runOnNode("coil-control-plane", "/usr/local/bin/echotest")
+			}()
 		} else {
-			go runOnNode("coil-control-plane", "/usr/local/bin/echotest", "--reply-remote")
+			go func() {
+				_, _ = runOnNode("coil-control-plane", "/usr/local/bin/echotest", "--reply-remote")
+			}()
 		}
 
 		time.Sleep(100 * time.Millisecond)
@@ -521,7 +522,7 @@ func testEgress() {
 			testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, enableIPAMTests)
 
 			By("running the same test 100 times")
-			for i := 0; i < 100; i++ {
+			for range 100 {
 				time.Sleep(1 * time.Millisecond)
 				testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, enableIPAMTests)
 			}
@@ -548,7 +549,7 @@ func testEgress() {
 			testNAT(data, "nat-client-sport-auto", o.fakeURL, natAddressesFiltered, enableIPAMTests)
 
 			By("running the same test 100 times with nat-client-sport-auto")
-			for i := 0; i < 100; i++ {
+			for range 100 {
 				time.Sleep(1 * time.Millisecond)
 				testNAT(data, "nat-client-sport-auto", o.fakeURL, natAddressesFiltered, enableIPAMTests)
 			}
@@ -685,7 +686,7 @@ func testEgress() {
 			testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, enableIPAMTests)
 
 			By("running the same test 100 times")
-			for i := 0; i < 100; i++ {
+			for range 100 {
 				time.Sleep(1 * time.Millisecond)
 				testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, enableIPAMTests)
 			}
@@ -700,7 +701,9 @@ func testEgress() {
 	}(enableOriginatingOnly), func() {
 		By("starting echo-server on the node")
 		port := "12345"
-		go runOnNode("coil-control-plane", "/usr/local/bin/echotest", "-port", port, "-reply-remote", "-no-separator")
+		go func() {
+			_, _ = runOnNode("coil-control-plane", "/usr/local/bin/echotest", "-port", port, "-reply-remote", "-no-separator")
+		}()
 
 		curDir, err := os.Getwd()
 		Expect(err).ToNot(HaveOccurred())
@@ -749,7 +752,7 @@ func testEgress() {
 
 			By("testing ingress connectivity")
 			errs := checkIngressConnections(egressData)
-			Expect(len(errs)).To(Equal(expectedErr))
+			Expect(errs).To(HaveLen(expectedErr))
 		}
 	})
 }
@@ -805,7 +808,7 @@ func getNATAddresses(name string) []string {
 	Expect(err).ToNot(HaveOccurred())
 
 	for _, eps := range epslices.Items {
-		for _, or := range eps.ObjectMeta.OwnerReferences {
+		for _, or := range eps.OwnerReferences {
 			if or.UID == svc.UID {
 				for _, ep := range eps.Endpoints {
 					natAddresses = append(natAddresses, ep.Addresses...)
@@ -880,7 +883,7 @@ func checkEgressConnection(address string, pod *corev1.Pod, port string) error {
 		return fmt.Errorf("failed to parse address %q", address)
 	}
 
-	isV6 := !(ip.To4() != nil)
+	isV6 := ip.To4() == nil
 	separator := "."
 	if isV6 {
 		separator = ":"
@@ -896,7 +899,7 @@ func checkEgressConnection(address string, pod *corev1.Pod, port string) error {
 	nodeIP = strings.ReplaceAll(strings.Trim(string(nodeByte), " \n"), "\"", "")
 
 	By("test egress connection to IP " + nodeIP)
-	if !(ip.To4() != nil) {
+	if ip.To4() == nil {
 		nodeIP = fmt.Sprintf("[%s]", nodeIP) // IPv6 address
 	}
 	result := runOnPod(pod.Namespace, pod.Name, "curl", "--max-time", "3", fmt.Sprintf("http://%s:%s", nodeIP, port))
@@ -923,7 +926,7 @@ func checkIngressConnections(egressData egressTemplateData) []error {
 		tmpIP := ip.IP
 		addr := net.ParseIP(tmpIP)
 		Expect(addr).ToNot(BeNil())
-		isv6 := !(addr.To4() != nil)
+		isv6 := addr.To4() == nil
 
 		if isv6 {
 			tmpIP = fmt.Sprintf("[%s]", tmpIP)

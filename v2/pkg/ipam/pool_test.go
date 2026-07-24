@@ -36,8 +36,8 @@ var _ = Describe("PoolManager", func() {
 			blocks = append(blocks, block)
 
 			Expect(block.Index).To(Equal(int32(0)))
-			Expect(block.IPv4).To(Equal(strPtr("10.2.0.0/31")))
-			Expect(block.IPv6).To(Equal(strPtr("fd02::200/127")))
+			Expect(block.IPv4).To(Equal(new("10.2.0.0/31")))
+			Expect(block.IPv6).To(Equal(new("fd02::200/127")))
 			Expect(block.Labels[constants.LabelNode]).To(Equal("node1"))
 			Expect(block.Labels[constants.LabelPool]).To(Equal("default"))
 			Expect(controllerutil.ContainsFinalizer(block, constants.FinCoil)).To(BeTrue())
@@ -53,7 +53,7 @@ var _ = Describe("PoolManager", func() {
 			Expect(promtest.ToFloat64(poolMaxBlocks.WithLabelValues("default"))).To(Equal(float64(6)))
 			Expect(promtest.ToFloat64(poolAllocated.WithLabelValues("default"))).To(Equal(float64(1)))
 
-			for i := 0; i < 5; i++ {
+			for range 5 {
 				block, err := pm.AllocateBlock(ctx, "default", "node1", "5a6d130a-adbe-46f9-9da9-bc5da7cc5f04")
 				Expect(err).ToNot(HaveOccurred())
 				blocks = append(blocks, block)
@@ -82,8 +82,8 @@ var _ = Describe("PoolManager", func() {
 			}, 1, 0.1).Should(Succeed())
 
 			Expect(block.Index).To(Equal(int32(4)))
-			Expect(block.IPv4).To(Equal(strPtr("10.3.0.0/31")))
-			Expect(block.IPv6).To(Equal(strPtr("fd02::300/127")))
+			Expect(block.IPv4).To(Equal(new("10.3.0.0/31")))
+			Expect(block.IPv6).To(Equal(new("fd02::300/127")))
 			Expect(block.Labels[constants.LabelNode]).To(Equal("node2"))
 			Expect(block.Labels[constants.LabelPool]).To(Equal("default"))
 
@@ -111,7 +111,7 @@ var _ = Describe("PoolManager", func() {
 			blocks = append(blocks, block)
 
 			Expect(block.Index).To(Equal(int32(0)))
-			Expect(block.IPv4).To(Equal(strPtr("10.4.0.0/30")))
+			Expect(block.IPv4).To(Equal(new("10.4.0.0/30")))
 			Expect(block.IPv6).To(Equal((*string)(nil)))
 			Expect(block.Labels[constants.LabelNode]).To(Equal("node1"))
 			Expect(block.Labels[constants.LabelPool]).To(Equal("v4"))
@@ -142,7 +142,7 @@ var _ = Describe("PoolManager", func() {
 			}, 1, 0.1).Should(Succeed())
 
 			Expect(block.Index).To(Equal(int32(1)))
-			Expect(block.IPv4).To(Equal(strPtr("10.4.0.4/30")))
+			Expect(block.IPv4).To(Equal(new("10.4.0.4/30")))
 			Expect(block.Labels[constants.LabelNode]).To(Equal("node2"))
 			Expect(block.Labels[constants.LabelPool]).To(Equal("v4"))
 		})

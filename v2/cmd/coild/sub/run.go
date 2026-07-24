@@ -45,7 +45,9 @@ func init() {
 func subMain() error {
 	// coild needs a raw zap logger for grpc_zip.
 	zapLogger := zap.NewRaw(zap.UseFlagOptions(&cfg.ZapOpts))
-	defer zapLogger.Sync()
+	defer func() {
+		_ = zapLogger.Sync()
+	}()
 
 	grpcLogger := zapLogger.Named("grpc")
 	ctrl.SetLogger(zapr.NewLogger(zapLogger))
