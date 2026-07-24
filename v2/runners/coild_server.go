@@ -98,7 +98,8 @@ func (n natSetup) Hook(l []GWNets, backend string, log *zap.Logger) func(ipv4, i
 
 // NewCoildServer returns an implementation of cnirpc.CNIServer for coild.
 func NewCoildServer(l net.Listener, mgr manager.Manager, nodeIPAM ipam.NodeIPAM, podNet nodenet.PodNetwork, setup NATSetup, cfg *config.Config, logger *zap.Logger,
-	aliasFunc func(conf *nodenet.PodNetConf, ifName string) error, nodeName string) manager.Runnable {
+	aliasFunc func(conf *nodenet.PodNetConf, ifName string) error, nodeName string,
+) manager.Runnable {
 	return &coildServer{
 		listener:  l,
 		apiReader: mgr.GetAPIReader(),
@@ -458,7 +459,7 @@ func (s *coildServer) getHook(ctx context.Context, pod *corev1.Pod) (nodenet.Set
 		}
 
 		ns := k[len(constants.AnnEgressPrefix):]
-		for _, name := range strings.Split(v, ",") {
+		for name := range strings.SplitSeq(v, ",") {
 			egNames = append(egNames, client.ObjectKey{Namespace: ns, Name: name})
 		}
 	}
@@ -499,8 +500,10 @@ func (s *coildServer) getHook(ctx context.Context, pod *corev1.Pod) (nodenet.Set
 			}
 
 			if len(subnets) > 0 {
-				gwlist = append(gwlist, GWNets{Gateway: svcIP, Networks: subnets,
-					SportAuto: eg.Spec.FouSourcePortAuto, OriginatingOnly: s.cfg.OriginatingOnly})
+				gwlist = append(gwlist, GWNets{
+					Gateway: svcIP, Networks: subnets,
+					SportAuto: eg.Spec.FouSourcePortAuto, OriginatingOnly: s.cfg.OriginatingOnly,
+				})
 			}
 		}
 	}

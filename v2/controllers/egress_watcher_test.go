@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net"
 	"sync"
 	"time"
@@ -177,6 +178,7 @@ type mockPodNetwork struct {
 func (p *mockPodNetwork) Init() error {
 	panic("not implemented")
 }
+
 func (p *mockPodNetwork) List() ([]*nodenet.PodNetConf, error) {
 	panic("not implemented")
 }
@@ -194,17 +196,14 @@ func (p *mockPodNetwork) Update(podIPv4, podIPv6 net.IP, hook nodenet.SetupHook,
 	defer p.mu.Unlock()
 
 	p.nUpdate++
-	c4, ok := p.ips[podIPv4.String()]
+	_, ok := p.ips[podIPv4.String()]
 	if !ok {
 		p.ips[podIPv4.String()] = 1
-	} else {
-		c4 += 1
 	}
-	c6, ok := p.ips[podIPv6.String()]
+
+	_, ok = p.ips[podIPv6.String()]
 	if !ok {
 		p.ips[podIPv6.String()] = 1
-	} else {
-		c6 += 1
 	}
 	return nil
 }
@@ -215,9 +214,7 @@ func (p *mockPodNetwork) getPodIPCount() map[string]int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	for k, v := range p.ips {
-		m[k] = v
-	}
+	maps.Copy(m, p.ips)
 
 	return m
 }

@@ -52,15 +52,19 @@ type mockNodeIPAM struct {
 func (n *mockNodeIPAM) Register(ctx context.Context, poolName, containerID, iface string, ipv4, ipv6 net.IP) error {
 	panic("not implemented")
 }
+
 func (n *mockNodeIPAM) GC(ctx context.Context) error {
 	panic("not implemented")
 }
+
 func (n *mockNodeIPAM) Notify(*coilv2.BlockRequest) {
 	panic("not implemented")
 }
+
 func (n *mockNodeIPAM) NodeInternalIP(ctx context.Context) (net.IP, net.IP, error) {
 	panic("not implemented")
 }
+
 func (n *mockNodeIPAM) ClearRoutes(ctx context.Context) error {
 	n.nClearRoutes.Add(1)
 	return nil
@@ -106,6 +110,7 @@ type mockPodNetwork struct {
 func (p *mockPodNetwork) Init() error {
 	panic("not implemented")
 }
+
 func (p *mockPodNetwork) List() ([]*nodenet.PodNetConf, error) {
 	panic("not implemented")
 }
@@ -180,18 +185,11 @@ func mockAlias(conf *nodenet.PodNetConf, ifName string) error {
 }
 
 var _ = Describe("Coild server", func() {
-
 	testIPAMEnv := os.Getenv(testIPAMKey)
-	testIPAM := true
-	if testIPAMEnv != "" && testIPAMEnv != "true" {
-		testIPAM = false
-	}
+	testIPAM := testIPAMEnv == "" || testIPAMEnv == "true"
 
 	testEgressEnv := os.Getenv(testEgressKey)
-	testEgress := true
-	if testEgressEnv != "" && testEgressEnv != "true" {
-		testEgress = false
-	}
+	testEgress := testEgressEnv == "" || testEgressEnv == "true"
 
 	tmpFile, err := os.CreateTemp("", "")
 	if err != nil {
@@ -457,7 +455,8 @@ var _ = Describe("Coild server", func() {
 
 			By("calling Check")
 			if !testIPAM {
-				podNet.expectByPod("ns2", "bar")
+				err := podNet.expectByPod("ns2", "bar")
+				Expect(err).NotTo(HaveOccurred())
 			}
 			_, err = cniClient.Check(ctx, &cnirpc.CNIArgs{
 				Args:        map[string]string{"K8S_POD_NAME": "bar", "K8S_POD_NAMESPACE": "ns2"},

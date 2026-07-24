@@ -10,8 +10,6 @@ PROTOC_GEN_DOC_VERSION=1.5.1
 ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 SETUP_ENVTEST_VERSION=v0.0.0-20260405152528-6210f847b2c1
-STATICCHECK_VERSION=0.7.0
-GOIMPORTS_VERSION=0.47.0
 YQ_VERSION=4.53.3
 
 ## DON'T EDIT BELOW THIS LINE
@@ -58,10 +56,8 @@ test: simple-test setup-envtest
 
 .PHONY: simple-test
 simple-test: test-tools
-	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
-	staticcheck ./...
+	golangci-lint run
 	go install ./...
-	go vet ./...
 
 .PHONY: test-nodenet
 test-nodenet:
@@ -96,7 +92,6 @@ check-generate:
 	-rm $(ROLES) $(PROTOC_OUTPUTS)
 	$(MAKE) generate
 	$(MAKE) manifests
-	goimports -w -local github.com/cybozu-go/coil/v2 .
 	go mod tidy
 	git diff --exit-code
 
@@ -329,20 +324,8 @@ GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
 endef
 
 .PHONY: test-tools
-test-tools: staticcheck goimports
-
-.PHONY: staticcheck
-staticcheck:
-	if ! which staticcheck >/dev/null; then \
-		env GOFLAGS= go install honnef.co/go/tools/cmd/staticcheck@v$(STATICCHECK_VERSION); \
-	fi
-
-GOIMPORTS := $(SELF_DIR)/bin/goimports
-.PHONY: goimports
-goimports:
-	if ! which goimports >/dev/null; then \
-		env GOFLAGS= go install golang.org/x/tools/cmd/goimports@v$(GOIMPORTS_VERSION); \
-	fi
+test-tools:
+	aqua install
 
 define comment_certs
     $(eval $@_FILE = $(1))

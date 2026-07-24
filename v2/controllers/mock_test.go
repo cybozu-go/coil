@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net"
 	"sync"
 
@@ -67,9 +68,7 @@ func (pm *mockPoolManager) GetDropped() map[string]int {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 	dropped := make(map[string]int)
-	for k, v := range pm.dropped {
-		dropped[k] = v
-	}
+	maps.Copy(dropped, pm.dropped)
 	return dropped
 }
 
@@ -77,9 +76,7 @@ func (pm *mockPoolManager) GetSynced() map[string]int {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 	synced := make(map[string]int)
-	for k, v := range pm.synced {
-		synced[k] = v
-	}
+	maps.Copy(synced, pm.synced)
 	return synced
 }
 
@@ -110,7 +107,6 @@ func (n *mockNodeIPAM) Register(ctx context.Context, poolName, containerID, ifac
 
 func (n *mockNodeIPAM) GC(ctx context.Context) error {
 	panic("not implemented")
-
 }
 
 func (n *mockNodeIPAM) Allocate(ctx context.Context, poolName, containerID, iface string) (ipv4, ipv6 net.IP, err error) {

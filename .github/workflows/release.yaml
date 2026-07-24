@@ -32,6 +32,9 @@ jobs:
             v2/bin
             v2/include
           key: cache-${{ env.cache-version }}-go-${{ env.go-version }}-${{ hashFiles('v2/Makefile') }}
+      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+        with:
+          aqua_version: v2.57.1
       - run: make setup
         if: steps.cache-tools.outputs.cache-hit != 'true'
       - name: Login to GitHub Container Registry

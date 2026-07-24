@@ -30,8 +30,7 @@ func (r *BlockRequestWatcher) Reconcile(ctx context.Context, req ctrl.Request) (
 	logger := log.FromContext(ctx)
 
 	br := &coilv2.BlockRequest{}
-	err := r.Client.Get(ctx, req.NamespacedName, br)
-
+	err := r.Get(ctx, req.NamespacedName, br)
 	if err != nil {
 		// as Delete event is ignored, this is unlikely to happen.
 		logger.Error(err, "failed to get")

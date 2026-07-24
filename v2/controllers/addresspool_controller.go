@@ -37,7 +37,7 @@ var _ reconcile.Reconciler = &AddressPoolReconciler{}
 func (r *AddressPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	ap := &coilv2.AddressPool{}
-	err := r.Client.Get(ctx, req.NamespacedName, ap)
+	err := r.Get(ctx, req.NamespacedName, ap)
 
 	if apierrors.IsNotFound(err) {
 		logger.Info("dropping address pool from manager")

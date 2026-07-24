@@ -37,8 +37,8 @@ func testController(ctx context.Context, npMap map[string]NodeIPAM) {
 					Finalizers: []string{constants.FinCoil},
 				},
 				Index: 0,
-				IPv4:  strPtr("10.2.0.0/31"),
-				IPv6:  strPtr("fd02::0200/127"),
+				IPv4:  new("10.2.0.0/31"),
+				IPv6:  new("fd02::0200/127"),
 			},
 			&coilv2.AddressBlock{
 				ObjectMeta: metav1.ObjectMeta{
@@ -49,8 +49,8 @@ func testController(ctx context.Context, npMap map[string]NodeIPAM) {
 					Finalizers: []string{constants.FinCoil},
 				},
 				Index: 1,
-				IPv4:  strPtr("10.2.0.2/31"),
-				IPv6:  strPtr("fd02::0202/127"),
+				IPv4:  new("10.2.0.2/31"),
+				IPv6:  new("fd02::0202/127"),
 			},
 		},
 		"v4": {
@@ -63,7 +63,7 @@ func testController(ctx context.Context, npMap map[string]NodeIPAM) {
 					Finalizers: []string{constants.FinCoil},
 				},
 				Index: 2,
-				IPv4:  strPtr("10.4.0.0/30"),
+				IPv4:  new("10.4.0.0/30"),
 			},
 		},
 	}
@@ -137,7 +137,6 @@ func testController(ctx context.Context, npMap map[string]NodeIPAM) {
 				continue
 			}
 			for _, req := range reqs.Items {
-				req := req
 				if err := process(&req); err != nil {
 					log.Log.Error(err, "failed to process request", "name", req.Name)
 				}
@@ -203,7 +202,7 @@ var _ = Describe("NodeIPAM", func() {
 		Expect(ipv6).To(EqualIP(net.ParseIP("fd02::0200")))
 		Expect(e1.Equal([]string{"10.2.0.0/31", "fd02::200/127"})).To(BeTrue())
 
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			_, _, err := nodeIPAM.Allocate(ctx, "default", fmt.Sprintf("c%d", i+1), "eth0")
 			Expect(err).ToNot(HaveOccurred())
 		}
@@ -312,8 +311,8 @@ var _ = Describe("NodeIPAM", func() {
 				Finalizers: []string{constants.FinCoil},
 			},
 			Index: 2,
-			IPv4:  strPtr("10.2.0.4/31"),
-			IPv6:  strPtr("fd02::0204/127"),
+			IPv4:  new("10.2.0.4/31"),
+			IPv6:  new("fd02::0204/127"),
 		}
 		err := k8sClient.Create(ctx, block)
 		Expect(err).ShouldNot(HaveOccurred())
@@ -361,7 +360,8 @@ var _ = Describe("NodeIPAM", func() {
 		e := &mockExporter{}
 		_, ipnet, err := net.ParseCIDR("10.2.0.0/24")
 		Expect(err).ToNot(HaveOccurred())
-		e.Sync([]*net.IPNet{ipnet})
+		err = e.Sync([]*net.IPNet{ipnet})
+		Expect(err).ToNot(HaveOccurred())
 		Expect(e.Equal([]string{"10.2.0.0/24"})).To(BeTrue())
 
 		nodeIPAM := NewNodeIPAM("node1", ctrl.Log.WithName("NodeIPAM-clear"), mgr, e)
@@ -384,7 +384,7 @@ func EqualIP(ip net.IP) types.GomegaMatcher {
 	return equalIP{expected: ip}
 }
 
-func (m equalIP) Match(actual interface{}) (success bool, err error) {
+func (m equalIP) Match(actual any) (success bool, err error) {
 	ip, ok := actual.(net.IP)
 	if !ok {
 		return false, errors.New("EqualIP matcher expects an net.IP")
@@ -393,14 +393,14 @@ func (m equalIP) Match(actual interface{}) (success bool, err error) {
 	return ip.Equal(m.expected), nil
 }
 
-func (m equalIP) FailureMessage(actual interface{}) (message string) {
+func (m equalIP) FailureMessage(actual any) (message string) {
 	return fmt.Sprintf(`Expected
 	%s
 to be the same as
 	%s`, actual, m.expected)
 }
 
-func (m equalIP) NegatedFailureMessage(actual interface{}) (message string) {
+func (m equalIP) NegatedFailureMessage(actual any) (message string) {
 	return fmt.Sprintf(`Expected
 	%s
 not equal to

@@ -1,0 +1,37 @@
+version: "2"
+linters:
+  enable:
+    - depguard
+    - ginkgolinter
+    - govet
+    - modernize
+    - nilerr
+    - staticcheck
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+  settings:
+    depguard:
+      rules:
+        restricted-packages:
+          files:
+            - $all
+          deny:
+            - pkg: html/template$
+              desc: html/template must not be used
+            - pkg: log$
+              desc: log must not be used
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/cybozu-go/coil/v2

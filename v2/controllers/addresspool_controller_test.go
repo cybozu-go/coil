@@ -7,7 +7,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/config"
@@ -33,7 +32,7 @@ var _ = Describe("AddressPool reconciler", func() {
 				BindAddress: "0",
 			},
 			Controller: config.Controller{
-				SkipNameValidation: ptr.To(true),
+				SkipNameValidation: new(true),
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
@@ -61,10 +60,10 @@ var _ = Describe("AddressPool reconciler", func() {
 		ap.Name = "default"
 		ap.Spec.BlockSizeBits = 1
 		ap.Spec.Subnets = []coilv2.SubnetSet{
-			{IPv4: strPtr("10.2.0.0/29"), IPv6: strPtr("fd02::0200/125")},
-			{IPv4: strPtr("10.3.0.0/30"), IPv6: strPtr("fd02::0300/126")},
+			{IPv4: new("10.2.0.0/29"), IPv6: new("fd02::0200/125")},
+			{IPv4: new("10.3.0.0/30"), IPv6: new("fd02::0300/126")},
 		}
-		k8sClient.Create(context.Background(), ap)
+		_ = k8sClient.Create(context.Background(), ap)
 		time.Sleep(10 * time.Millisecond)
 	})
 
@@ -85,7 +84,9 @@ var _ = Describe("AddressPool reconciler", func() {
 
 		b := &coilv2.AddressBlock{}
 		b.Name = "default-0"
-		ctrl.SetControllerReference(ap, b, scheme)
+		err = ctrl.SetControllerReference(ap, b, scheme)
+		Expect(err).To(Succeed())
+
 		err = k8sClient.Create(ctx, b)
 		Expect(err).To(Succeed())
 		time.Sleep(10 * time.Millisecond)

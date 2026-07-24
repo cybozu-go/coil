@@ -166,7 +166,7 @@ func (r *podWatcher) shouldHandle(pod *corev1.Pod) bool {
 			return true
 		}
 
-		for _, n := range strings.Split(v, ",") {
+		for n := range strings.SplitSeq(v, ",") {
 			if n == r.myName {
 				return true
 			}
