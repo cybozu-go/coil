@@ -44,9 +44,11 @@ func setIPTablesConnmarkRules(family int, link netlink.Link) error {
 		return err
 	}
 
-	inputSpec := []string{"-i", link.Attrs().Name,
+	inputSpec := []string{
+		"-i", link.Attrs().Name,
 		"-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED",
-		"-j", "CONNMARK", "--set-mark", strconv.Itoa(link.Attrs().Index)}
+		"-j", "CONNMARK", "--set-mark", strconv.Itoa(link.Attrs().Index),
+	}
 	if err := ipt.AppendUnique(mangleTable, inputChain, inputSpec...); err != nil {
 		return fmt.Errorf("failed to append %q rule in chain %q - %q: %w", mangleTable, inputChain, inputSpec, err)
 	}
@@ -68,9 +70,11 @@ func removeIPTablesConnmarkRules(family int, link netlink.Link) error {
 		return err
 	}
 
-	inputSpec := []string{"-i", link.Attrs().Name,
+	inputSpec := []string{
+		"-i", link.Attrs().Name,
 		"-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED",
-		"-j", "CONNMARK", "--set-mark", strconv.Itoa(link.Attrs().Index)}
+		"-j", "CONNMARK", "--set-mark", strconv.Itoa(link.Attrs().Index),
+	}
 	if err := ipt.DeleteIfExists(mangleTable, inputChain, inputSpec...); err != nil {
 		return fmt.Errorf("failed to delete %q rule in chain %q - %q: %w", mangleTable, inputChain, inputSpec, err)
 	}

@@ -180,7 +180,7 @@ func parseLink(l netlink.Link) *PodNetConf {
 }
 
 func calicoVethName(podName, podNS string) string {
-	sum := sha1.Sum([]byte(fmt.Sprintf("%s.%s", podNS, podName)))
+	sum := sha1.Sum(fmt.Appendf(nil, "%s.%s", podNS, podName))
 	return "veth" + hex.EncodeToString(sum[:])[:11]
 }
 
@@ -257,11 +257,15 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 	if pn.compatCalico {
 		podKey := fmt.Sprintf("%s/%s", podNS, podName)
 		pn.podLocks.LockKey(podKey)
-		defer pn.podLocks.UnlockKey(podKey)
+		defer func() {
+			_ = pn.podLocks.UnlockKey(podKey)
+		}()
 	}
 
 	pn.cLocks.LockKey(conf.ContainerId)
-	defer pn.cLocks.UnlockKey(conf.ContainerId)
+	defer func() {
+		_ = pn.cLocks.UnlockKey(conf.ContainerId)
+	}()
 
 	containerNS, err := ns.GetNS(nsPath)
 	if err != nil {
@@ -321,7 +325,7 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 		}
 
 		if err := netlink.LinkSetUp(cLink); err != nil {
-			netlink.LinkDel(cLink)
+			_ = netlink.LinkDel(cLink)
 			return fmt.Errorf("netlink: failed to up link for container: %w", err)
 		}
 
@@ -333,7 +337,7 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 				Scope: unix.RT_SCOPE_UNIVERSE,
 			})
 			if err != nil {
-				netlink.LinkDel(cLink)
+				_ = netlink.LinkDel(cLink)
 				return fmt.Errorf("netlink: failed to add an address: %w", err)
 			}
 			result.IPs = append(result.IPs, &current.IPConfig{
@@ -349,7 +353,7 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 				Scope: unix.RT_SCOPE_UNIVERSE,
 			})
 			if err != nil {
-				netlink.LinkDel(cLink)
+				_ = netlink.LinkDel(cLink)
 				return fmt.Errorf("netlink: failed to add an address: %w", err)
 			}
 			if err = ip.SettleAddresses(conf.IFace, 10*time.Second); err != nil {
@@ -387,7 +391,7 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 	}
 	defer func() {
 		if hLink != nil {
-			netlink.LinkDel(hLink)
+			_ = netlink.LinkDel(hLink)
 		}
 	}()
 
@@ -506,7 +510,9 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 
 func (pn *podNetwork) SetupEgress(nsPath string, conf *PodNetConf, hook SetupHook) error {
 	pn.cLocks.LockKey(conf.ContainerId)
-	defer pn.cLocks.UnlockKey(conf.ContainerId)
+	defer func() {
+		_ = pn.cLocks.UnlockKey(conf.ContainerId)
+	}()
 
 	containerNS, err := ns.GetNS(nsPath)
 	if err != nil {
@@ -538,7 +544,9 @@ func (pn *podNetwork) Update(podIPv4, podIPv6 net.IP, hook SetupHook, pod *corev
 	}
 
 	pn.cLocks.LockKey(conf.ContainerId)
-	defer pn.cLocks.UnlockKey(conf.ContainerId)
+	defer func() {
+		_ = pn.cLocks.UnlockKey(conf.ContainerId)
+	}()
 
 	netNsPath, err := getNetNsPath(conf.HostVethName)
 	if err != nil {
@@ -660,7 +668,9 @@ func getNsRunDir() string {
 
 func (pn *podNetwork) Check(containerId, iface string) error {
 	pn.cLocks.LockKey(containerId)
-	defer pn.cLocks.UnlockKey(containerId)
+	defer func() {
+		_ = pn.cLocks.UnlockKey(containerId)
+	}()
 
 	_, err := lookup(containerId, iface)
 	if err != nil {
@@ -674,7 +684,9 @@ func (pn *podNetwork) Check(containerId, iface string) error {
 
 func (pn *podNetwork) Destroy(containerId, iface string) error {
 	pn.cLocks.LockKey(containerId)
-	defer pn.cLocks.UnlockKey(containerId)
+	defer func() {
+		_ = pn.cLocks.UnlockKey(containerId)
+	}()
 
 	l, err := lookup(containerId, iface)
 	if err == errNotFound {

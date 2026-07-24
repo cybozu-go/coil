@@ -149,7 +149,7 @@ func TestPodNetwork(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		exec.Command("ip", "link", "del", "foo").Run()
+		_ = exec.Command("ip", "link", "del", "foo").Run()
 	}()
 
 	err = exec.Command("ip", "link", "set", "foo", "up").Run()

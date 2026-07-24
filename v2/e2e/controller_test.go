@@ -63,7 +63,7 @@ func testCoilIPAMController() {
 		kubectlSafe(nil, "apply", "-f", "manifests/orphaned.yaml")
 
 		By("checking the AddressBlock gets removed")
-		Eventually(func() interface{} {
+		Eventually(func() any {
 			abl := &coilv2.AddressBlockList{}
 			err := getResource("", "addressblocks", "", "coil.cybozu.com/node=coil-worker100", abl)
 			if err != nil {

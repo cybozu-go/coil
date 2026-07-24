@@ -33,9 +33,9 @@ func (h echoHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			remote += "|"
 		}
 
-		w.Write([]byte(remote))
+		_, _ = w.Write([]byte(remote))
 	}
-	w.Write(body)
+	_, _ = w.Write(body)
 }
 
 func main() {

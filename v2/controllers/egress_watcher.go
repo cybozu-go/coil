@@ -48,7 +48,7 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	pods := &corev1.PodList{}
-	err := r.Client.List(ctx, pods, client.MatchingFields{
+	err := r.List(ctx, pods, client.MatchingFields{
 		constants.PodNodeNameKey: r.NodeName,
 	})
 	if err != nil {
@@ -105,7 +105,7 @@ func (r *EgressWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 				continue
 			}
 
-			for _, n := range strings.Split(v, ",") {
+			for n := range strings.SplitSeq(v, ",") {
 				if n == eg.Name {
 					if err := r.reconcileEgressClient(ctx, eg, targetPod, &logger); err != nil {
 						if errors.Is(err, nodenet.ErrPodNetConfNotReady) {

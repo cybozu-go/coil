@@ -410,6 +410,7 @@ func configureDevice(link netlink.Link) error {
 func renameDevice(from, to string) error {
 	link, err := netlink.LinkByName(from)
 	if err != nil {
+		//nolint:nilerr
 		return nil
 	}
 

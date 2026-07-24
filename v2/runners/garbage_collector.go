@@ -66,7 +66,7 @@ func (gc *garbageCollector) do(ctx context.Context) error {
 	gc.log.Info("start garbage collection")
 
 	blocks := &coilv2.AddressBlockList{}
-	if err := gc.Client.List(ctx, blocks); err != nil {
+	if err := gc.List(ctx, blocks); err != nil {
 		return fmt.Errorf("failed to list address blocks: %w", err)
 	}
 
@@ -109,7 +109,7 @@ func (gc *garbageCollector) deleteBlock(ctx context.Context, name string) error 
 			return nil
 		}
 		controllerutil.RemoveFinalizer(b, constants.FinCoil)
-		return gc.Client.Update(ctx, b)
+		return gc.Update(ctx, b)
 	})
 	if err != nil {
 		return fmt.Errorf("failed to remove finalizer from %s: %w", name, err)
@@ -118,5 +118,5 @@ func (gc *garbageCollector) deleteBlock(ctx context.Context, name string) error 
 	// delete ignoring notfound error.
 	b := &coilv2.AddressBlock{}
 	b.Name = name
-	return client.IgnoreNotFound(gc.Client.Delete(ctx, b))
+	return client.IgnoreNotFound(gc.Delete(ctx, b))
 }

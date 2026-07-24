@@ -28,22 +28,20 @@ import (
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
-var cfg *rest.Config
-var k8sClient client.Client
-var testEnv *envtest.Environment
-var mgr manager.Manager
-var ctx = context.Background()
-var cancel context.CancelFunc
-var scheme = runtime.NewScheme()
+var (
+	cfg       *rest.Config
+	k8sClient client.Client
+	testEnv   *envtest.Environment
+	mgr       manager.Manager
+	ctx       = context.Background()
+	cancel    context.CancelFunc
+	scheme    = runtime.NewScheme()
+)
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
 	RunSpecs(t, "IPAM Suite")
-}
-
-func strPtr(s string) *string {
-	return &s
 }
 
 func cleanBlocks() {
@@ -109,8 +107,8 @@ var _ = BeforeSuite(func() {
 	ap.Name = "default"
 	ap.Spec.BlockSizeBits = 1
 	ap.Spec.Subnets = []coilv2.SubnetSet{
-		{IPv4: strPtr("10.2.0.0/29"), IPv6: strPtr("fd02::0200/125")},
-		{IPv4: strPtr("10.3.0.0/30"), IPv6: strPtr("fd02::0300/126")},
+		{IPv4: new("10.2.0.0/29"), IPv6: new("fd02::0200/125")},
+		{IPv4: new("10.3.0.0/30"), IPv6: new("fd02::0300/126")},
 	}
 	err = k8sClient.Create(ctx, ap)
 	Expect(err).ToNot(HaveOccurred())
@@ -119,7 +117,7 @@ var _ = BeforeSuite(func() {
 	ap.Name = "v4"
 	ap.Spec.BlockSizeBits = 2
 	ap.Spec.Subnets = []coilv2.SubnetSet{
-		{IPv4: strPtr("10.4.0.0/29")},
+		{IPv4: new("10.4.0.0/29")},
 	}
 	err = k8sClient.Create(ctx, ap)
 	Expect(err).ToNot(HaveOccurred())

@@ -142,7 +142,6 @@ func (n *nodeIPAM) sync(ctx context.Context) error {
 		}
 	}
 	return n.exporter.Sync(subnets)
-
 }
 
 func (n *nodeIPAM) Register(ctx context.Context, poolName, containerID, iface string, ipv4, ipv6 net.IP) error {

@@ -8,7 +8,7 @@ import (
 	"encoding/pem"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -35,12 +35,14 @@ func main() {
 	var err error
 	if *authority != "" {
 		if ca, priv, err = readCA(filepath.Join(*outDir, *authority), filepath.Join(*outDir, *authorityKey)); err != nil {
-			log.Fatal(err)
+			slog.Error("failed to read CA", "err", err)
+			os.Exit(1)
 		}
 	} else {
 		priv, err = rsa.GenerateKey(rand.Reader, 4096)
 		if err != nil {
-			log.Fatal(err)
+			slog.Error("failed to generate key", "err", err)
+			os.Exit(1)
 		}
 	}
 
@@ -77,24 +79,28 @@ func main() {
 
 	certBytes, err := x509.CreateCertificate(rand.Reader, &template, parent, priv.Public(), priv)
 	if err != nil {
-		log.Fatalf("failed to create certificate: %v", err)
+		slog.Error("failed to create certificate", "err", err)
+		os.Exit(1)
 	}
 
 	_, err = os.Stat(*outDir)
 	switch {
 	case err == nil:
 	case os.IsNotExist(err):
-		err = os.MkdirAll(*outDir, 0755)
+		err = os.MkdirAll(*outDir, 0o755)
 		if err != nil {
-			log.Fatalf("failed to create output directory: %v", err)
+			slog.Error("failed to create output directory", "err", err)
+			os.Exit(1)
 		}
 	default:
-		log.Fatalf("stat %s failed: %v", *outDir, err)
+		slog.Error(fmt.Sprintf("stat %s failed", *outDir), "err", err)
+		os.Exit(1)
 	}
 
 	privBytes, err := x509.MarshalPKCS8PrivateKey(priv)
 	if err != nil {
-		log.Fatalf("failed to marshal private key: %v", err)
+		slog.Error("failed to marshal private key", "err", err)
+		os.Exit(1)
 	}
 
 	outputPEM(filepath.Join(*outDir, *outCert), "CERTIFICATE", certBytes)
@@ -104,27 +110,30 @@ func main() {
 func dnsAliases(host string) []string {
 	parts := strings.Split(host, ".")
 	aliases := make([]string, len(parts))
-	for i := 0; i < len(parts); i++ {
+	for i := range len(parts) {
 		aliases[i] = strings.Join(parts[0:len(parts)-i], ".")
 	}
 	return aliases
 }
 
 func outputPEM(fname string, pemType string, data []byte) {
-	f, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	f, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
-		log.Fatalf("failed to open %s: %v", fname, err)
+		slog.Error("failed to open", "file", fname, "err", err)
+		os.Exit(1)
 	}
 	defer f.Close()
 
 	err = pem.Encode(f, &pem.Block{Type: pemType, Bytes: data})
 	if err != nil {
-		log.Fatalf("failed to encode: %v", err)
+		slog.Error("failed to encode", "err", err)
+		os.Exit(1)
 	}
 
 	err = f.Sync()
 	if err != nil {
-		log.Fatalf("failed to fsync: %v", err)
+		slog.Error("failed to fsync", "err", err)
+		os.Exit(1)
 	}
 }
 
@@ -138,18 +147,21 @@ func readCA(certPath, keyPath string) (*x509.Certificate, *rsa.PrivateKey, error
 
 	ca, err := x509.ParseCertificate(caData.Bytes)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("failed to parse certificate", "err", err)
+		os.Exit(1)
 	}
 
 	keyFile, err := os.ReadFile(keyPath)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("failed to read key", "err", err)
+		os.Exit(1)
 	}
 
 	cakData, _ := pem.Decode(keyFile)
 	key, err := x509.ParsePKCS8PrivateKey(cakData.Bytes)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("faield to parse private key", "err", err)
+		os.Exit(1)
 	}
 
 	privateKey, ok := key.(*rsa.PrivateKey)

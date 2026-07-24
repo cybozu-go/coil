@@ -118,7 +118,6 @@ func (c *egressCollector) Name() string {
 }
 
 func (c *egressCollector) Update(ctx context.Context) error {
-
 	val, err := readUintFromFile(NF_CONNTRACK_COUNT_PATH)
 	if err != nil {
 		return err

@@ -64,13 +64,13 @@ func init() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	viper.BindEnv("CNI_CONF_NAME")
-	viper.BindEnv("CNI_ETC_DIR")
-	viper.BindEnv("CNI_BIN_DIR")
-	viper.BindEnv("COIL_PATH")
-	viper.BindEnv("CNI_NETCONF_FILE")
-	viper.BindEnv("CNI_NETCONF")
-	viper.BindEnv("COIL_BOOT_TAINT")
+	_ = viper.BindEnv("CNI_CONF_NAME")
+	_ = viper.BindEnv("CNI_ETC_DIR")
+	_ = viper.BindEnv("CNI_BIN_DIR")
+	_ = viper.BindEnv("COIL_PATH")
+	_ = viper.BindEnv("CNI_NETCONF_FILE")
+	_ = viper.BindEnv("CNI_NETCONF")
+	_ = viper.BindEnv("COIL_BOOT_TAINT")
 
 	viper.SetDefault("CNI_CONF_NAME", defaultCniConfName)
 	viper.SetDefault("CNI_ETC_DIR", defaultCniEtcDir)
