@@ -229,7 +229,6 @@ func testFoUDual(t *testing.T) {
 
 		return nil
 	})
-
 	if err != nil {
 		t.Error(err)
 	}
@@ -327,7 +326,6 @@ func testFoUV4(t *testing.T) {
 
 		return nil
 	})
-
 	if err != nil {
 		t.Error(err)
 	}
@@ -425,7 +423,6 @@ func testFoUV6(t *testing.T) {
 
 		return nil
 	})
-
 	if err != nil {
 		t.Error(err)
 	}

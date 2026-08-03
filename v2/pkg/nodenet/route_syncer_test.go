@@ -40,7 +40,9 @@ func setupFake(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	ip.SettleAddresses("dummy", 10)
+	if err := ip.SettleAddresses("dummy", 10); err != nil {
+		t.Fatal(err)
+	}
 
 	// existing route
 	if err := netlink.RouteAdd(&netlink.Route{

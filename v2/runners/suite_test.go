@@ -24,10 +24,12 @@ import (
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
-var cfg *rest.Config
-var k8sClient client.Client
-var testEnv *envtest.Environment
-var scheme = runtime.NewScheme()
+var (
+	cfg       *rest.Config
+	k8sClient client.Client
+	testEnv   *envtest.Environment
+	scheme    = runtime.NewScheme()
+)
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -116,7 +118,6 @@ var _ = BeforeSuite(func() {
 	}
 	err = k8sClient.Create(ctx, ns2)
 	Expect(err).ToNot(HaveOccurred())
-
 })
 
 var _ = AfterSuite(func() {

@@ -95,11 +95,12 @@ var _ = Describe("BlockRequest reconciler", func() {
 		}).Should(Equal(1))
 
 		By("checking that it does not allocate new block for the request that a block has already been assigned")
-		Eventually(func() int {
+		Eventually(func(g Gomega) {
 			br := &coilv2.BlockRequest{}
-			k8sClient.Get(ctx, client.ObjectKey{Name: "br-0"}, br)
-			return len(br.Status.Conditions)
-		}).Should(Equal(1))
+			err := k8sClient.Get(ctx, client.ObjectKey{Name: "br-0"}, br)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(br.Status.Conditions).To(HaveLen(1))
+		}).Should(Succeed())
 
 		br := &coilv2.BlockRequest{}
 		err := k8sClient.Get(ctx, client.ObjectKey{Name: "br-0"}, br)
@@ -119,11 +120,12 @@ var _ = Describe("BlockRequest reconciler", func() {
 		err = k8sClient.Status().Update(ctx, br)
 		Expect(err).To(Succeed())
 
-		Eventually(func() int {
+		Eventually(func(g Gomega) {
 			br := &coilv2.BlockRequest{}
-			k8sClient.Get(ctx, client.ObjectKey{Name: "br-0"}, br)
-			return len(br.Status.Conditions)
-		}).Should(Equal(1))
+			err := k8sClient.Get(ctx, client.ObjectKey{Name: "br-0"}, br)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(br.Status.Conditions).To(HaveLen(1))
+		}).Should(Succeed())
 
 		Eventually(func() int {
 			return poolMgr.GetAllocated()
@@ -141,11 +143,12 @@ var _ = Describe("BlockRequest reconciler", func() {
 			return poolMgr.GetAllocated()
 		}).Should(Equal(2))
 
-		Eventually(func() string {
+		Eventually(func(g Gomega) {
 			br := &coilv2.BlockRequest{}
-			k8sClient.Get(ctx, client.ObjectKey{Name: "br-2"}, br)
-			return br.Status.AddressBlockName
-		}).ShouldNot(BeEmpty())
+			err := k8sClient.Get(ctx, client.ObjectKey{Name: "br-2"}, br)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(br.Status.AddressBlockName).NotTo(BeEmpty())
+		}).Should(Succeed())
 
 		By("checking that it does not allocate when there are no free blocks")
 		br = &coilv2.BlockRequest{}

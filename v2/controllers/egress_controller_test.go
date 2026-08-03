@@ -14,7 +14,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/config"
@@ -46,7 +45,7 @@ var _ = Describe("Egress reconciler", func() {
 				BindAddress: "0",
 			},
 			Controller: config.Controller{
-				SkipNameValidation: ptr.To(true),
+				SkipNameValidation: new(true),
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
@@ -280,7 +279,8 @@ var _ = Describe("Egress reconciler", func() {
 								Limits: corev1.ResourceList{
 									corev1.ResourceCPU: resource.MustParse("2"),
 								},
-							}},
+							},
+						},
 					},
 				},
 			}

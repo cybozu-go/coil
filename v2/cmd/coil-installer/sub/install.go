@@ -17,7 +17,7 @@ func installCniConf(cniConfName, cniEtcDir, cniNetConf, cniNetConfFile string) e
 		data = bData
 	}
 
-	err := os.MkdirAll(cniEtcDir, 0755)
+	err := os.MkdirAll(cniEtcDir, 0o755)
 	if err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func installCniConf(cniConfName, cniEtcDir, cniNetConf, cniNetConfFile string) e
 	}
 	defer f.Close()
 
-	err = f.Chmod(0644)
+	err = f.Chmod(0o644)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func installCoil(coilPath, cniBinDir string) error {
 	}
 	defer f.Close()
 
-	err = os.MkdirAll(cniBinDir, 0755)
+	err = os.MkdirAll(cniBinDir, 0o755)
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func installCoil(coilPath, cniBinDir string) error {
 		return err
 	}
 
-	err = g.Chmod(0755)
+	err = g.Chmod(0o755)
 	if err != nil {
 		return err
 	}

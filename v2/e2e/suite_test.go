@@ -60,7 +60,7 @@ func kubectlSafe(input []byte, args ...string) []byte {
 }
 
 // ns, name, label are optional.  If name is empty, obj must be a list type.
-func getResource(ns, resource, name, label string, obj interface{}) error {
+func getResource(ns, resource, name, label string, obj any) error {
 	var args []string
 	if ns != "" {
 		args = append(args, "-n", ns)
@@ -81,7 +81,7 @@ func getResource(ns, resource, name, label string, obj interface{}) error {
 }
 
 // ns, name, label are optional.  If name is empty, obj must be a list type.
-func getResourceSafe(ns, resource, name, label string, obj interface{}) {
+func getResourceSafe(ns, resource, name, label string, obj any) {
 	err := getResource(ns, resource, name, label, obj)
 	ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
 }

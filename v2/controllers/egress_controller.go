@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"maps"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -12,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -132,16 +132,10 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	podSpec := &corev1.PodSpec{}
 	if desired != nil {
 		podSpec = desired.Spec.DeepCopy()
-		for k, v := range desired.Annotations {
-			target.Annotations[k] = v
-		}
-		for k, v := range desired.Labels {
-			target.Labels[k] = v
-		}
+		maps.Copy(target.Annotations, desired.Annotations)
+		maps.Copy(target.Labels, desired.Labels)
 	}
-	for k, v := range selectorLabels(eg.Name) {
-		target.Labels[k] = v
-	}
+	maps.Copy(target.Labels, selectorLabels(eg.Name))
 
 	podSpec.ServiceAccountName = constants.SAEgress
 	podSpec.Volumes = r.addVolumes(podSpec.Volumes)
@@ -191,8 +185,8 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 	)
 	egressContainer.VolumeMounts = r.addVolumeMounts(egressContainer.VolumeMounts)
 	egressContainer.SecurityContext = &corev1.SecurityContext{
-		Privileged:             ptr.To(true),
-		ReadOnlyRootFilesystem: ptr.To(true),
+		Privileged:             new(true),
+		ReadOnlyRootFilesystem: new(true),
 		Capabilities:           &corev1.Capabilities{Add: []corev1.Capability{"NET_ADMIN"}},
 	}
 	if egressContainer.Resources.Requests == nil {
@@ -292,9 +286,7 @@ func (r *EgressReconciler) reconcileDeployment(ctx context.Context, log logr.Log
 			depl.Labels = make(map[string]string)
 		}
 		labels := selectorLabels(eg.Name)
-		for k, v := range labels {
-			depl.Labels[k] = v
-		}
+		maps.Copy(depl.Labels, labels)
 
 		// set immutable fields only for a new object
 		if depl.CreationTimestamp.IsZero() {
@@ -339,9 +331,7 @@ func (r *EgressReconciler) reconcileService(ctx context.Context, log logr.Logger
 			svc.Labels = make(map[string]string)
 		}
 		labels := selectorLabels(eg.Name)
-		for k, v := range labels {
-			svc.Labels[k] = v
-		}
+		maps.Copy(svc.Labels, labels)
 
 		// set immutable fields only for a new object
 		if svc.CreationTimestamp.IsZero() {
@@ -395,9 +385,7 @@ func (r *EgressReconciler) reconcilePDB(ctx context.Context, log logr.Logger, eg
 		if pdb.Labels == nil {
 			pdb.Labels = make(map[string]string)
 		}
-		for k, v := range selectorLabels(eg.Name) {
-			pdb.Labels[k] = v
-		}
+		maps.Copy(pdb.Labels, selectorLabels(eg.Name))
 
 		// set immutable fields only for a new object
 		if pdb.CreationTimestamp.IsZero() {

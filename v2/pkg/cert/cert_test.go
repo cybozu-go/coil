@@ -44,10 +44,10 @@ func writeCertFiles(t *testing.T, dir string, serial int64, mtime time.Time) {
 	}
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
 
-	if err := os.WriteFile(filepath.Join(dir, "tls.crt"), certPEM, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "tls.crt"), certPEM, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "tls.key"), keyPEM, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "tls.key"), keyPEM, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(filepath.Join(dir, "tls.crt"), mtime, mtime); err != nil {
@@ -110,7 +110,7 @@ func TestReloaderSymlinkSwap(t *testing.T) {
 
 	makeData := func(name string, serial int64, mtime time.Time) {
 		dataDir := filepath.Join(dir, name)
-		if err := os.Mkdir(dataDir, 0755); err != nil {
+		if err := os.Mkdir(dataDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 		writeCertFiles(t, dataDir, serial, mtime)
@@ -165,7 +165,7 @@ func TestReloaderKeepsCacheOnBrokenUpdate(t *testing.T) {
 	}
 
 	certPath := filepath.Join(dir, "tls.crt")
-	if err := os.WriteFile(certPath, []byte("broken"), 0600); err != nil {
+	if err := os.WriteFile(certPath, []byte("broken"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	mtime := base.Add(time.Second)

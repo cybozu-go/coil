@@ -137,7 +137,7 @@ func (r *router) sync(ctx context.Context) error {
 	}
 
 	blocks := &coilv2.AddressBlockList{}
-	if err := r.Client.List(ctx, blocks); err != nil {
+	if err := r.List(ctx, blocks); err != nil {
 		return fmt.Errorf("failed to list AddressBlocks: %w", err)
 	}
 	nRoutes := 0
