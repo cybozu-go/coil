@@ -10,13 +10,11 @@ PROTOC_GEN_DOC_VERSION=1.5.1
 ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 SETUP_ENVTEST_VERSION=v0.0.0-20260405152528-6210f847b2c1
-YQ_VERSION=4.53.3
 
 ## DON'T EDIT BELOW THIS LINE
 SUDO=sudo
 CONTROLLER_GEN := $(shell pwd)/bin/controller-gen
 SETUP_ENVTEST := $(shell pwd)/bin/setup-envtest
-YQ := $(shell pwd)/bin/yq
 CRD_OPTIONS = "crd:crdVersions=v1"
 ROLES = config/rbac/coil-ipam-controller_role.yaml \
 	config/rbac/coil-ipam-controller-certs_role.yaml \
@@ -101,30 +99,24 @@ manifests: manifests-ipam manifests-egress
 
 
 .PHONY: manifests-egress
-manifests-egress: $(CONTROLLER_GEN) $(ROLES) $(YQ)
+manifests-egress: $(CONTROLLER_GEN) $(ROLES)
+	aqua install
 	mkdir -p tmp/egress
 	cp api/v2/egress_webhook.go api/v2/egress_types.go api/v2/groupversion_info.go tmp/egress
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./tmp/egress/..." output:webhook:stdout output:crd:artifacts:config=config/crd/bases > config/webhook/egress/manifests.yaml
 	sed -i 's/webhook-/egress-webhook-/g' config/webhook/egress/manifests.yaml
 	# Reduce the size of Egress CRD by deleting `description` fields below the pod's template because it exceeds the limit of `metadata.annotations` length when it's applied with client-side mode.
-	$(YQ) -i 'del(.spec.versions.[].schema.openAPIV3Schema.properties.spec.properties.template | ..  |select(key == "description"))' config/crd/bases/coil.cybozu.com_egresses.yaml
+	yq -i 'del(.spec.versions.[].schema.openAPIV3Schema.properties.spec.properties.template | ..  |select(key == "description"))' config/crd/bases/coil.cybozu.com_egresses.yaml
 	rm -rf tmp 2> /dev/null
 
 .PHONY: manifests-ipam
-manifests-ipam: $(CONTROLLER_GEN) $(ROLES) $(YQ)
+manifests-ipam: $(CONTROLLER_GEN) $(ROLES)
+	aqua install
 	mkdir -p tmp/ipam
 	cp api/v2/addresspool_webhook.go api/v2/addresspool_types.go api/v2/addressblock_types.go api/v2/blockrequest_types.go api/v2/groupversion_info.go tmp/ipam
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) webhook paths="./tmp/ipam/..." output:webhook:stdout output:crd:artifacts:config=config/crd/bases > config/webhook/ipam/manifests.yaml
 	sed -i 's/webhook-/ipam-webhook-/g' config/webhook/ipam/manifests.yaml
 	rm -rf tmp 2> /dev/null
-
-
-$(YQ):
-	$(WGET) -O yq.tar.gz https://github.com/mikefarah/yq/releases/download/v$(YQ_VERSION)/yq_$(OS)_$(ARCH).tar.gz
-	tar -C $(shell pwd)/bin/ -zxf yq.tar.gz ./yq_$(OS)_$(ARCH)
-	mv $(shell pwd)/bin/yq_$(OS)_$(ARCH) $@
-	rm -f yq.tar.gz
-	chmod +x $@
 
 COIL_IPAM_CONTROLLER_ROLE_DEPENDS = controllers/addresspool_controller.go \
 	controllers/blockrequest_controller.go \
@@ -207,14 +199,17 @@ config/rbac/egress/coild_role.yaml: $(EGRESS_COILD_DEPENDS)
 	$(CONTROLLER_GEN) rbac:roleName=coild paths=./work output:stdout > $@
 	rm -rf work
 
-config/rbac/egress/serviceaccount.yaml: config/rbac/serviceaccount.yaml $(YQ)
-	$(YQ) -c 'select(.metadata.name == "coil-egress-controller" or .metadata.name == "coild")' $< > $@
+config/rbac/egress/serviceaccount.yaml: config/rbac/serviceaccount.yaml
+	aqua install
+	yq -c 'select(.metadata.name == "coil-egress-controller" or .metadata.name == "coild")' $< > $@
 
-config/rbac/egress/role_binding.yaml: config/rbac/role_binding.yaml $(YQ)
-	$(YQ) -c 'select(.metadata.name == "coil-egress-controller" or .metadata.name == "coild" or .metadata.name == "coil-egress")' $< > $@
+config/rbac/egress/role_binding.yaml: config/rbac/role_binding.yaml
+	aqua install
+	yq -c 'select(.metadata.name == "coil-egress-controller" or .metadata.name == "coild" or .metadata.name == "coil-egress")' $< > $@
 
-config/rbac/egress/leader_election_role_binding.yaml: config/rbac/leader_election_role_binding.yaml $(YQ)
-	$(YQ) -c 'select(.metadata.name == "coil-leader-election") | .subjects = [.subjects[] | select(.name == "coil-egress-controller")]' $< > $@
+config/rbac/egress/leader_election_role_binding.yaml: config/rbac/leader_election_role_binding.yaml
+	aqua install
+	yq -c 'select(.metadata.name == "coil-leader-election") | .subjects = [.subjects[] | select(.name == "coil-egress-controller")]' $< > $@
 
 COIL_ROUTER_DEPENDS = controllers/addressblock_controller.go \
 	runners/router.go
