@@ -1,13 +1,8 @@
-KIND_VERSION=0.31.0
 KUBERNETES_VERSION ?= 1.35.1
-KUSTOMIZE_VERSION = 5.8.1
-BINDIR := $(abspath $(PWD)/../bin)
 
 ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
-KIND := $(BINDIR)/kind
-KUBECTL := $(BINDIR)/kubectl
-KUSTOMIZE := $(BINDIR)/kustomize
+KUBECTL := $(shell aqua which kubectl)
 export KUBECTL
 
 # E2E scenario inputs (override via environment or `make X=Y`).
@@ -53,12 +48,13 @@ endif
 TIMEOUT = 0
 
 .PHONY: start
-start: $(KIND) $(KUBECTL) $(KUSTOMIZE)
-	$(KIND) create cluster --image kindest/node:v$(KUBERNETES_VERSION) --name coil --config $(KIND_CONFIG)
+start:
+	aqua install
+	kind create cluster --image kindest/node:v$(KUBERNETES_VERSION) --name coil --config $(KIND_CONFIG)
 
 .PHONY: stop
-stop: $(KIND)
-	$(KIND) delete cluster --name coil
+stop:
+	kind delete cluster --name coil
 
 # Egress mode kustomize overlay selection.
 EGRESS_PROTO := $(if $(filter true,$(TEST_IPV4)),$(if $(filter true,$(TEST_IPV6)),dualstack,v4),v6)
@@ -82,7 +78,8 @@ endif
 #            chain coil after kindnet, then deploy egress controllers + coild.
 .PHONY: install-coil
 install-coil: setup-nodes
-	$(KIND) load docker-image --name coil coil:dev
+	aqua install
+	kind load docker-image --name coil coil:dev
 ifeq ($(WITH_IPAM),false)
 	@if [ -z "$(strip $(KINDNET_PROTOS))" ]; then \
 		echo "ERROR: WITH_IPAM=false requires TEST_IPV4=true and/or TEST_IPV6=true"; \
@@ -90,16 +87,16 @@ ifeq ($(WITH_IPAM),false)
 	fi
 	rm -rf tmp && mkdir tmp 2> /dev/null
 	CGO_ENABLED=0 go build -o kindnet-conf ./kindnet-configurer
-	$(KUBECTL) rollout status daemonset kindnet -n kube-system --timeout 120s
+	kubectl rollout status daemonset kindnet -n kube-system --timeout 120s
 	$(foreach p,$(KINDNET_PROTOS),./kindnet-conf --action get --protocol $(p) &&) :
 endif
-	$(KUSTOMIZE) build --load-restrictor=LoadRestrictionsNone $(KUSTOMIZE_DIR) | $(KUBECTL) apply -f -
+	kustomize build --load-restrictor=LoadRestrictionsNone $(KUSTOMIZE_DIR) | kubectl apply -f -
 ifeq ($(WITH_IPAM),true)
-	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-ipam-controller
+	kubectl -n kube-system wait --timeout=3m --for=condition=available deployment/coil-ipam-controller
 endif
-	$(KUBECTL) -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
+	kubectl -n kube-system wait --timeout=3m --for=condition=available deployment/coil-egress-controller
 ifeq ($(WITH_IPAM),false)
-	$(KUBECTL) rollout status daemonset coild -n kube-system --timeout=3m
+	kubectl rollout status daemonset coild -n kube-system --timeout=3m
 	$(foreach p,$(KINDNET_PROTOS),./kindnet-conf --action set --cni-config 10-coil.conflist --protocol $(p) &&) :
 	rm -rf tmp kindnet-conf
 endif
@@ -116,10 +113,10 @@ endif
 
 .PHONY: setup-nodes
 setup-nodes:
-	$(KUBECTL) taint nodes coil-worker test:NoSchedule
-	$(KUBECTL) taint nodes coil-worker2 test:NoSchedule
-	$(KUBECTL) label nodes coil-worker test=coil
-	$(KUBECTL) label nodes coil-worker2 test=coil
+	kubectl taint nodes coil-worker test:NoSchedule
+	kubectl taint nodes coil-worker2 test:NoSchedule
+	kubectl label nodes coil-worker test=coil
+	kubectl label nodes coil-worker2 test=coil
 
 TEST_IPAM ?= $(WITH_IPAM)
 TEST_ORIGINATINGONLY ?= $(ORIGINATINGONLY)
@@ -145,12 +142,12 @@ build-echotest-image:
 
 .PHONY: setup-echotest-image
 setup-echotest-image: build-echotest-image
-	$(KIND) load docker-image echotest:dev --name coil
+	kind load docker-image echotest:dev --name coil
 
 .PHONY: logs
 logs:
 	rm -rf logs.tar.gz logs
-	$(KIND) export logs --name=coil ./logs
+	kind export logs --name=coil ./logs
 	tar czf logs.tar.gz logs
 	rm -rf logs
 
@@ -185,18 +182,3 @@ enable-certs-rotation:
 	@$(call comment_certs,"../config/default/egress/v6-originatingonly/kustomization.yaml")
 	@$(call comment_certs,"../config/default/egress/v4-nft-originatingonly/kustomization.yaml")
 	@$(call comment_certs,"../config/default/egress/v6-nft-originatingonly/kustomization.yaml")
-
-$(KIND):
-	mkdir -p $(dir $@)
-	curl -sfL -o $@ https://github.com/kubernetes-sigs/kind/releases/download/v$(KIND_VERSION)/kind-$(OS)-$(ARCH)
-	chmod a+x $@
-
-$(KUBECTL):
-	mkdir -p $(dir $@)
-	curl -sfL -o $@ https://dl.k8s.io/release/v$(KUBERNETES_VERSION)/bin/$(OS)/$(ARCH)/kubectl
-	chmod a+x $@
-
-$(KUSTOMIZE):
-	mkdir -p $(dir $@)
-	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_$(OS)_$(ARCH).tar.gz | tar -xz -C $(BINDIR)
-	chmod a+x $@

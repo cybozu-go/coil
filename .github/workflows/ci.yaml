@@ -105,6 +105,9 @@ jobs:
       with:
         go-version: ${{ env.go-version }}
         cache-dependency-path: "**/go.sum"
+    - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+      with:
+        aqua_version: v2.57.1
     - run: make image
     - run: make certs
     - run: make ci-enable-docker-ipv6
@@ -137,6 +140,9 @@ jobs:
       with:
         go-version: ${{ env.go-version }}
         cache-dependency-path: "**/go.sum"
+    - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+      with:
+        aqua_version: v2.57.1
     - run: make image
     - run: make enable-certs-rotation
       working-directory: v2/e2e
