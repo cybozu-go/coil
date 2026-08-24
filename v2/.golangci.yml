@@ -4,6 +4,7 @@ linters:
   enable:
     - depguard
     - ginkgolinter
+    - modernize
     - nilerr
   exclusions:
     generated: lax
