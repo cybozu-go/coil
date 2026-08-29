@@ -228,6 +228,71 @@ func (pn *podNetwork) Init() error {
 	return nil
 }
 
+func ReconcilePodRoutes(pn PodNetwork) error {
+	impl, ok := pn.(*podNetwork)
+	if !ok {
+		return fmt.Errorf("unsupported pod network implementation %T", pn)
+	}
+
+	confs, err := pn.List()
+	if err != nil {
+		return fmt.Errorf("failed to list pod configs for startup route reconciliation: %w", err)
+	}
+
+	for _, conf := range confs {
+		if conf == nil {
+			continue
+		}
+		if err := ensurePodRoute(impl, conf); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func addNetlinkRoute(route *netlink.Route) (bool, error) {
+	if err := netlink.RouteAdd(route); err != nil {
+		var routeErr *netlink.OpError
+		if errors.As(err, &routeErr) && routeErr.Err == syscall.EEXIST {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func ensurePodRoute(pn *podNetwork, conf *PodNetConf) error {
+	link, err := netlink.LinkByName(conf.HostVethName)
+	if err != nil {
+		return fmt.Errorf("netlink: failed to look up host-side veth %s for startup route reconciliation: %w", conf.HostVethName, err)
+	}
+
+	for _, ip := range []net.IP{conf.IPv4, conf.IPv6} {
+		if ip == nil {
+			continue
+		}
+
+		added, err := addNetlinkRoute(&netlink.Route{
+			Dst:       netlink.NewIPNet(ip),
+			LinkIndex: link.Attrs().Index,
+			Scope:     netlink.SCOPE_LINK,
+			Protocol:  pn.protocolId,
+			Table:     pn.podTableId,
+		})
+		if err != nil {
+			return fmt.Errorf("netlink: failed to ensure startup route for %s to %s in table %d: %w", conf.HostVethName, ip.String(), pn.podTableId, err)
+		}
+		if added {
+			pn.log.V(1).Info("startup pod route created", "name", conf.HostVethName, "ip", ip.String(), "table", pn.podTableId)
+			continue
+		}
+		pn.log.V(1).Info("startup pod route already exists; skip", "name", conf.HostVethName, "ip", ip.String(), "table", pn.podTableId)
+	}
+
+	return nil
+}
+
 func (pn *podNetwork) initRule(family int) error {
 	rules, err := netlink.RuleList(family)
 	if err != nil {
