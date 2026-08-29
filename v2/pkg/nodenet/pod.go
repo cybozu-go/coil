@@ -253,8 +253,7 @@ func ReconcilePodRoutes(pn PodNetwork) error {
 
 func addNetlinkRoute(route *netlink.Route) (bool, error) {
 	if err := netlink.RouteAdd(route); err != nil {
-		var routeErr *netlink.OpError
-		if errors.As(err, &routeErr) && routeErr.Err == syscall.EEXIST {
+		if errors.Is(err, syscall.EEXIST) {
 			return false, nil
 		}
 		return false, err
