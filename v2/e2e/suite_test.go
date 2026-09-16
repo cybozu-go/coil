@@ -59,6 +59,11 @@ func kubectlSafe(input []byte, args ...string) []byte {
 	return stdout
 }
 
+func kubectlSafeErr(input []byte, args ...string) error {
+	_, err := kubectl(input, args...)
+	return err
+}
+
 // ns, name, label are optional.  If name is empty, obj must be a list type.
 func getResource(ns, resource, name, label string, obj any) error {
 	var args []string

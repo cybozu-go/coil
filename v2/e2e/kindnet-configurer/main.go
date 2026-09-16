@@ -138,5 +138,11 @@ func set(conflistName, protoVer, tmpFilename string, contianers []string) error 
 			return fmt.Errorf("error: %w: %s", err, bufferErr.String())
 		}
 	}
+
+	err = scanner.Err()
+	if err != nil {
+		return fmt.Errorf("bufio scanner error: %w", err)
+	}
+
 	return nil
 }
