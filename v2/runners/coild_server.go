@@ -73,9 +73,12 @@ func (n natSetup) Hook(l []GWNets, backend string, log *zap.Logger) func(ipv4, i
 			return err
 		}
 
-		cl := netfilter.NewNatClient(ipv4, ipv6, n.clusterNetworks, backend, func(message string) {
+		cl, err := netfilter.NewNatClient(ipv4, ipv6, n.clusterNetworks, backend, func(message string) {
 			log.Sugar().Info(message)
 		})
+		if err != nil {
+			return err
+		}
 		if err := cl.Init(); err != nil {
 			return err
 		}
@@ -90,9 +93,11 @@ func (n natSetup) Hook(l []GWNets, backend string, log *zap.Logger) func(ipv4, i
 			if err != nil {
 				return err
 			}
+
 			if err := cl.SyncNat(link, gwn.Networks, gwn.OriginatingOnly); err != nil {
 				return err
 			}
+
 		}
 
 		return nil

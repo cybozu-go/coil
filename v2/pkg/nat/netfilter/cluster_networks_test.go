@@ -75,7 +75,7 @@ func TestParseClusterNetworks(t *testing.T) {
 	}
 }
 
-func TestValidateClusterNetworks(t *testing.T) {
+func TestClusterNetworksValidate(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -87,11 +87,6 @@ func TestValidateClusterNetworks(t *testing.T) {
 			name:    "empty",
 			cn:      &ClusterNetworks{},
 			wantErr: false,
-		},
-		{
-			name:    "nil",
-			cn:      nil,
-			wantErr: true,
 		},
 		{
 			name: "a few networks of each family",
@@ -139,7 +134,7 @@ func TestValidateClusterNetworks(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			cn := tt.cn
-			err := ValidateClusterNetworks(cn)
+			err := cn.Validate()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateClusterNetworks() error = %v, wantErr %v", err, tt.wantErr)
 			}

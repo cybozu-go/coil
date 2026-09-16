@@ -105,7 +105,11 @@ func testNAT(clientNS, egressNS, targetNS ns.NetNS, backend string, originatingO
 			return fmt.Errorf("ft.Init on client failed: %w", err)
 		}
 
-		nc := netfilter.NewNatClient(clientIPv4, clientIPv6, nil, backend, nil)
+		nc, err := netfilter.NewNatClient(clientIPv4, clientIPv6, nil, backend, nil)
+		if err != nil {
+			return fmt.Errorf("netfilter.NewNatClient failed: %w", err)
+		}
+
 		if err := nc.Init(); err != nil {
 			return fmt.Errorf("nc.Init failed: %w", err)
 		}

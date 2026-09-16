@@ -14,7 +14,7 @@ func (cn *ClusterNetworks) IsEmpty() bool {
 	return len(cn.v4) == 0 && len(cn.v6) == 0
 }
 
-// parseClusterNetworks parses --cluster-networks CIDR strings into net.IPNet values.
+// ParseClusterNetworks parses --cluster-networks CIDR strings into net.IPNet values.
 func ParseClusterNetworks(cidrs []string) (*ClusterNetworks, error) {
 	var v4, v6 []*net.IPNet
 	for _, s := range cidrs {
@@ -28,20 +28,20 @@ func ParseClusterNetworks(cidrs []string) (*ClusterNetworks, error) {
 			v6 = append(v6, n)
 		}
 	}
-	return &ClusterNetworks{v4, v6}, nil
+	return &ClusterNetworks{
+		v4: v4,
+		v6: v6,
+	}, nil
 }
 
 // ValidateClusterNetworks checks that clusterNetworks does not exceed
 // MaxInClusterNetworks entries per IP family.
-func ValidateClusterNetworks(clusterNetworks *ClusterNetworks) error {
-	if clusterNetworks == nil {
-		return fmt.Errorf("tried to validate <nil> ClusterNetworks object")
+func (cn *ClusterNetworks) Validate() error {
+	if len(cn.v4) > MaxInClusterNetworks {
+		return fmt.Errorf("too many IPv4 cluster networks: %d (max %d)", len(cn.v4), MaxInClusterNetworks)
 	}
-	if len(clusterNetworks.v4) > MaxInClusterNetworks {
-		return fmt.Errorf("too many IPv4 cluster networks: %d (max %d)", len(clusterNetworks.v4), MaxInClusterNetworks)
-	}
-	if len(clusterNetworks.v6) > MaxInClusterNetworks {
-		return fmt.Errorf("too many IPv6 cluster networks: %d (max %d)", len(clusterNetworks.v6), MaxInClusterNetworks)
+	if len(cn.v6) > MaxInClusterNetworks {
+		return fmt.Errorf("too many IPv6 cluster networks: %d (max %d)", len(cn.v6), MaxInClusterNetworks)
 	}
 	return nil
 }

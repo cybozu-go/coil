@@ -32,5 +32,6 @@ type Client interface {
 	// removed. Init must have been called beforehand.
 	SyncNat(link netlink.Link, subnets []*net.IPNet, originatingOnly bool) error
 
+	// SyncInClusterRules configures the InCluster rules on the pod.
 	SyncInClusterRules() error
 }

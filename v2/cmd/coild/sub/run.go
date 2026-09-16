@@ -66,7 +66,7 @@ func subMain() error {
 	if err != nil {
 		return fmt.Errorf("invalid --cluster-networks: %w", err)
 	}
-	if err := netfilter.ValidateClusterNetworks(clusterNetworks); err != nil {
+	if err := clusterNetworks.Validate(); err != nil {
 		return fmt.Errorf("invalid --cluster-networks: %w", err)
 	}
 	if !clusterNetworks.IsEmpty() {
