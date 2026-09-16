@@ -29,6 +29,7 @@ type Config struct {
 	Backend                string
 	OriginatingOnly        bool
 	ClearRoutesOnShutdown  bool
+	ClusterNetworks        []string
 }
 
 func Parse(rootCmd *cobra.Command) *Config {
@@ -50,6 +51,7 @@ func Parse(rootCmd *cobra.Command) *Config {
 	pf.StringVar(&config.Backend, "backend", constants.DefaultEgressBackend, "backend for egress NAT rules: iptables or nftables (default: iptables)")
 	pf.BoolVar(&config.OriginatingOnly, "enable-originating-only", constants.DefaultOriginatingOnly, "egress should be used only for connections originating in the pod (default: false)")
 	pf.BoolVar(&config.ClearRoutesOnShutdown, "clear-routes-on-shutdown", constants.DefaultClearRoutesOnShutdown, "clear export routes when the node is deleted")
+	pf.StringSliceVar(&config.ClusterNetworks, "cluster-networks", nil, "CIDR networks that are excluded from egress NAT because they are routed within the cluster (default: RFC1918 for IPv4, fc00::/7 for IPv6); overrides the default per IP family when at least one network of that family is given")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)
