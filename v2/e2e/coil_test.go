@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -463,7 +464,6 @@ func testEgress() {
 
 		opts := []options{}
 
-		// var fakeIP, fakeURL, ipOpt string
 		if enableIPv6Tests {
 			fakeIP := "2606:4700:4700::9999"
 			opts = append(opts, options{fakeIP, fmt.Sprintf("http://[%s]", fakeIP), "-6"})
@@ -488,21 +488,12 @@ func testEgress() {
 			Expect(err).NotTo(HaveOccurred())
 		}
 
-		natAddresses := []string{}
-		if !enableIPAMTests {
-			natAddresses = getNATAddresses("egress")
-		}
+		natAddresses := getNATAddresses("egress")
 
 		By("running HTTP server on coil-control-plane")
-		if enableIPAMTests {
-			go func() {
-				_, _ = runOnNode("coil-control-plane", "/usr/local/bin/echotest")
-			}()
-		} else {
-			go func() {
-				_, _ = runOnNode("coil-control-plane", "/usr/local/bin/echotest", "--reply-remote")
-			}()
-		}
+		go func() {
+			_, _ = runOnNode("coil-control-plane", "/usr/local/bin/echotest", "--reply-remote")
+		}()
 
 		time.Sleep(100 * time.Millisecond)
 
@@ -519,19 +510,16 @@ func testEgress() {
 
 			By("sending and receiving HTTP request from nat-client: " + o.fakeURL)
 			data := make([]byte, 1<<20) // 1 MiB
-			testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, enableIPAMTests)
+			testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, true)
 
 			By("running the same test 100 times")
 			for range 100 {
 				time.Sleep(1 * time.Millisecond)
-				testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, enableIPAMTests)
+				testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, true)
 			}
 		}
 
-		natAddresses = []string{}
-		if !enableIPAMTests {
-			natAddresses = getNATAddresses("egress-sport-auto")
-		}
+		natAddresses = getNATAddresses("egress-sport-auto")
 
 		for _, o := range opts {
 			natAddressesFiltered := []string{}
@@ -546,12 +534,12 @@ func testEgress() {
 
 			By("sending and receiving HTTP request from nat-client-sport-auto: " + o.fakeURL)
 			data := make([]byte, 1<<20) // 1 MiB
-			testNAT(data, "nat-client-sport-auto", o.fakeURL, natAddressesFiltered, enableIPAMTests)
+			testNAT(data, "nat-client-sport-auto", o.fakeURL, natAddressesFiltered, true)
 
 			By("running the same test 100 times with nat-client-sport-auto")
 			for range 100 {
 				time.Sleep(1 * time.Millisecond)
-				testNAT(data, "nat-client-sport-auto", o.fakeURL, natAddressesFiltered, enableIPAMTests)
+				testNAT(data, "nat-client-sport-auto", o.fakeURL, natAddressesFiltered, true)
 			}
 		}
 
@@ -665,10 +653,7 @@ func testEgress() {
 			return nil
 		}).Should(Succeed())
 
-		natAddresses = []string{}
-		if !enableIPAMTests {
-			natAddresses = getNATAddresses("egress")
-		}
+		natAddresses = getNATAddresses("egress")
 
 		for _, o := range opts {
 			natAddressesFiltered := []string{}
@@ -683,12 +668,153 @@ func testEgress() {
 
 			By("sending and receiving HTTP request from nat-client: " + o.fakeURL)
 			data := make([]byte, 1<<20) // 1 MiB
-			testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, enableIPAMTests)
+			testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, true)
 
 			By("running the same test 100 times")
 			for range 100 {
 				time.Sleep(1 * time.Millisecond)
-				testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, enableIPAMTests)
+				testNAT(data, "nat-client", o.fakeURL, natAddressesFiltered, true)
+			}
+		}
+	})
+
+	It("should allow NAT traffic over foo-over-udp tunnel but should not use egress for cluster networks", func() {
+		By("patching coild with a custom in-cluster network override")
+		v4, v6, customNetwork := prepareCustomNetworks()
+		Expect(customNetwork).ToNot(BeEmpty())
+
+		patchClusterNetworks(customNetwork)
+		defer unpatchClusterNetworks()
+
+		By("creating a dedicated Egress resource and NAT client for the custom cluster network")
+		_, err := kubectl(nil, "apply", "-f", "manifests/egress-cluster-networks.yaml")
+		Expect(err).ShouldNot(HaveOccurred())
+		Eventually(func() error {
+			return kubectlSafeErr(nil, "-n", "internet", "rollout", "status", "deploy", "egress-cluster-networks")
+		}).Should(Succeed())
+
+		Eventually(func() error {
+			pods := &corev1.PodList{}
+			if err := getResource("internet", "pods", "", "app.kubernetes.io/instance=egress-cluster-networks", pods); err != nil {
+				return err
+			}
+			for _, p := range pods.Items {
+				if p.Status.Phase != corev1.PodRunning {
+					return fmt.Errorf("egress-cluster-networks pod %q not ready", p.Name)
+				}
+			}
+			return nil
+		}).Should(Succeed())
+
+		_, err = kubectl(nil, "apply", "-f", "manifests/nat-client-cluster-networks.yaml")
+		Expect(err).ShouldNot(HaveOccurred())
+		By("checking the pod status")
+		Eventually(func() error {
+			pod := &corev1.Pod{}
+			if err := getResource("default", "pods", "nat-client-cluster-networks", "", pod); err != nil {
+				return err
+			}
+			if len(pod.Status.ContainerStatuses) == 0 {
+				return errors.New("no container status")
+			}
+			if !pod.Status.ContainerStatuses[0].Ready {
+				return errors.New("container is not ready")
+			}
+			return nil
+		}).Should(Succeed())
+
+		type options struct {
+			fakeIP  string
+			fakeURL string
+			ipOpt   string
+		}
+
+		port := "12346"
+
+		opts := []options{}
+		if enableIPv6Tests {
+			fakeIP := "2606:4700:4700::9998"
+			opts = append(opts, options{fakeIP, fmt.Sprintf("http://[%s]:%s", fakeIP, port), "-6"})
+		}
+		if enableIPv4Tests {
+			fakeIP := "9.9.9.8"
+			opts = append(opts, options{fakeIP, fmt.Sprintf("http://%s:%s", fakeIP, port), "-4"})
+		}
+
+		By("setting a fake global address to coil-control-plane")
+		_, err = runOnNode("coil-control-plane", "ip", "link", "add", "dummy-fake-cn", "type", "dummy")
+		Expect(err).NotTo(HaveOccurred())
+		_, err = runOnNode("coil-control-plane", "ip", "link", "set", "dummy-fake-cn", "up")
+		Expect(err).NotTo(HaveOccurred())
+
+		for _, o := range opts {
+			if strings.Contains(o.ipOpt, "4") {
+				_, err = runOnNode("coil-control-plane", "ip", "address", "add", o.fakeIP+"/32", "dev", "dummy-fake-cn")
+			} else {
+				_, err = runOnNode("coil-control-plane", "ip", "address", "add", o.fakeIP+"/128", "dev", "dummy-fake-cn", "nodad")
+			}
+			Expect(err).NotTo(HaveOccurred())
+		}
+
+		By("running HTTP server on coil-control-plane")
+		go func() {
+			_, _ = runOnNode("coil-control-plane", "/usr/local/bin/echotest", "--reply-remote", "-port", port)
+		}()
+
+		time.Sleep(100 * time.Millisecond)
+
+		natAddresses := getNATAddresses("egress-cluster-networks")
+
+		for _, o := range opts {
+			natAddressesFiltered := []string{}
+			for _, a := range natAddresses {
+				if strings.Contains(o.ipOpt, "4") && net.ParseIP(a).To4() != nil {
+					natAddressesFiltered = append(natAddressesFiltered, a)
+				}
+				if strings.Contains(o.ipOpt, "6") && net.ParseIP(a).To16() != nil {
+					natAddressesFiltered = append(natAddressesFiltered, a)
+				}
+			}
+
+			By("sending and receiving HTTP request from nat-client-cluster-networks: " + o.fakeURL)
+			data := make([]byte, 1<<20) // 1 MiB
+			testNAT(data, "nat-client-cluster-networks", o.fakeURL, natAddressesFiltered, true)
+
+			By("running the same test 100 times")
+			for range 100 {
+				time.Sleep(1 * time.Millisecond)
+				testNAT(data, "nat-client-cluster-networks", o.fakeURL, natAddressesFiltered, true)
+			}
+		}
+
+		optsNonEgress := []options{}
+		if enableIPv6Tests {
+			optsNonEgress = append(optsNonEgress, options{v6, fmt.Sprintf("http://[%s]:%s", v6, port), "-6"})
+		}
+		if enableIPv4Tests {
+			optsNonEgress = append(optsNonEgress, options{v4, fmt.Sprintf("http://%s:%s", v4, port), "-4"})
+		}
+
+		for _, o := range optsNonEgress {
+			natAddressesFiltered := []string{}
+			for _, a := range natAddresses {
+				By(a)
+				if strings.Contains(o.ipOpt, "4") && net.ParseIP(a).To4() != nil {
+					natAddressesFiltered = append(natAddressesFiltered, a)
+				}
+				if strings.Contains(o.ipOpt, "6") && net.ParseIP(a).To16() != nil {
+					natAddressesFiltered = append(natAddressesFiltered, a)
+				}
+			}
+
+			By("sending and receiving HTTP request from nat-client-cluster-networks: " + o.fakeURL)
+			data := make([]byte, 1<<20) // 1 MiB
+			testNAT(data, "nat-client-cluster-networks", o.fakeURL, natAddressesFiltered, false)
+
+			By("running the same test 100 times")
+			for range 100 {
+				time.Sleep(1 * time.Millisecond)
+				testNAT(data, "nat-client-cluster-networks", o.fakeURL, natAddressesFiltered, false)
 			}
 		}
 	})
@@ -755,6 +881,76 @@ func testEgress() {
 			Expect(errs).To(HaveLen(expectedErr))
 		}
 	})
+
+	It(func(originatingOnly bool) string {
+		if originatingOnly {
+			return "should be able to provide ingress traffic when cluster-networks are defined"
+		}
+		return "should be able to provide ingress traffic when cluster-networks are defined"
+	}(enableOriginatingOnly), func() {
+		By("patching coild with a custom in-cluster network override")
+		_, _, customNetwork := prepareCustomNetworks()
+		Expect(customNetwork).ToNot(BeEmpty())
+
+		patchClusterNetworks(customNetwork)
+		defer unpatchClusterNetworks()
+
+		By("starting echo-server on the node")
+		port := "12347"
+		go func() {
+			_, _ = runOnNode("coil-control-plane", "/usr/local/bin/echotest", "-port", port, "-reply-remote", "-no-separator")
+		}()
+
+		curDir, err := os.Getwd()
+		Expect(err).ToNot(HaveOccurred())
+
+		tmpDir, err := os.MkdirTemp(curDir, "tmp*")
+		Expect(err).ToNot(HaveOccurred())
+		defer func() {
+			Expect(os.RemoveAll(tmpDir)).To(Succeed())
+		}()
+
+		By("deploying egress")
+		egressData := prepareEgressData(port, fmt.Sprintf("cluster-networks-originatingonly-%t", enableOriginatingOnly))
+
+		deployEgress(egressData, curDir, tmpDir)
+
+		By("deploying egress client")
+		pod := deployClient(egressData, curDir, tmpDir)
+
+		if enableOriginatingOnly {
+			if enableIPv4Tests {
+				By("testing IPv4 egress connectivity")
+				Expect(checkEgressConnection(egressData.IPv4Addr, pod, egressData.Port)).To(Succeed())
+			}
+
+			if enableIPv6Tests {
+				By("testing IPv6 egress connectivity")
+				Expect(checkEgressConnection(egressData.IPv6Addr, pod, egressData.Port)).To(Succeed())
+			}
+
+			By("testing ingress connectivity")
+			errs := checkIngressConnections(egressData)
+			Expect(errs).To(BeEmpty())
+		} else {
+			expectedErr := 0
+			if enableIPv4Tests {
+				expectedErr++
+				By("testing IPv4 egress connectivity")
+				Expect(checkEgressConnection(egressData.IPv4Addr, pod, egressData.Port)).To(Succeed())
+			}
+
+			if enableIPv6Tests {
+				expectedErr++
+				By("testing IPv6 egress connectivity")
+				Expect(checkEgressConnection(egressData.IPv6Addr, pod, egressData.Port)).To(Succeed())
+			}
+
+			By("testing ingress connectivity")
+			errs := checkIngressConnections(egressData)
+			Expect(errs).To(HaveLen(expectedErr))
+		}
+	})
 }
 
 // egressTemplateData is used to generate test egress via template.
@@ -779,7 +975,7 @@ func testCoild() {
 	})
 }
 
-func testNAT(data []byte, clientPod, fakeURL string, natAddresses []string, ipamEnabled bool) {
+func testNAT(data []byte, clientPod, fakeURL string, natAddresses []string, shouldUseEgress bool) {
 	// curl --max-time 5 ensures the in-pod side gives up after 5s.
 	// Wrap kubectl exec itself with a hard timeout (30s) so a stuck exec
 	// stream (e.g. dead kubelet pipe) does not blow past `go test -timeout`
@@ -787,13 +983,17 @@ func testNAT(data []byte, clientPod, fakeURL string, natAddresses []string, ipam
 	resp, err := kubectlWithTimeout(30*time.Second, data, "exec", "-i", clientPod, "--", "curl", "--max-time", "5", "-sf", "-T", "-", fakeURL)
 	ExpectWithOffset(1, err).ShouldNot(HaveOccurred(), "kubectl exec curl failed or timed out for %s", fakeURL)
 
-	if !ipamEnabled {
-		respStr := string(resp)
-		idx := strings.Index(respStr, "|")
-		ipAddr := respStr[:idx]
-		resp = []byte(respStr[idx+1:])
+	respStr := string(resp)
+	idx := strings.Index(respStr, "|")
+	ipAddr := respStr[:idx]
+	resp = []byte(respStr[idx+1:])
+
+	if shouldUseEgress {
 		ExpectWithOffset(1, natAddresses).To(ContainElement(ipAddr))
+	} else {
+		ExpectWithOffset(1, natAddresses).ToNot(ContainElement(ipAddr))
 	}
+
 	ExpectWithOffset(1, resp).To(HaveLen(1 << 20))
 }
 
@@ -908,6 +1108,27 @@ func checkEgressConnection(address string, pod *corev1.Pod, port string) error {
 	Expect(checkPodIPs(pod.Status.PodIPs, incomingAddr)).To(BeTrue())
 
 	return nil
+}
+
+func getNodeIPs(node string) (v4 string, v6 string) {
+	By("get node's IP addresses")
+	getFunc := func(p int) string {
+		return fmt.Sprintf("ip -%d -j addr show dev eth0 | jq -r '.[].addr_info[] | select(.scope == \"global\") | .local'", p)
+	}
+
+	if enableIPv4Tests {
+		nodeByte, err := runOnNode("coil-control-plane", "bash", "-c", getFunc(4))
+		Expect(err).ToNot(HaveOccurred())
+		v4 = strings.ReplaceAll(strings.Trim(string(nodeByte), " \n"), "\"", "")
+	}
+
+	if enableIPv6Tests {
+		nodeByte, err := runOnNode("coil-control-plane", "bash", "-c", getFunc(6))
+		Expect(err).ToNot(HaveOccurred())
+		v6 = strings.ReplaceAll(strings.Trim(string(nodeByte), " \n"), "\"", "")
+	}
+
+	return
 }
 
 func checkIngressConnections(egressData egressTemplateData) []error {
@@ -1052,4 +1273,186 @@ func deployClient(egressData egressTemplateData, curDir, tmpDir string) *corev1.
 	}).Should(BeTrue())
 
 	return &pods.Items[0]
+}
+
+func patchClusterNetworks(customNetwork string) {
+	By("patching coild with cluster networks: " + customNetwork)
+	oldPods := getCoildPods()
+	Expect(oldPods).ToNot(BeEmpty())
+
+	index := 0
+	isPresent := slices.ContainsFunc(oldPods[0].Spec.Containers[0].Args, func(s string) bool {
+		if strings.Contains(s, "cluster-network") {
+			return true
+		}
+		index++
+		return false
+	})
+
+	if isPresent {
+		return
+	}
+
+	type PatchOp struct {
+		Op    string `json:"op"`
+		Path  string `json:"path"`
+		Value string `json:"value"`
+	}
+
+	op := []PatchOp{
+		{
+			Op:    "add",
+			Path:  "/spec/template/spec/containers/0/args/-",
+			Value: fmt.Sprintf("--cluster-networks=%s", customNetwork),
+		},
+	}
+
+	if len(oldPods[0].Spec.InitContainers) > 0 {
+		op = append(op, PatchOp{
+			Op:   "remove",
+			Path: "/spec/template/spec/initContainers",
+		})
+	}
+
+	patchBytes, err := json.Marshal(op)
+	Expect(err).ToNot(HaveOccurred())
+
+	_, err = kubectl(nil, "-n", "kube-system", "patch", "daemonset", "coild", "--type=json", "--patch", string(patchBytes))
+	Expect(err).ShouldNot(HaveOccurred())
+
+	Eventually(func() bool {
+		newPods := getCoildPods()
+		if len(newPods) != 4 {
+			return false
+		}
+		for _, np := range newPods {
+			for _, op := range oldPods {
+				if np.Name == op.Name {
+					return false
+				}
+			}
+		}
+		for _, np := range newPods {
+			if np.Status.Phase != corev1.PodRunning {
+				return false
+			}
+		}
+		return true
+	}).Should(BeTrue())
+	time.Sleep(time.Second * 10)
+	By("successfully patched coild with cluster networks: " + customNetwork)
+}
+
+func getCoildPods() []corev1.Pod {
+	pods := &corev1.PodList{}
+	err := getResource("kube-system", "pods", "", "app.kubernetes.io/component=coild", pods)
+	Expect(err).ToNot(HaveOccurred())
+	return pods.Items
+}
+
+func unpatchClusterNetworks() {
+	By("restoring the default coild configuration")
+
+	ds := &appsv1.DaemonSet{}
+	err := getResource("kube-system", "ds", "coild", "", ds)
+	Expect(err).ToNot(HaveOccurred())
+
+	index := 0
+	isPresent := slices.ContainsFunc(ds.Spec.Template.Spec.Containers[0].Args, func(s string) bool {
+		if strings.Contains(s, "cluster-network") {
+			return true
+		}
+		index++
+		return false
+	})
+
+	if !isPresent {
+		return
+	}
+
+	oldPods := getCoildPods()
+
+	type PatchOp struct {
+		Op   string `json:"op"`
+		Path string `json:"path"`
+	}
+
+	patchBytes, err := json.Marshal([]PatchOp{
+		{
+			Op:   "remove",
+			Path: fmt.Sprintf("/spec/template/spec/containers/0/args/%d", index),
+		},
+	})
+	Expect(err).ToNot(HaveOccurred())
+
+	_, err = kubectl(nil, "-n", "kube-system", "patch", "daemonset", "coild", "--type=json", "--patch", string(patchBytes))
+	Expect(err).ShouldNot(HaveOccurred())
+	Eventually(func() bool {
+		newPods := getCoildPods()
+		if len(newPods) != 4 {
+			return false
+		}
+		for _, np := range newPods {
+			for _, op := range oldPods {
+				if np.Name == op.Name {
+					return false
+				}
+			}
+		}
+		for _, np := range newPods {
+			if np.Status.Phase != corev1.PodRunning {
+				return false
+			}
+		}
+		return true
+	}).Should(BeTrue())
+}
+
+func prepareCustomNetworks() (v4, v6, customNetwork string) {
+	if enableIPv4Tests {
+		if customNetwork != "" {
+			customNetwork += ","
+		}
+		customNetwork += "10.0.0.0/8"
+	}
+
+	if enableIPv6Tests {
+		if customNetwork != "" {
+			customNetwork += ","
+		}
+		customNetwork += "fd00::/16"
+	}
+
+	v4, v6 = getNodeIPs("coil-control-plane")
+
+	var v4CIDR *net.IPNet
+	var err error
+	if v4 != "" {
+		_, v4CIDR, err = net.ParseCIDR(v4 + "/16")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(v4CIDR).ToNot(BeNil())
+	}
+
+	if enableIPv4Tests && v4CIDR != nil {
+		if customNetwork != "" {
+			customNetwork += ","
+		}
+		customNetwork += v4CIDR.String()
+	}
+
+	var v6CIDR *net.IPNet
+	if v6 != "" {
+		_, v6CIDR, err = net.ParseCIDR(v6 + "/64")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(v6CIDR).ToNot(BeNil())
+	}
+
+	if enableIPv6Tests && v6CIDR != nil {
+		if customNetwork != "" {
+			customNetwork += ","
+		}
+		customNetwork += v6CIDR.String()
+	}
+
+	return
 }

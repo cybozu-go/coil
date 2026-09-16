@@ -23,6 +23,11 @@ const (
 	ncWidePrio      = 2100
 )
 
+// MaxInClusterNetworks is the maximum number of in-cluster networks (per IP family)
+// that NatClient can install rules for. Each network gets its own rule priority
+// starting at ncLocalPrioBase, and they must not collide with ncWidePrio.
+const MaxInClusterNetworks = ncWidePrio - ncLocalPrioBase
+
 // Table IDs
 const (
 	ncProtocolID    = 30
@@ -63,38 +68,34 @@ var (
 )
 
 type NatClient struct {
-	ipv4        net.IP
-	ipv6        net.IP
-	v4InCluster []*net.IPNet
-	v6InCluster []*net.IPNet
-	backend     string
-	logFunc     func(string)
+	ipv4      net.IP
+	ipv6      net.IP
+	inCluster *ClusterNetworks
+	backend   string
+	logFunc   func(string)
 
 	mu sync.Mutex
 }
 
-func NewNatClient(ipv4, ipv6 net.IP, podNodeNet []*net.IPNet, backend string, logFunc func(string)) *NatClient {
-	var v4InCluster, v6InCluster []*net.IPNet
-	if len(podNodeNet) > 0 {
-		for _, n := range podNodeNet {
-			if n.IP.To4() != nil {
-				v4InCluster = append(v4InCluster, n)
-			} else {
-				v6InCluster = append(v6InCluster, n)
-			}
+// NewNatClient creates a new NatClient.
+func NewNatClient(ipv4, ipv6 net.IP, clusterNetworks *ClusterNetworks, backend string, logFunc func(string)) *NatClient {
+	inCluster := &ClusterNetworks{v4PrivateList, v6PrivateList}
+
+	if clusterNetworks != nil {
+		if len(clusterNetworks.v4) > 0 {
+			inCluster.v4 = clusterNetworks.v4
 		}
-	} else {
-		v4InCluster = v4PrivateList
-		v6InCluster = v6PrivateList
+		if len(clusterNetworks.v6) > 0 {
+			inCluster.v6 = clusterNetworks.v6
+		}
 	}
 
 	nc := &NatClient{
-		ipv4:        ipv4,
-		ipv6:        ipv6,
-		v4InCluster: v4InCluster,
-		v6InCluster: v6InCluster,
-		backend:     backend,
-		logFunc:     logFunc,
+		ipv4:      ipv4,
+		ipv6:      ipv6,
+		inCluster: inCluster,
+		backend:   backend,
+		logFunc:   logFunc,
 	}
 	return nc
 }
@@ -121,7 +122,7 @@ func (n *NatClient) Init() error {
 
 func (n *NatClient) IsInitialized() (bool, error) {
 	if n.ipv4 != nil {
-		if ok, err := isRuleInitialized(netlink.FAMILY_V4, n.v4InCluster); err != nil {
+		if ok, err := isRuleInitialized(netlink.FAMILY_V4, n.inCluster.v4); err != nil {
 			return false, fmt.Errorf("failed to check IPv4 rule initialization: %w", err)
 		} else if !ok {
 			return false, err
@@ -129,7 +130,7 @@ func (n *NatClient) IsInitialized() (bool, error) {
 	}
 
 	if n.ipv6 != nil {
-		if ok, err := isRuleInitialized(netlink.FAMILY_V6, n.v6InCluster); err != nil {
+		if ok, err := isRuleInitialized(netlink.FAMILY_V6, n.inCluster.v6); err != nil {
 			return false, fmt.Errorf("failed to check IPv6 rule initialization: %w", err)
 		} else if !ok {
 			return false, err
@@ -213,9 +214,9 @@ func (n *NatClient) initRules(family int) error {
 	var inCluster []*net.IPNet
 	switch family {
 	case netlink.FAMILY_V4:
-		inCluster = n.v4InCluster
+		inCluster = n.inCluster.v4
 	case netlink.FAMILY_V6:
-		inCluster = n.v6InCluster
+		inCluster = n.inCluster.v6
 	}
 
 	for i, ipn := range inCluster {
@@ -328,12 +329,12 @@ func (n *NatClient) addRoute(link netlink.Link, ipn *net.IPNet) error {
 		if n.ipv4 == nil {
 			return nil
 		}
-		inCluster = n.v4InCluster
+		inCluster = n.inCluster.v4
 	} else {
 		if n.ipv6 == nil {
 			return nil
 		}
-		inCluster = n.v6InCluster
+		inCluster = n.inCluster.v6
 	}
 
 	// link up here to minimize the down time
