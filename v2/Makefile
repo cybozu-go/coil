@@ -11,6 +11,12 @@ ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 SETUP_ENVTEST_VERSION=v0.0.0-20260405152528-6210f847b2c1
 
+DOCKER_BUILD_ARGS := --build-arg GOPROXY=$(shell go env GOPROXY)
+ifneq ($(wildcard $(HOME)/.netrc),)
+# Pass Takumi Guard credentials to the build when the runner has them.
+DOCKER_BUILD_ARGS += --secret id=netrc,src=$(HOME)/.netrc
+endif
+
 ## DON'T EDIT BELOW THIS LINE
 SUDO=sudo
 CONTROLLER_GEN := $(shell pwd)/bin/controller-gen
@@ -285,11 +291,11 @@ work/LICENSE:
 
 .PHONY: image
 image: work/LICENSE
-	docker buildx build --no-cache --load -t coil:dev .
+	docker buildx build --no-cache --load $(DOCKER_BUILD_ARGS) -t coil:dev .
 
 .PHONY: push
 push: work/LICENSE
-	docker buildx build --no-cache --platform linux/amd64,linux/arm64/v8 --push -t ghcr.io/cybozu-go/coil:$(IMAGE_TAG) .
+	docker buildx build --no-cache --platform linux/amd64,linux/arm64/v8 --push $(DOCKER_BUILD_ARGS) -t ghcr.io/cybozu-go/coil:$(IMAGE_TAG) .
 
 .PHONY: setup
 setup:

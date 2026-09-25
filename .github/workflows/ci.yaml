@@ -6,6 +6,7 @@ on:
     - 'main'
 permissions:
   contents: read
+  id-token: write
 defaults:
   run:
     working-directory: v2
@@ -30,6 +31,9 @@ jobs:
       with:
         go-version: ${{ env.go-version }}
         cache-dependency-path: "**/go.sum"
+    - uses: flatt-security/setup-takumi-guard-golang@1c8aa7498f7f635fbd6ad6a0f436d03092b3502d # v1.1.0
+      with:
+        bot-id: ${{ vars.TAKUMI_GUARD_BOT_ID }}
     - name: Cache tools
       id: cache-tools
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -107,6 +111,9 @@ jobs:
       with:
         go-version: ${{ env.go-version }}
         cache-dependency-path: "**/go.sum"
+    - uses: flatt-security/setup-takumi-guard-golang@1c8aa7498f7f635fbd6ad6a0f436d03092b3502d # v1.1.0
+      with:
+        bot-id: ${{ vars.TAKUMI_GUARD_BOT_ID }}
     - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
       with:
         aqua_version: v2.57.1
@@ -142,6 +149,9 @@ jobs:
       with:
         go-version: ${{ env.go-version }}
         cache-dependency-path: "**/go.sum"
+    - uses: flatt-security/setup-takumi-guard-golang@1c8aa7498f7f635fbd6ad6a0f436d03092b3502d # v1.1.0
+      with:
+        bot-id: ${{ vars.TAKUMI_GUARD_BOT_ID }}
     - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
       with:
         aqua_version: v2.57.1
