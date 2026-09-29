@@ -24,7 +24,6 @@ For installation, read [setup.md](setup.md).
     - [Use egress only for connections originating on the client](#use-egress-only-for-connections-originating-on-the-client)
   - [Metrics](#metrics)
     - [How to scrape metrics](#how-to-scrape-metrics)
-    - [Dashboards](#dashboards)
 
 ## Admin role
 
@@ -377,11 +376,6 @@ scrape_configs:
         replacement: ${1}
         target_label: component
 ```
-### Dashboards
-
-The example of Grafana dashboard is [here](../v2/dashboard/coil.json).
-
-![dashboard screenshot](img/dashboard.png)
 
 [DeploymentStrategy]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#deploymentstrategy-v1-apps
 [PodTemplateSpec]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#podtemplatespec-v1-core 
