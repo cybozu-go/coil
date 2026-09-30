@@ -7,16 +7,7 @@ inputs:
 runs:
   using: composite
   steps:
-  # Pull requests from forks cannot get an OIDC token, so authentication would fail.
-  - name: Set up Takumi Guard with authentication
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
-    uses: flatt-security/setup-takumi-guard-golang@1c8aa7498f7f635fbd6ad6a0f436d03092b3502d # v1.1.0
+  # Pull requests from forks cannot get an OIDC token, so run in anonymous mode for them.
+  - uses: flatt-security/setup-takumi-guard-golang@1c8aa7498f7f635fbd6ad6a0f436d03092b3502d # v1.1.0
     with:
-      bot-id: ${{ inputs.bot-id }}
-  - name: Set up Takumi Guard without authentication for forked pull requests
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name != github.repository
-    uses: flatt-security/setup-takumi-guard-golang@1c8aa7498f7f635fbd6ad6a0f436d03092b3502d # v1.1.0
+      bot-id: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && inputs.bot-id || '' }}
