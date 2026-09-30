@@ -313,6 +313,16 @@ ip rule add pref 2100 table 118
 ip route add default dev tun1 table 118
 ```
 
+The "private network addresses" excluded from NAT (RFC1918 for IPv4,
+`fc00::/7` for IPv6 by default) are configurable via `coild`'s
+`--cluster-networks` flag, per IP family.  This matters for clusters using
+globally routable IPv6 addresses for Pods/Services/Nodes: without
+overriding the IPv6 default, an `Egress` destination of `::/0` would route
+all intra-cluster IPv6 traffic through the NAT tunnel, since none of it
+would match the (RFC1918-only) default exclusion list.  See
+[cmd-coild.md](cmd-coild.md#in-cluster-networks-for-egress-nat) for
+details.
+
 ### NAT configuration updates
 
 Users can update the existing NAT setup by editing the `spec.destinations` and `spec.fouSourcePortAuto` in the Egress resource.
