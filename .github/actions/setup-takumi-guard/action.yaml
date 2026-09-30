@@ -1,0 +1,13 @@
+name: Set up Takumi Guard
+description: Route Go module downloads through Takumi Guard, falling back to anonymous mode for pull requests from forks.
+inputs:
+  bot-id:
+    description: The Takumi Guard bot ID.
+    required: true
+runs:
+  using: composite
+  steps:
+  # Pull requests from forks cannot get an OIDC token, so run in anonymous mode for them.
+  - uses: flatt-security/setup-takumi-guard-golang@1c8aa7498f7f635fbd6ad6a0f436d03092b3502d # v1.1.0
+    with:
+      bot-id: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && inputs.bot-id || '' }}

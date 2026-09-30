@@ -1,11 +1,16 @@
 FROM --platform=$BUILDPLATFORM ghcr.io/cybozu/golang:1.26-noble as build-env
 
 ARG TARGETARCH
+ARG GOPROXY
 
 COPY . /workdir
 WORKDIR /workdir
 
-RUN make build GOARCH=${TARGETARCH}
+# The netrc secret carries Takumi Guard credentials when built from CI; local builds work without it.
+RUN --mount=type=secret,id=netrc,target=/root/.netrc \
+    GOPROXY=${GOPROXY} go mod download
+
+RUN GOPROXY=off make build GOARCH=${TARGETARCH}
 
 FROM --platform=$TARGETPLATFORM ghcr.io/cybozu/ubuntu:24.04
 
