@@ -18,11 +18,18 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: ${{ env.go-version }}
+      - uses: flatt-security/setup-takumi-guard-golang@1c8aa7498f7f635fbd6ad6a0f436d03092b3502d # v1.1.0
+        with:
+          bot-id: ${{ vars.TAKUMI_GUARD_BOT_ID }}
+      - name: Export .netrc path for docker build
+        # $HOME is not available in the env context, so expose it explicitly.
+        run: echo "NETRC_PATH=$HOME/.netrc" >> "$GITHUB_ENV"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
         with:
@@ -58,6 +65,10 @@ jobs:
           platforms: linux/amd64,linux/arm64/v8
           push: true
           tags: ghcr.io/cybozu-go/coil:${{ steps.set-tag.outputs.RELEASE_TAG }}
+          build-args: |
+            GOPROXY=${{ env.GOPROXY }}
+          secret-files: |
+            netrc=${{ env.NETRC_PATH }}
   release:
     name: Release on GitHub
     needs: image
