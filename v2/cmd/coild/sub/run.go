@@ -23,6 +23,7 @@ import (
 	"github.com/cybozu-go/coil/v2/pkg/constants"
 	"github.com/cybozu-go/coil/v2/pkg/indexing"
 	"github.com/cybozu-go/coil/v2/pkg/ipam"
+	"github.com/cybozu-go/coil/v2/pkg/nat/netfilter"
 	"github.com/cybozu-go/coil/v2/pkg/nodenet"
 	"github.com/cybozu-go/coil/v2/runners"
 )
@@ -59,6 +60,17 @@ func subMain() error {
 
 	if !cfg.EnableIPAM && !cfg.EnableEgress {
 		return errors.New("configuration error: both IPAM and egress are disabled")
+	}
+
+	clusterNetworks, err := netfilter.ParseClusterNetworks(cfg.ClusterNetworks)
+	if err != nil {
+		return fmt.Errorf("invalid --cluster-networks: %w", err)
+	}
+	if err := netfilter.ValidateClusterNetworks(clusterNetworks); err != nil {
+		return fmt.Errorf("invalid --cluster-networks: %w", err)
+	}
+	if !clusterNetworks.IsEmpty() {
+		setupLog.Info("using custom in-cluster networks for egress NAT", "networks", cfg.ClusterNetworks)
 	}
 
 	timeout := gracefulTimeout
@@ -137,7 +149,7 @@ func subMain() error {
 	if err != nil {
 		return err
 	}
-	server := runners.NewCoildServer(l, mgr, nodeIPAM, podNet, runners.NewNATSetup(cfg.EgressPort), cfg, grpcLogger, runners.ProcessLinkAlias, nodeName)
+	server := runners.NewCoildServer(l, mgr, nodeIPAM, podNet, runners.NewNATSetup(cfg.EgressPort, clusterNetworks), cfg, grpcLogger, runners.ProcessLinkAlias, nodeName)
 	if err := mgr.Add(server); err != nil {
 		return err
 	}
@@ -150,6 +162,7 @@ func subMain() error {
 			EgressPort:      cfg.EgressPort,
 			Backend:         cfg.Backend,
 			OriginatingOnly: cfg.OriginatingOnly,
+			ClusterNetworks: clusterNetworks,
 		}
 		if err := egressWatcher.SetupWithManager(mgr); err != nil {
 			return err
