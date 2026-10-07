@@ -114,6 +114,9 @@ func subMain() error {
 	if err := podNet.Init(); err != nil {
 		return err
 	}
+	if err := nodenet.ReconcilePodRoutes(podNet); err != nil {
+		return err
+	}
 
 	if cfg.EnableIPAM {
 		podConfigs, err := podNet.List()
