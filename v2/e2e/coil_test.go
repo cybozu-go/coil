@@ -456,12 +456,6 @@ func testEgress() {
 	})
 
 	It("should allow NAT traffic over foo-over-udp tunnel", func() {
-		type options struct {
-			fakeIP  string
-			fakeURL string
-			ipOpt   string
-		}
-
 		opts := []options{}
 
 		if enableIPv6Tests {
@@ -678,9 +672,17 @@ func testEgress() {
 		}
 	})
 
-	It("should allow NAT traffic over foo-over-udp tunnel but should not use egress for cluster networks", func() {
+	It("should allow NAT traffic over foo-over-udp tunnel but should not use egress for cluster networks and should be able to update client pod on-the-go", func() {
 		By("patching coild with a custom in-cluster network override")
-		v4, v6, customNetwork := prepareCustomNetworks()
+		v4, v6 := getNodeIPs("coil-control-plane")
+		Expect(func() error {
+			if v4 == "" && v6 == "" {
+				return fmt.Errorf("both IPv4 and IPv6 addresses are empty")
+			}
+			return nil
+		}()).ToNot(HaveOccurred())
+
+		customNetwork := prepareCustomNetworkWithoutNodeIP()
 		Expect(customNetwork).ToNot(BeEmpty())
 
 		patchClusterNetworks(customNetwork)
@@ -724,15 +726,10 @@ func testEgress() {
 			return nil
 		}).Should(Succeed())
 
-		type options struct {
-			fakeIP  string
-			fakeURL string
-			ipOpt   string
-		}
-
 		port := "12346"
 
 		opts := []options{}
+
 		if enableIPv6Tests {
 			fakeIP := "2606:4700:4700::9998"
 			opts = append(opts, options{fakeIP, fmt.Sprintf("http://[%s]:%s", fakeIP, port), "-6"})
@@ -764,60 +761,11 @@ func testEgress() {
 
 		time.Sleep(100 * time.Millisecond)
 
-		natAddresses := getNATAddresses("egress-cluster-networks")
+		testClusterNetworks(opts, v4, v6, port, true)
 
-		for _, o := range opts {
-			natAddressesFiltered := []string{}
-			for _, a := range natAddresses {
-				if strings.Contains(o.ipOpt, "4") && net.ParseIP(a).To4() != nil {
-					natAddressesFiltered = append(natAddressesFiltered, a)
-				}
-				if strings.Contains(o.ipOpt, "6") && net.ParseIP(a).To16() != nil {
-					natAddressesFiltered = append(natAddressesFiltered, a)
-				}
-			}
+		unpatchClusterNetworks()
 
-			By("sending and receiving HTTP request from nat-client-cluster-networks: " + o.fakeURL)
-			data := make([]byte, 1<<20) // 1 MiB
-			testNAT(data, "nat-client-cluster-networks", o.fakeURL, natAddressesFiltered, true)
-
-			By("running the same test 100 times")
-			for range 100 {
-				time.Sleep(1 * time.Millisecond)
-				testNAT(data, "nat-client-cluster-networks", o.fakeURL, natAddressesFiltered, true)
-			}
-		}
-
-		optsNonEgress := []options{}
-		if enableIPv6Tests {
-			optsNonEgress = append(optsNonEgress, options{v6, fmt.Sprintf("http://[%s]:%s", v6, port), "-6"})
-		}
-		if enableIPv4Tests {
-			optsNonEgress = append(optsNonEgress, options{v4, fmt.Sprintf("http://%s:%s", v4, port), "-4"})
-		}
-
-		for _, o := range optsNonEgress {
-			natAddressesFiltered := []string{}
-			for _, a := range natAddresses {
-				By(a)
-				if strings.Contains(o.ipOpt, "4") && net.ParseIP(a).To4() != nil {
-					natAddressesFiltered = append(natAddressesFiltered, a)
-				}
-				if strings.Contains(o.ipOpt, "6") && net.ParseIP(a).To16() != nil {
-					natAddressesFiltered = append(natAddressesFiltered, a)
-				}
-			}
-
-			By("sending and receiving HTTP request from nat-client-cluster-networks: " + o.fakeURL)
-			data := make([]byte, 1<<20) // 1 MiB
-			testNAT(data, "nat-client-cluster-networks", o.fakeURL, natAddressesFiltered, false)
-
-			By("running the same test 100 times")
-			for range 100 {
-				time.Sleep(1 * time.Millisecond)
-				testNAT(data, "nat-client-cluster-networks", o.fakeURL, natAddressesFiltered, false)
-			}
-		}
+		testClusterNetworks(opts, v4, v6, port, false)
 	})
 
 	It(func(originatingOnly bool) string {
@@ -1456,4 +1404,88 @@ func prepareCustomNetworks() (v4, v6, customNetwork string) {
 	}
 
 	return
+}
+
+func prepareCustomNetworkWithoutNodeIP() string {
+	customNetwork := ""
+	if enableIPv4Tests {
+		if customNetwork != "" {
+			customNetwork += ","
+		}
+		customNetwork += "10.0.0.0/8"
+	}
+
+	if enableIPv6Tests {
+		if customNetwork != "" {
+			customNetwork += ","
+		}
+		customNetwork += "fd00::/16"
+	}
+
+	return customNetwork
+}
+
+type options struct {
+	fakeIP  string
+	fakeURL string
+	ipOpt   string
+}
+
+func testClusterNetworks(opts []options, v4, v6, port string, shouldUseEgress bool) {
+	natAddresses := getNATAddresses("egress-cluster-networks")
+
+	if !shouldUseEgress {
+		for _, o := range opts {
+			natAddressesFiltered := []string{}
+			for _, a := range natAddresses {
+				if strings.Contains(o.ipOpt, "4") && net.ParseIP(a).To4() != nil {
+					natAddressesFiltered = append(natAddressesFiltered, a)
+				}
+				if strings.Contains(o.ipOpt, "6") && net.ParseIP(a).To16() != nil {
+					natAddressesFiltered = append(natAddressesFiltered, a)
+				}
+			}
+
+			By("sending and receiving HTTP request from nat-client-cluster-networks: " + o.fakeURL)
+			data := make([]byte, 1<<20) // 1 MiB
+			testNAT(data, "nat-client-cluster-networks", o.fakeURL, natAddressesFiltered, true)
+
+			By("running the same test 100 times")
+			for range 100 {
+				time.Sleep(1 * time.Millisecond)
+				testNAT(data, "nat-client-cluster-networks", o.fakeURL, natAddressesFiltered, true)
+			}
+		}
+	}
+
+	optsNonEgress := []options{}
+	if enableIPv6Tests {
+		optsNonEgress = append(optsNonEgress, options{v6, fmt.Sprintf("http://[%s]:%s", v6, port), "-6"})
+	}
+	if enableIPv4Tests {
+		optsNonEgress = append(optsNonEgress, options{v4, fmt.Sprintf("http://%s:%s", v4, port), "-4"})
+	}
+
+	for _, o := range optsNonEgress {
+		natAddressesFiltered := []string{}
+		for _, a := range natAddresses {
+			By(a)
+			if strings.Contains(o.ipOpt, "4") && net.ParseIP(a).To4() != nil {
+				natAddressesFiltered = append(natAddressesFiltered, a)
+			}
+			if strings.Contains(o.ipOpt, "6") && net.ParseIP(a).To16() != nil {
+				natAddressesFiltered = append(natAddressesFiltered, a)
+			}
+		}
+
+		By("sending and receiving HTTP request from nat-client-cluster-networks: " + o.fakeURL)
+		data := make([]byte, 1<<20) // 1 MiB
+		testNAT(data, "nat-client-cluster-networks", o.fakeURL, natAddressesFiltered, shouldUseEgress)
+
+		By("running the same test 100 times")
+		for range 100 {
+			time.Sleep(1 * time.Millisecond)
+			testNAT(data, "nat-client-cluster-networks", o.fakeURL, natAddressesFiltered, shouldUseEgress)
+		}
+	}
 }

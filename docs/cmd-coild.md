@@ -65,12 +65,6 @@ default; IPv4 keeps using RFC1918.
 Each in-cluster network consumes one `ip rule` priority, so at most 100
 networks per IP family are supported.
 
-Changing `--cluster-networks` on an already-running `coild` requires
-restarting NAT client Pods, since existing Pods keep the rules that were
-installed when their network was set up (see
-[the design document](design.md#nat-configuration-updates) for the same
-caveat that already applies to other NAT settings such as the FoU port).
-
 ## Environment variables
 
 `coild` references the following environment variables:
