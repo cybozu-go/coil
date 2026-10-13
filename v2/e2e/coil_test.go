@@ -690,7 +690,8 @@ func testEgress() {
 		_, err := kubectl(nil, "apply", "-f", "manifests/egress-cluster-networks.yaml")
 		Expect(err).ShouldNot(HaveOccurred())
 		Eventually(func() error {
-			return kubectlSafeErr(nil, "-n", "internet", "rollout", "status", "deploy", "egress-cluster-networks")
+			_, err := kubectl(nil, "-n", "internet", "rollout", "status", "deploy", "egress-cluster-networks")
+			return err
 		}).Should(Succeed())
 
 		Eventually(func() error {
