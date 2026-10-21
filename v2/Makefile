@@ -2,14 +2,14 @@
 
 IMAGE_TAG := latest
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
-CONTROLLER_TOOLS_VERSION=0.21.0
-PROTOC_VERSION=35.1
+CONTROLLER_TOOLS_VERSION=0.23.0
+PROTOC_VERSION=36.2
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
 PROTOC_GEN_GO_GRPC_VERSON=1.6.2
 PROTOC_GEN_DOC_VERSION=1.5.1
 ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
-SETUP_ENVTEST_VERSION=v0.0.0-20260405152528-6210f847b2c1
+SETUP_ENVTEST_VERSION=v0.25.2
 
 DOCKER_BUILD_ARGS := --build-arg GOPROXY=$(shell go env GOPROXY)
 ifneq ($(wildcard $(HOME)/.netrc),)

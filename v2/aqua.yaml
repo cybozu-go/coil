@@ -6,10 +6,10 @@ checksum:
   require_checksum: true
 registries:
 - type: standard
-  ref: v4.537.0 # renovate: depName=aquaproj/aqua-registry
+  ref: v4.575.0 # renovate: depName=aquaproj/aqua-registry
 packages:
-- name: golangci/golangci-lint@v2.12.2
+- name: golangci/golangci-lint@v2.15.0
 - name: kubernetes/kubernetes/kubectl@v1.35.1
 - name: kubernetes-sigs/kind@v0.31.0
-- name: kubernetes-sigs/kustomize@kustomize/v5.8.1
-- name: mikefarah/yq@v4.53.3
+- name: kubernetes-sigs/kustomize@kustomize/v5.8.3
+- name: mikefarah/yq@v4.54.1

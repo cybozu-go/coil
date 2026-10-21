@@ -195,14 +195,12 @@ var _ = Describe("Egress reconciler", func() {
 				MaxUnavailable: &maxUnavailable,
 			}
 			eg.Spec.Template = &coilv2.EgressPodTemplate{
-				Metadata: coilv2.Metadata{
-					Annotations: map[string]string{
-						"ann1": "qqq",
-					},
-					Labels: map[string]string{
-						"foo":                  "bar",
-						constants.LabelAppName: "hoge", // should be ignored
-					},
+				Annotations: map[string]string{
+					"ann1": "qqq",
+				},
+				Labels: map[string]string{
+					"foo":                  "bar",
+					constants.LabelAppName: "hoge", // should be ignored
 				},
 				Spec: corev1.PodSpec{
 					SchedulerName: "hoge-scheduler",
@@ -210,9 +208,10 @@ var _ = Describe("Egress reconciler", func() {
 						{Name: "sidecar", Image: "nginx"},
 					},
 					Volumes: []corev1.Volume{
-						{Name: "dummy", VolumeSource: corev1.VolumeSource{
+						{
+							Name:     "dummy",
 							HostPath: &corev1.HostPathVolumeSource{Path: "/dummy"},
-						}},
+						},
 					},
 				},
 			}
@@ -263,10 +262,8 @@ var _ = Describe("Egress reconciler", func() {
 				return err
 			}
 			eg.Spec.Template = &coilv2.EgressPodTemplate{
-				Metadata: coilv2.Metadata{
-					Annotations: nil,
-					Labels:      nil,
-				},
+				Annotations: nil,
+				Labels:      nil,
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{

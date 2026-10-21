@@ -145,11 +145,11 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 		if podSpec.Containers[i].Name != "egress" {
 			continue
 		}
-		egressContainer = &(podSpec.Containers[i])
+		egressContainer = &podSpec.Containers[i]
 	}
 	if egressContainer == nil {
 		podSpec.Containers = append([]corev1.Container{{}}, podSpec.Containers...)
-		egressContainer = &(podSpec.Containers[0])
+		egressContainer = &podSpec.Containers[0]
 	}
 	egressContainer.Name = "egress"
 	if egressContainer.Image == "" {
@@ -203,18 +203,18 @@ func (r *EgressReconciler) reconcilePodTemplate(eg *coilv2.Egress, depl *appsv1.
 		{Name: "health", ContainerPort: 8081, Protocol: corev1.ProtocolTCP},
 	}
 	egressContainer.LivenessProbe = &corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{
+		HTTPGet: &corev1.HTTPGetAction{
 			Path:   "/healthz",
 			Port:   intstr.FromString("health"),
 			Scheme: corev1.URISchemeHTTP,
-		}},
+		},
 	}
 	egressContainer.ReadinessProbe = &corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{
+		HTTPGet: &corev1.HTTPGetAction{
 			Path:   "/readyz",
 			Port:   intstr.FromString("health"),
 			Scheme: corev1.URISchemeHTTP,
-		}},
+		},
 	}
 
 	podSpec.DeepCopyInto(&target.Spec)
@@ -230,19 +230,15 @@ func (r *EgressReconciler) addVolumes(vols []corev1.Volume) []corev1.Volume {
 	}
 	if noRun {
 		vols = append(vols, corev1.Volume{
-			Name: "run",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
+			Name:     "run",
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		})
 	}
 
 	vols = append(vols, corev1.Volume{
 		Name: "modules",
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: "/lib/modules",
-			},
+		HostPath: &corev1.HostPathVolumeSource{
+			Path: "/lib/modules",
 		},
 	})
 	return vols

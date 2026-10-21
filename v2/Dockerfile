@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM ghcr.io/cybozu/golang:1.26-noble as build-env
+FROM --platform=$BUILDPLATFORM ghcr.io/cybozu/golang:1.27.3.1_resolute@sha256:56354d624535147898457543f53b6b42bebd671817e0ec322b610b1370c98f2c as build-env
 
 ARG TARGETARCH
 ARG GOPROXY
@@ -12,7 +12,7 @@ RUN --mount=type=secret,id=netrc,target=/root/.netrc \
 
 RUN GOPROXY=off make build GOARCH=${TARGETARCH}
 
-FROM --platform=$TARGETPLATFORM ghcr.io/cybozu/ubuntu:24.04
+FROM --platform=$TARGETPLATFORM ghcr.io/cybozu/ubuntu:26.04.20261021@sha256:4d40515de878b3276fa0b0fd6ee4818f7dc729d579d3a211dae0763bfad4ff02
 
 # https://docs.github.com/en/packages/managing-container-images-with-github-container-registry/connecting-a-repository-to-a-container-image#connecting-a-repository-to-a-container-image-on-the-command-line
 LABEL org.opencontainers.image.source https://github.com/cybozu-go/coil
