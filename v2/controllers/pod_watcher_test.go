@@ -238,7 +238,6 @@ var _ = Describe("Pod watcher", Ordered, func() {
 				"fd01::1":  {},
 				"10.1.1.2": {},
 				"fd01::2":  {},
-				"fd01::3":  {}, // nat.Server does not have remove API
 				"10.1.1.7": {},
 				"fd01::7":  {},
 			})
@@ -275,9 +274,7 @@ var _ = Describe("Pod watcher", Ordered, func() {
 
 		Eventually(func() bool {
 			return reflect.DeepEqual(nat.GetClients(), map[string]struct{}{
-				"10.1.1.2": {}, // cannot be removed
-				"fd01::2":  {}, // ditto
-				"fd01::3":  {},
+				"fd01::3": {},
 			})
 		}).Should(BeTrue())
 
@@ -333,6 +330,10 @@ var _ = Describe("Pod watcher", Ordered, func() {
 				"10.1.1.2": true,
 				"fd01::2":  true,
 				"fd01::3":  true,
+			}) && reflect.DeepEqual(nat.GetClients(), map[string]struct{}{
+				"10.1.1.2": {},
+				"fd01::2":  {},
+				"fd01::3":  {},
 			})
 		}).Should(BeTrue())
 
@@ -354,6 +355,11 @@ var _ = Describe("Pod watcher", Ordered, func() {
 				"fd01::2":  true,
 				"fd01::3":  true,
 				"10.1.1.5": true,
+			}) && reflect.DeepEqual(nat.GetClients(), map[string]struct{}{
+				"10.1.1.2": {},
+				"fd01::2":  {},
+				"fd01::3":  {},
+				"10.1.1.5": {},
 			})
 		}, 5*time.Second, 1*time.Second).Should(BeTrue())
 	})

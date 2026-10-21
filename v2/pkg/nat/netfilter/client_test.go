@@ -997,3 +997,85 @@ func newDummyDevice(name string) (netlink.Link, error) {
 
 	return link, nil
 }
+
+func TestNatClient_FlowBasedDevNewDropRule(t *testing.T) {
+	ipv4 := net.ParseIP("10.1.1.1")
+	ipv6 := net.ParseIP("fd02::1")
+
+	// EnsureFlowBasedDevRules is for clients initialized by an older version,
+	// so it must work without Init.
+	setups := map[string]func(*NatClient) error{
+		"Init":                    (*NatClient).Init,
+		"EnsureFlowBasedDevRules": (*NatClient).EnsureFlowBasedDevRules,
+	}
+
+	for _, backend := range []string{constants.EgressBackendIPTables, constants.EgressBackendNFTables} {
+		for name, setup := range setups {
+			t.Run(backend+"/"+name, func(t *testing.T) {
+				t.Parallel()
+
+				tns, err := testutils.NewNS()
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer tns.Close()
+
+				if err := tns.Do(func(ns ns.NetNS) error {
+					nc := NewNatClient(ipv4, ipv6, nil, backend, nil)
+
+					// to check idempotency, call it twice
+					for i := 0; i < 2; i++ {
+						if err := setup(nc); err != nil {
+							return fmt.Errorf("%s() error = %w", name, err)
+						}
+					}
+
+					chains := []struct {
+						name string
+						nft  func(nftables.TableFamily) (*nftables.Table, *nftables.Chain)
+					}{
+						{filterChain, nftFilterForwardChain},
+						{inputChain, nftFilterInputChain},
+					}
+					for _, family := range []int{netlink.FAMILY_V4, netlink.FAMILY_V6} {
+						for _, chain := range chains {
+							var got int
+							switch backend {
+							case constants.EgressBackendIPTables:
+								ipt, err := newIPTables(family)
+								if err != nil {
+									return err
+								}
+								rules, err := ipt.List(filterTable, chain.name)
+								if err != nil {
+									return err
+								}
+								for _, r := range rules {
+									if strings.Contains(r, "-i "+flowBasedDevice(family)+" ") && strings.Contains(r, "NEW") {
+										got++
+									}
+								}
+							default:
+								rules, err := listNFTablesFilterRules(family, chain.nft)
+								if err != nil {
+									return err
+								}
+								for _, r := range rules {
+									if string(r.UserData) == nftRuleIDFlowBasedDev {
+										got++
+									}
+								}
+							}
+							if got != 1 {
+								return fmt.Errorf("unexpected number of rules for %s in %s: %d", flowBasedDevice(family), chain.name, got)
+							}
+						}
+					}
+					return nil
+				}); err != nil {
+					t.Error(err)
+				}
+			})
+		}
+	}
+}

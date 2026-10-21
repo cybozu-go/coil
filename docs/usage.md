@@ -22,6 +22,7 @@ For installation, read [setup.md](setup.md).
     - [Use NetworkPolicy to prohibit NAT usage](#use-networkpolicy-to-prohibit-nat-usage)
     - [Session affinity](#session-affinity)
     - [Use egress only for connections originating on the client](#use-egress-only-for-connections-originating-on-the-client)
+    - [Source address verification](#source-address-verification)
   - [Metrics](#metrics)
     - [How to scrape metrics](#how-to-scrape-metrics)
 
@@ -320,6 +321,22 @@ or incoming onto `fou` interface will use egress FOU interface to send data.
 In case of incomming connections, the same interface will be used for egress traffic - 
 e.g. if connection will be estabilished on `eth0`, the traffic will not be routed through `fou`,
 but will be handled by `eth0`.
+
+### Source address verification
+
+NAT servers forward packets from a client only when their source address is
+the IP address of the client Pod.  Other packets from the client are dropped.
+This prevents a client from spoofing the source address to make the NAT server
+deliver reply packets to another Pod.
+
+If a client Pod forwards traffic of nested network namespaces or containers
+through Egress, the traffic must be SNATed to the Pod IP address before it
+leaves the Pod.  Docker's default masquerade rule does this, so containers
+run by Docker in a client Pod work without extra configuration.
+
+NAT servers also drop FoU packets whose outer source address is not the IP
+address of a client Pod.  Therefore, traffic from client Pods to the ClusterIP
+of the Egress Service must not be SNATed.
 
 ## Metrics
 
