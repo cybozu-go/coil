@@ -266,7 +266,12 @@ OUTER2:
 			}
 		}
 		logger.Info("delete peer", "caller", "addPod", "ip", eip.String(), "podIPs", podIPs, "existing", existing)
+		// Delete the link before the source address verification rule
+		// so that the link never forwards unverified packets.
 		if err := r.ft.DelPeer(eip); err != nil {
+			return err
+		}
+		if err := r.nat.DelClient(eip); err != nil {
 			return err
 		}
 		if n := ClientPodInfo.DeletePartialMatch(prometheus.Labels{"namespace": pod.GetNamespace(), "pod": pod.GetName(), "pod_ip": eip.String(), "egress": r.myName, "egress_namespace": r.myNS}); n != 1 {
@@ -314,7 +319,11 @@ func (r *podWatcher) delPeer(n types.NamespacedName, caller, podPhase string, lo
 		}
 		if !existsLivePeers {
 			logger.Info("delete peer", "caller", caller, "ip", ip.String(), "podIPs", r.podAddrs[key], "podPhase", podPhase)
+			// See addPod for the order of deletion.
 			if err := r.ft.DelPeer(ip); err != nil {
+				return err
+			}
+			if err := r.nat.DelClient(ip); err != nil {
 				return err
 			}
 		}

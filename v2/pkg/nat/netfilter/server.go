@@ -3,7 +3,6 @@ package netfilter
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"net"
 	"sync"
 
@@ -40,7 +39,8 @@ type NatServer struct {
 	ipv6    net.IP
 	backend string
 
-	clients map[string]struct{}
+	// clients maps the IP address of a client to the name of its FoU tunnel link.
+	clients map[string]string
 	mu      sync.RWMutex
 }
 
@@ -53,7 +53,7 @@ func NewNatServer(iface string, ipv4, ipv6 net.IP, backend string) (*NatServer, 
 		ipv4:    ipv4,
 		ipv6:    ipv6,
 		backend: backend,
-		clients: make(map[string]struct{}),
+		clients: make(map[string]string),
 	}
 	if err := n.init(); err != nil {
 		return nil, err
@@ -82,6 +82,15 @@ func (n *NatServer) AddClient(ip net.IP, link netlink.Link) error {
 	if ip.To4() == nil {
 		family = netlink.FAMILY_V6
 	}
+
+	// Set up the source address verification before the link gets up
+	// so that no unverified packets from the link are forwarded or delivered.
+	// This is idempotent and done even if the route already exists, e.g.
+	// when coil-egress restarts.
+	if err := n.setPeerSrcRule(family, link.Attrs().Name, ip); err != nil {
+		return err
+	}
+	n.clients[ip.String()] = link.Attrs().Name
 
 	rs, err := netlink.RouteListFiltered(family, &netlink.Route{Table: nsTableID}, netlink.RT_FILTER_TABLE)
 	if err != nil {
@@ -112,15 +121,61 @@ func (n *NatServer) AddClient(ip net.IP, link netlink.Link) error {
 	if err != nil {
 		return fmt.Errorf("netlink: failed to add %s to table %d: %w", ip.String(), nsTableID, err)
 	}
+	return nil
+}
 
-	n.clients[ip.String()] = struct{}{}
+func (n *NatServer) DelClient(ip net.IP) error {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	linkName, ok := n.clients[ip.String()]
+	if !ok {
+		return nil
+	}
+
+	family := netlink.FAMILY_V4
+	if ip.To4() == nil {
+		family = netlink.FAMILY_V6
+	}
+
+	if err := n.removePeerSrcRule(family, linkName, ip); err != nil {
+		return err
+	}
+	delete(n.clients, ip.String())
 	return nil
 }
 
 func (n *NatServer) GetClients() map[string]struct{} {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
-	return maps.Clone(n.clients)
+
+	clients := make(map[string]struct{}, len(n.clients))
+	for ip := range n.clients {
+		clients[ip] = struct{}{}
+	}
+	return clients
+}
+
+func (n *NatServer) setPeerSrcRule(family int, linkName string, ip net.IP) error {
+	switch n.backend {
+	case constants.EgressBackendIPTables:
+		return setIPTablesPeerSrcRule(family, linkName, ip)
+	case constants.EgressBackendNFTables:
+		return setNFTablesPeerSrcRule(family, linkName, ip)
+	default:
+		return fmt.Errorf("invalid nat backend: %s", n.backend)
+	}
+}
+
+func (n *NatServer) removePeerSrcRule(family int, linkName string, ip net.IP) error {
+	switch n.backend {
+	case constants.EgressBackendIPTables:
+		return removeIPTablesPeerSrcRule(family, linkName, ip)
+	case constants.EgressBackendNFTables:
+		return removeNFTablesPeerSrcRule(family, linkName)
+	default:
+		return fmt.Errorf("invalid nat backend: %s", n.backend)
+	}
 }
 
 func (n *NatServer) init() error {

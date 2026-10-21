@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os/exec"
+	"strconv"
 	"time"
 
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -48,6 +49,10 @@ var (
 
 	// FoU tunnel port
 	fouPort = 5555
+
+	// Additional client addresses that are not registered to the egress
+	rogueIPv4 = net.ParseIP("10.1.1.99")
+	rogueIPv6 = net.ParseIP("fd01::199")
 )
 
 var _ = Describe("NAT", func() {
@@ -93,6 +98,16 @@ var _ = Describe("NAT", func() {
 			It("should NAT traffic with originatingOnly=true", func() {
 				testNAT(clientNS, egressNS, targetNS, backend, true)
 			})
+
+			It("should drop traffic with a spoofed source address", func() {
+				testNAT(clientNS, egressNS, targetNS, backend, false)
+				testSpoofedSource(clientNS, backend)
+			})
+
+			It("should drop traffic from unregistered peers", func() {
+				testNAT(clientNS, egressNS, targetNS, backend, false)
+				testUnregisteredPeer(clientNS, backend)
+			})
 		})
 	}
 })
@@ -100,7 +115,7 @@ var _ = Describe("NAT", func() {
 func testNAT(clientNS, egressNS, targetNS ns.NetNS, backend string, originatingOnly bool) {
 	// Setup client namespace
 	err := clientNS.Do(func(ns.NetNS) error {
-		ft := fou.NewFoUTunnel(fouPort, clientIPv4, clientIPv6, nil)
+		ft := fou.NewClientFoUTunnel(fouPort, clientIPv4, clientIPv6, nil)
 		if err := ft.Init(); err != nil {
 			return fmt.Errorf("ft.Init on client failed: %w", err)
 		}
@@ -132,7 +147,7 @@ func testNAT(clientNS, egressNS, targetNS ns.NetNS, backend string, originatingO
 
 	// Setup egress namespace
 	err = egressNS.Do(func(ns.NetNS) error {
-		ft := fou.NewFoUTunnel(fouPort, egressEth0IPv4, egressEth0IPv6, nil)
+		ft := fou.NewServerFoUTunnel(fouPort, egressEth0IPv4, egressEth0IPv6, nil)
 		if err := ft.Init(); err != nil {
 			return fmt.Errorf("ft.Init on egress failed: %w", err)
 		}
@@ -192,6 +207,93 @@ func testNAT(clientNS, egressNS, targetNS ns.NetNS, backend string, originatingO
 		return nil
 	})
 	Expect(err).NotTo(HaveOccurred())
+}
+
+// testSpoofedSource sends packets through the registered FoU tunnel with
+// a source address other than the client's one.  The egress must drop them.
+func testSpoofedSource(clientNS ns.NetNS, backend string) {
+	err := clientNS.Do(func(ns.NetNS) error {
+		runCmd("ip", "addr", "add", rogueIPv4.String()+"/32", "dev", "eth0")
+		runCmd("ip", "-6", "addr", "add", rogueIPv6.String()+"/128", "dev", "eth0", "nodad")
+
+		if err := expectCurlFailure(rogueIPv4, fmt.Sprintf("http://%s", targetIPv4), backend); err != nil {
+			return err
+		}
+		if err := expectCurlFailure(rogueIPv6, fmt.Sprintf("http://[%s]", targetIPv6), backend); err != nil {
+			return err
+		}
+
+		// Packets destined to the egress itself must be verified as well.
+		// The egress address on the target network is routed through the tunnel.
+		if err := expectPing(clientIPv4, egressEth1IPv4, true, backend); err != nil {
+			return err
+		}
+		if err := expectPing(clientIPv6, egressEth1IPv6, true, backend); err != nil {
+			return err
+		}
+		if err := expectPing(rogueIPv4, egressEth1IPv4, false, backend); err != nil {
+			return err
+		}
+		if err := expectPing(rogueIPv6, egressEth1IPv6, false, backend); err != nil {
+			return err
+		}
+		return nil
+	})
+	Expect(err).NotTo(HaveOccurred())
+}
+
+// testUnregisteredPeer sends FoU packets to the egress from an address
+// that is not registered as a client.  The egress must not decapsulate them.
+func testUnregisteredPeer(clientNS ns.NetNS, backend string) {
+	err := clientNS.Do(func(ns.NetNS) error {
+		runCmd("ip", "addr", "add", rogueIPv4.String()+"/32", "dev", "eth0")
+		runCmd("ip", "-6", "addr", "add", rogueIPv6.String()+"/128", "dev", "eth0", "nodad")
+
+		port := strconv.Itoa(fouPort)
+		runCmd("ip", "link", "add", "rogue4", "type", "ipip",
+			"remote", egressEth0IPv4.String(), "local", rogueIPv4.String(), "ttl", "225",
+			"encap", "fou", "encap-sport", port, "encap-dport", port)
+		runCmd("ip", "link", "add", "rogue6", "type", "ip6tnl", "mode", "ip6ip6",
+			"remote", egressEth0IPv6.String(), "local", rogueIPv6.String(), "ttl", "225",
+			"encap", "fou", "encap-sport", port, "encap-dport", port)
+		runCmd("ip", "link", "set", "rogue4", "up")
+		runCmd("ip", "link", "set", "rogue6", "up")
+
+		// route packets from the rogue addresses through the rogue tunnels
+		// prior to the rules configured by NatClient
+		runCmd("ip", "route", "add", targetNetworkIPv4.String(), "dev", "rogue4", "table", "200")
+		runCmd("ip", "-6", "route", "add", targetNetworkIPv6.String(), "dev", "rogue6", "table", "200")
+		runCmd("ip", "rule", "add", "from", rogueIPv4.String(), "lookup", "200", "priority", "100")
+		runCmd("ip", "-6", "rule", "add", "from", rogueIPv6.String(), "lookup", "200", "priority", "100")
+
+		if err := expectCurlFailure(rogueIPv4, fmt.Sprintf("http://%s", targetIPv4), backend); err != nil {
+			return err
+		}
+		if err := expectCurlFailure(rogueIPv6, fmt.Sprintf("http://[%s]", targetIPv6), backend); err != nil {
+			return err
+		}
+		return nil
+	})
+	Expect(err).NotTo(HaveOccurred())
+}
+
+func expectPing(src, dst net.IP, success bool, backend string) error {
+	out, err := exec.Command("ping", "-c", "1", "-W", "3", "-I", src.String(), dst.String()).CombinedOutput()
+	if success && err != nil {
+		return fmt.Errorf("ping from %s to %s failed (backend=%s): %w: %s", src, dst, backend, err, string(out))
+	}
+	if !success && err == nil {
+		return fmt.Errorf("ping from %s to %s unexpectedly succeeded (backend=%s): %s", src, dst, backend, string(out))
+	}
+	return nil
+}
+
+func expectCurlFailure(src net.IP, url, backend string) error {
+	out, err := exec.Command("curl", "-s", "--connect-timeout", "3", "--interface", src.String(), url).CombinedOutput()
+	if err == nil {
+		return fmt.Errorf("curl from %s to %s unexpectedly succeeded (backend=%s): %s", src, url, backend, string(out))
+	}
+	return nil
 }
 
 func setupNetwork(clientNS, egressNS, targetNS ns.NetNS) {
