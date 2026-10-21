@@ -13,6 +13,10 @@ type Server interface {
 	// the necessary routing rules via the specified network link.
 	AddClient(net.IP, netlink.Link) error
 
+	// DelClient unregisters a client IP address from the NAT server and
+	// removes the rules set up by AddClient.
+	DelClient(net.IP) error
+
 	// GetClients returns a copy of the currently registered client IP addresses.
 	GetClients() map[string]struct{}
 }

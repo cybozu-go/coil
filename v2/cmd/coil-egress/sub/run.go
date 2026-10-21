@@ -102,7 +102,7 @@ func subMain() error {
 	}
 
 	setupLog.Info("initialize FoU tunnel", "port", config.port, "ipv4", ipv4.String(), "ipv6", ipv6.String())
-	ft := fou.NewFoUTunnel(config.port, ipv4, ipv6, nil)
+	ft := fou.NewServerFoUTunnel(config.port, ipv4, ipv6, nil)
 	if err := ft.Init(); err != nil {
 		return err
 	}

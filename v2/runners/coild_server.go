@@ -63,7 +63,7 @@ type natSetup struct {
 
 func (n natSetup) Hook(l []GWNets, backend string, log *zap.Logger) func(ipv4, ipv6 net.IP) error {
 	return func(ipv4, ipv6 net.IP) error {
-		ft := fou.NewFoUTunnel(n.port, ipv4, ipv6, func(message string) {
+		ft := fou.NewClientFoUTunnel(n.port, ipv4, ipv6, func(message string) {
 			log.Sugar().Info(message)
 		})
 		if err := ft.Init(); err != nil {

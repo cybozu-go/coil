@@ -198,7 +198,7 @@ func (r *EgressWatcher) hook(gwn gwNets, log *logr.Logger) func(ipv4, ipv6 net.I
 	return func(ipv4, ipv6 net.IP) error {
 		// We assume that coild already has configured NAT for the client,
 		// so we ensure that both FoUTunnel and NATClient have been initialized.
-		ft := fou.NewFoUTunnel(r.EgressPort, ipv4, ipv6, func(message string) {
+		ft := fou.NewClientFoUTunnel(r.EgressPort, ipv4, ipv6, func(message string) {
 			log.Info(message)
 		})
 		if !ft.IsInitialized() {
@@ -210,6 +210,10 @@ func (r *EgressWatcher) hook(gwn gwNets, log *logr.Logger) func(ipv4, ipv6 net.I
 		initialized, err := cl.IsInitialized()
 		if !initialized {
 			return fmt.Errorf("natClient hasn't been initialized: %w", err)
+		}
+
+		if err := cl.EnsureFlowBasedDevRules(); err != nil {
+			return err
 		}
 
 		link, err := ft.AddPeer(gwn.gateway, gwn.sportAuto)
