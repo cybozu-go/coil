@@ -329,7 +329,7 @@ func setupFlowBasedIP4TunDevice() error {
 	ipip4Device := "coil_ipip4"
 	// Set up IPv4 tunnel device if requested.
 	if err := setupDevice(&netlink.Iptun{
-		LinkAttrs: netlink.LinkAttrs{Name: ipip4Device},
+		Name:      ipip4Device,
 		FlowBased: true,
 	}); err != nil {
 		return fmt.Errorf("creating %s: %w", ipip4Device, err)
@@ -350,7 +350,7 @@ func setupFlowBasedIP6TunDevice() error {
 
 	// Set up IPv6 tunnel device if requested.
 	if err := setupDevice(&netlink.Ip6tnl{
-		LinkAttrs: netlink.LinkAttrs{Name: ipip6Device},
+		Name:      ipip6Device,
 		FlowBased: true,
 	}); err != nil {
 		return fmt.Errorf("creating %s: %w", ipip6Device, err)
@@ -372,8 +372,7 @@ func setupDevice(link netlink.Link) error {
 	// Reuse existing tunnel interface created by previous runs.
 	l, err := netlink.LinkByName(name)
 	if err != nil {
-		var linkNotFoundError netlink.LinkNotFoundError
-		if !errors.As(err, &linkNotFoundError) {
+		if _, ok := errors.AsType[netlink.LinkNotFoundError](err); !ok {
 			return err
 		}
 

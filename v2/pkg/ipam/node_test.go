@@ -29,41 +29,35 @@ func testController(ctx context.Context, npMap map[string]NodeIPAM) {
 	blocksMap := map[string][]*coilv2.AddressBlock{
 		"default": {
 			&coilv2.AddressBlock{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "default-0",
-					Labels: map[string]string{
-						constants.LabelPool: "default",
-					},
-					Finalizers: []string{constants.FinCoil},
+				Name: "default-0",
+				Labels: map[string]string{
+					constants.LabelPool: "default",
 				},
-				Index: 0,
-				IPv4:  new("10.2.0.0/31"),
-				IPv6:  new("fd02::0200/127"),
+				Finalizers: []string{constants.FinCoil},
+				Index:      0,
+				IPv4:       new("10.2.0.0/31"),
+				IPv6:       new("fd02::0200/127"),
 			},
 			&coilv2.AddressBlock{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "default-1",
-					Labels: map[string]string{
-						constants.LabelPool: "default",
-					},
-					Finalizers: []string{constants.FinCoil},
+				Name: "default-1",
+				Labels: map[string]string{
+					constants.LabelPool: "default",
 				},
-				Index: 1,
-				IPv4:  new("10.2.0.2/31"),
-				IPv6:  new("fd02::0202/127"),
+				Finalizers: []string{constants.FinCoil},
+				Index:      1,
+				IPv4:       new("10.2.0.2/31"),
+				IPv6:       new("fd02::0202/127"),
 			},
 		},
 		"v4": {
 			&coilv2.AddressBlock{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "v4-0",
-					Labels: map[string]string{
-						constants.LabelPool: "v4",
-					},
-					Finalizers: []string{constants.FinCoil},
+				Name: "v4-0",
+				Labels: map[string]string{
+					constants.LabelPool: "v4",
 				},
-				Index: 2,
-				IPv4:  new("10.4.0.0/30"),
+				Finalizers: []string{constants.FinCoil},
+				Index:      2,
+				IPv4:       new("10.4.0.0/30"),
 			},
 		},
 	}
@@ -301,18 +295,16 @@ var _ = Describe("NodeIPAM", func() {
 	It("should ignore reserved blocks", func() {
 		By("creating a reserved block")
 		block := &coilv2.AddressBlock{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "default-2",
-				Labels: map[string]string{
-					constants.LabelPool:     "default",
-					constants.LabelNode:     "node1",
-					constants.LabelReserved: "true",
-				},
-				Finalizers: []string{constants.FinCoil},
+			Name: "default-2",
+			Labels: map[string]string{
+				constants.LabelPool:     "default",
+				constants.LabelNode:     "node1",
+				constants.LabelReserved: "true",
 			},
-			Index: 2,
-			IPv4:  new("10.2.0.4/31"),
-			IPv6:  new("fd02::0204/127"),
+			Finalizers: []string{constants.FinCoil},
+			Index:      2,
+			IPv4:       new("10.2.0.4/31"),
+			IPv6:       new("fd02::0204/127"),
 		}
 		err := k8sClient.Create(ctx, block)
 		Expect(err).ShouldNot(HaveOccurred())

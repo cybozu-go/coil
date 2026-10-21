@@ -8,16 +8,13 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func makeEgress() *Egress {
 	return &Egress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "default",
-		},
+		Name:      "test",
+		Namespace: "default",
 		Spec: EgressSpec{
 			Destinations: []string{"10.2.0.0/16"},
 			Replicas:     1,
@@ -96,18 +93,14 @@ var _ = Describe("Egress Webhook", func() {
 	It("should deny bad pod templates", func() {
 		r := makeEgress()
 		r.Spec.Template = &EgressPodTemplate{
-			Metadata: Metadata{
-				Annotations: map[string]string{"bad bad": "aaa"},
-			},
+			Annotations: map[string]string{"bad bad": "aaa"},
 		}
 		err := k8sClient.Create(ctx, r)
 		Expect(err).To(HaveOccurred())
 
 		r = makeEgress()
 		r.Spec.Template = &EgressPodTemplate{
-			Metadata: Metadata{
-				Labels: map[string]string{"good": "bad value", "name": "foo"},
-			},
+			Labels: map[string]string{"good": "bad value", "name": "foo"},
 		}
 		err = k8sClient.Create(ctx, r)
 		Expect(err).To(HaveOccurred())
@@ -116,10 +109,8 @@ var _ = Describe("Egress Webhook", func() {
 	It("should allow valid pod templates", func() {
 		r := makeEgress()
 		r.Spec.Template = &EgressPodTemplate{
-			Metadata: Metadata{
-				Annotations: map[string]string{"good": "aaa bbb"},
-				Labels:      map[string]string{"good": "good"},
-			},
+			Annotations: map[string]string{"good": "aaa bbb"},
+			Labels:      map[string]string{"good": "good"},
 			Spec: corev1.PodSpec{
 				Tolerations: []corev1.Toleration{
 					{

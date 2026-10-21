@@ -167,7 +167,7 @@ func (p *mockPodNetwork) expectByPod(namespace, name string) error {
 	if err := k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, &pod, &client.GetOptions{}); err != nil {
 		return fmt.Errorf("failed to get pod: %w", err)
 	}
-	p.expected = (string(pod.UID))
+	p.expected = string(pod.UID)
 	return nil
 }
 

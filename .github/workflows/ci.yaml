@@ -11,7 +11,7 @@ defaults:
   run:
     working-directory: v2
 env:
-  go-version: "1.26.5"
+  go-version: "1.27.3"
   cache-version: 1
   # Supported Kubernetes versions. Bump these three values when adding/dropping
   # versions; all matrix entries below reference the YAML anchors.
@@ -26,8 +26,8 @@ jobs:
         test-ipam: ["true", "false"]
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-    - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version: ${{ env.go-version }}
         cache-dependency-path: "**/go.sum"
@@ -42,9 +42,9 @@ jobs:
           v2/bin
           v2/include
         key: cache-${{ env.cache-version }}-go-${{ env.go-version }}-${{ hashFiles('v2/Makefile') }}
-    - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+    - uses: aquaproj/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329 # v4.1.0
       with:
-        aqua_version: v2.57.1
+        aqua_version: v2.64.0
     - run: make setup
       if: steps.cache-tools.outputs.cache-hit != 'true'
     - run: make test TEST_IPAM=${{ matrix.test-ipam }} TEST_EGRESS=true
@@ -106,17 +106,17 @@ jobs:
       BACKEND:            ${{ matrix.backend }}
       ORIGINATINGONLY:    ${{ matrix.originatingonly }}
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-    - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version: ${{ env.go-version }}
         cache-dependency-path: "**/go.sum"
     - uses: ./.github/actions/setup-takumi-guard
       with:
         bot-id: ${{ vars.TAKUMI_GUARD_BOT_ID }}
-    - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+    - uses: aquaproj/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329 # v4.1.0
       with:
-        aqua_version: v2.57.1
+        aqua_version: v2.64.0
     - run: make image
     - run: make certs
     - run: make ci-enable-docker-ipv6
@@ -130,7 +130,7 @@ jobs:
     - run: make logs
       working-directory: v2/e2e
       if: always()
-    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       if: always()
       with:
         name: logs-${{ matrix.kindest-node }}-ipam${{ matrix.with-ipam }}-v4${{ matrix.ipv4 }}-v6${{ matrix.ipv6 }}-v6p${{ matrix.ipv6-primary }}-${{ matrix.backend }}-oo${{ matrix.originatingonly }}.tar.gz
@@ -144,17 +144,17 @@ jobs:
         kindest-node: [*k8s-prev2, *k8s-prev1, *k8s-latest]
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-    - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version: ${{ env.go-version }}
         cache-dependency-path: "**/go.sum"
     - uses: ./.github/actions/setup-takumi-guard
       with:
         bot-id: ${{ vars.TAKUMI_GUARD_BOT_ID }}
-    - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+    - uses: aquaproj/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329 # v4.1.0
       with:
-        aqua_version: v2.57.1
+        aqua_version: v2.64.0
     - run: make image
     - run: make enable-certs-rotation
       working-directory: v2/e2e
@@ -167,7 +167,7 @@ jobs:
     - run: make logs
       working-directory: v2/e2e
       if: always()
-    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       if: always()
       with:
         name: logs-cert-generation-${{ matrix.kindest-node }}.tar.gz
