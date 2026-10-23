@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"net"
+	"sort"
 	"sync"
 	"syscall"
 
@@ -22,6 +23,11 @@ const (
 	ncLocalPrioBase = 2000
 	ncWidePrio      = 2100
 )
+
+// MaxInClusterNetworks is the maximum number of in-cluster networks (per IP family)
+// that NatClient can install rules for. Each network gets its own rule priority
+// starting at ncLocalPrioBase, and they must not collide with ncWidePrio.
+const MaxInClusterNetworks = ncWidePrio - ncLocalPrioBase
 
 // Table IDs
 const (
@@ -63,40 +69,39 @@ var (
 )
 
 type NatClient struct {
-	ipv4        net.IP
-	ipv6        net.IP
-	v4InCluster []*net.IPNet
-	v6InCluster []*net.IPNet
-	backend     string
-	logFunc     func(string)
+	ipv4      net.IP
+	ipv6      net.IP
+	inCluster *ClusterNetworks
+	backend   string
+	logFunc   func(string)
 
 	mu sync.Mutex
 }
 
-func NewNatClient(ipv4, ipv6 net.IP, podNodeNet []*net.IPNet, backend string, logFunc func(string)) *NatClient {
-	var v4InCluster, v6InCluster []*net.IPNet
-	if len(podNodeNet) > 0 {
-		for _, n := range podNodeNet {
-			if n.IP.To4() != nil {
-				v4InCluster = append(v4InCluster, n)
-			} else {
-				v6InCluster = append(v6InCluster, n)
-			}
+// NewNatClient creates a new NatClient.
+func NewNatClient(ipv4, ipv6 net.IP, clusterNetworks *ClusterNetworks, backend string, logFunc func(string)) (*NatClient, error) {
+	inCluster := &ClusterNetworks{v4PrivateList, v6PrivateList}
+
+	if clusterNetworks != nil {
+		if err := clusterNetworks.Validate(); err != nil {
+			return nil, fmt.Errorf("failed to validate cluster-networks: %w", err)
 		}
-	} else {
-		v4InCluster = v4PrivateList
-		v6InCluster = v6PrivateList
+		if len(clusterNetworks.v4) > 0 {
+			inCluster.v4 = clusterNetworks.v4
+		}
+		if len(clusterNetworks.v6) > 0 {
+			inCluster.v6 = clusterNetworks.v6
+		}
 	}
 
 	nc := &NatClient{
-		ipv4:        ipv4,
-		ipv6:        ipv6,
-		v4InCluster: v4InCluster,
-		v6InCluster: v6InCluster,
-		backend:     backend,
-		logFunc:     logFunc,
+		ipv4:      ipv4,
+		ipv6:      ipv6,
+		inCluster: inCluster,
+		backend:   backend,
+		logFunc:   logFunc,
 	}
-	return nc
+	return nc, nil
 }
 
 func (n *NatClient) Init() error {
@@ -116,12 +121,17 @@ func (n *NatClient) Init() error {
 			return fmt.Errorf("failed to Init IPv6 table: %v", err)
 		}
 	}
+
+	if err := n.SyncInClusterRules(); err != nil {
+		return fmt.Errorf("failed to init in-CLuster rules: %w", err)
+	}
+
 	return nil
 }
 
 func (n *NatClient) IsInitialized() (bool, error) {
 	if n.ipv4 != nil {
-		if ok, err := isRuleInitialized(netlink.FAMILY_V4, n.v4InCluster); err != nil {
+		if ok, err := isRuleInitialized(netlink.FAMILY_V4); err != nil {
 			return false, fmt.Errorf("failed to check IPv4 rule initialization: %w", err)
 		} else if !ok {
 			return false, err
@@ -129,7 +139,27 @@ func (n *NatClient) IsInitialized() (bool, error) {
 	}
 
 	if n.ipv6 != nil {
-		if ok, err := isRuleInitialized(netlink.FAMILY_V6, n.v6InCluster); err != nil {
+		if ok, err := isRuleInitialized(netlink.FAMILY_V6); err != nil {
+			return false, fmt.Errorf("failed to check IPv6 rule initialization: %w", err)
+		} else if !ok {
+			return false, err
+		}
+	}
+
+	return true, nil
+}
+
+func (n *NatClient) IsInClusterInitialized() (bool, error) {
+	if n.ipv4 != nil {
+		if ok, err := areInClusterRulesInitialized(netlink.FAMILY_V4, n.inCluster.v4); err != nil {
+			return false, fmt.Errorf("failed to check IPv4 rule initialization: %w", err)
+		} else if !ok {
+			return false, err
+		}
+	}
+
+	if n.ipv6 != nil {
+		if ok, err := areInClusterRulesInitialized(netlink.FAMILY_V6, n.inCluster.v6); err != nil {
 			return false, fmt.Errorf("failed to check IPv6 rule initialization: %w", err)
 		} else if !ok {
 			return false, err
@@ -143,12 +173,46 @@ func (n *NatClient) SyncNat(link netlink.Link, subnets []*net.IPNet, originating
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
-	routesBySubnet, err := collectRoutesBySubnet(link.Attrs().Index)
-	if err != nil {
-		return err
+	families := make(map[int]struct{})
+	if n.ipv4 != nil {
+		families[netlink.FAMILY_V4] = struct{}{}
+	}
+	if n.ipv6 != nil {
+		families[netlink.FAMILY_V6] = struct{}{}
 	}
 
-	adds, dels := diffRoutes(routesBySubnet, subnets)
+	subnetsV4 := []*net.IPNet{}
+	subnetsV6 := []*net.IPNet{}
+
+	for _, s := range subnets {
+		if s.IP.To4() != nil {
+			subnetsV4 = append(subnetsV4, s)
+		} else {
+			subnetsV6 = append(subnetsV6, s)
+		}
+	}
+
+	for f := range families {
+		s := subnetsV4
+		if f == netlink.FAMILY_V6 {
+			s = subnetsV6
+		}
+
+		routesBySubnet, err := collectRoutesBySubnet(link.Attrs().Index, f)
+		if err != nil {
+			return err
+		}
+
+		if err := n.syncNat(link, s, originatingOnly, routesBySubnet, f); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (n *NatClient) syncNat(link netlink.Link, subnets []*net.IPNet, originatingOnly bool, routesBySubnet map[string]netlink.Route, family int) error {
+	adds, dels, keeps := diffRoutes(routesBySubnet, subnets)
 
 	for _, r := range dels {
 		if err := n.deleteRoute(r); err != nil {
@@ -156,32 +220,170 @@ func (n *NatClient) SyncNat(link netlink.Link, subnets []*net.IPNet, originating
 		}
 	}
 
-	configuredFamilies := make(map[int]struct{})
+	added := false
 	for _, ipn := range adds {
 		if err := n.addRoute(link, ipn); err != nil {
 			return err
 		}
+		added = true
+	}
 
-		f := netlink.FAMILY_V4
-		if ipn.IP.To4() == nil {
-			f = netlink.FAMILY_V6
-		}
-		configuredFamilies[f] = struct{}{}
+	if err := n.moveRoutes(keeps, family); err != nil {
+		return err
 	}
 
 	if originatingOnly {
-		for f := range configuredFamilies {
-			if err := configureOriginatingOnly(f, n.backend); err != nil {
+		if added {
+			if err := configureOriginatingOnly(family, n.backend); err != nil {
 				return err
 			}
 		}
 	} else {
-		for _, f := range []int{netlink.FAMILY_V4, netlink.FAMILY_V6} {
-			if err := removeOriginatingOnly(f, n.backend); err != nil {
-				return err
-			}
+		if err := removeOriginatingOnly(family, n.backend); err != nil {
+			return err
 		}
 	}
+	return nil
+}
+
+func (n *NatClient) moveRoutes(routes []netlink.Route, family int) error {
+	for _, r := range routes {
+		// select proper IP family and cluster-networks
+		cn := n.inCluster.v4
+		if family == netlink.FAMILY_V6 {
+			cn = n.inCluster.v6
+		}
+
+		expectedTable := ncWideTableID
+		for _, subnet := range cn {
+			if ipnetContains(subnet, r.Dst) {
+				// at least one cluster-network subnet contains the egress route subnet
+				// which means egress subnet should be 'narrow'
+				expectedTable = ncNarrowTableID
+				break
+			}
+		}
+
+		if r.Table == expectedTable {
+			// existing route is in a proper table, do nothing
+			continue
+		}
+
+		// add the rule to the correct table
+		if err := netlink.RouteAdd(&netlink.Route{
+			Table:     expectedTable,
+			Dst:       r.Dst,
+			LinkIndex: r.LinkIndex,
+			Protocol:  ncProtocolID,
+		}); err != nil {
+			return fmt.Errorf("netlink: failed to add route %q: %w", r.Dst, err)
+		}
+
+		// delete route from the incorrect table
+		if err := netlink.RouteDel(&r); err != nil {
+			return fmt.Errorf("netlink: failed to delete route %q: %w", r.Dst, err)
+		}
+
+	}
+
+	return nil
+}
+
+func ipnetContains(a, b *net.IPNet) bool {
+	if (a.IP.To4() == nil) != (b.IP.To4() == nil) {
+		return false
+	}
+	onesA, _ := a.Mask.Size()
+	onesB, _ := b.Mask.Size()
+	return onesA <= onesB && a.Contains(b.IP)
+}
+
+func (n *NatClient) SyncInClusterRules() error {
+	if n.ipv4 != nil {
+		if err := n.syncInClusterRules(netlink.FAMILY_V4, n.inCluster.v4); err != nil {
+			return fmt.Errorf("failed to sync IPv4 in-cluster rules: %w", err)
+		}
+	}
+	if n.ipv6 != nil {
+		if err := n.syncInClusterRules(netlink.FAMILY_V6, n.inCluster.v6); err != nil {
+			return fmt.Errorf("failed to sync IPv6 in-cluster rules: %w", err)
+		}
+	}
+	return nil
+}
+
+func (n *NatClient) syncInClusterRules(family int, inCluster []*net.IPNet) error {
+	rules, err := netlink.RuleListFiltered(family, &netlink.Rule{
+		Table: mainTableID,
+	}, netlink.RT_FILTER_TABLE)
+	if err != nil {
+		return fmt.Errorf("failed to list rules: %w", err)
+	}
+
+	existingRules := make([]*netlink.Rule, ncWidePrio-ncLocalPrioBase)
+	existingRulesMap := make(map[string]*netlink.Rule)
+
+	for i, r := range rules {
+		if r.Priority >= ncLocalPrioBase && r.Priority < ncWidePrio {
+			rDst := r.Dst
+			if rDst == nil {
+				rDst = getDefaultGlobalDst(family)
+			}
+			existingRules[r.Priority-ncLocalPrioBase] = &rules[i]
+			existingRulesMap[rDst.String()] = &rules[i]
+		}
+	}
+
+	candidatesMap := make(map[string]*net.IPNet)
+	for i := range inCluster {
+		candidatesMap[inCluster[i].String()] = inCluster[i]
+	}
+
+	toDelete := []*netlink.Rule{}
+	for addr, r := range existingRulesMap {
+		if _, exists := candidatesMap[addr]; !exists {
+			toDelete = append(toDelete, r)
+		}
+	}
+
+	toAdd := []*net.IPNet{}
+
+	for addr, ipn := range candidatesMap {
+		if _, exists := existingRulesMap[addr]; !exists {
+			toAdd = append(toAdd, ipn)
+		}
+	}
+
+	sort.Slice(toAdd, func(i, j int) bool {
+		return toAdd[i].String() < toAdd[j].String()
+	})
+
+	for _, r := range toDelete {
+		if err := netlink.RuleDel(r); err != nil {
+			return fmt.Errorf("netlink: failed to delete rule: %q: %w", r.String(), err)
+		}
+		existingRules[r.Priority-ncLocalPrioBase] = nil
+	}
+
+	index := 0
+	for _, ipn := range toAdd {
+		for ; index < len(existingRules); index++ {
+			if existingRules[index] == nil {
+				break
+			}
+		}
+		if index >= len(existingRules) {
+			return fmt.Errorf("no free rule priorities available")
+		}
+
+		r := newRule(family, mainTableID, ncLocalPrioBase+index)
+		r.Dst = ipn
+		if err := netlink.RuleAdd(r); err != nil && !errors.Is(err, syscall.EEXIST) {
+			return fmt.Errorf("netlink: failed to add rule %q: %w", r.String(), err)
+		}
+		index++
+	}
+
 	return nil
 }
 
@@ -210,21 +412,6 @@ func (n *NatClient) initRules(family int) error {
 		return fmt.Errorf("netlink: failed to add wide rule: %w", err)
 	}
 
-	var inCluster []*net.IPNet
-	switch family {
-	case netlink.FAMILY_V4:
-		inCluster = n.v4InCluster
-	case netlink.FAMILY_V6:
-		inCluster = n.v6InCluster
-	}
-
-	for i, ipn := range inCluster {
-		r := newRule(family, mainTableID, ncLocalPrioBase+i)
-		r.Dst = ipn
-		if err := netlink.RuleAdd(r); err != nil && !errors.Is(err, syscall.EEXIST) {
-			return fmt.Errorf("netlink: failed to add %s to rule: %w", ipn.String(), err)
-		}
-	}
 	return nil
 }
 
@@ -294,17 +481,8 @@ func (n *NatClient) clearRoutes(family int, gw *net.IPNet) error {
 	return nil
 }
 
-func isRuleInitialized(family int, inCluster []*net.IPNet) (bool, error) {
-	rules, err := netlink.RuleListFiltered(family, &netlink.Rule{Table: mainTableID}, netlink.RT_FILTER_TABLE)
-	if err != nil {
-		return false, fmt.Errorf("netlink: failed to list main rules: %w", err)
-	}
-	// Ensure that all inCluster rules exist
-	if len(rules) < (len(inCluster) + 1) {
-		return false, nil
-	}
-
-	rules, err = netlink.RuleListFiltered(family, &netlink.Rule{Table: ncNarrowTableID}, netlink.RT_FILTER_TABLE)
+func isRuleInitialized(family int) (bool, error) {
+	rules, err := netlink.RuleListFiltered(family, &netlink.Rule{Table: ncNarrowTableID}, netlink.RT_FILTER_TABLE)
 	if err != nil {
 		return false, fmt.Errorf("netlink: failed to list narrow rules: %w", err)
 	}
@@ -322,18 +500,57 @@ func isRuleInitialized(family int, inCluster []*net.IPNet) (bool, error) {
 	return true, nil
 }
 
+func areInClusterRulesInitialized(family int, inCluster []*net.IPNet) (bool, error) {
+	rules, err := netlink.RuleListFiltered(family, &netlink.Rule{Table: mainTableID}, netlink.RT_FILTER_TABLE)
+	if err != nil {
+		return false, fmt.Errorf("netlink: failed to list main rules: %w", err)
+	}
+
+	// Build local lookup map
+	existingRules := make(map[string]struct{}, len(rules))
+	for _, r := range rules {
+		dst := r.Dst
+		if dst == nil {
+			dst = getDefaultGlobalDst(family)
+		}
+
+		existingRules[dst.String()] = struct{}{}
+	}
+
+	missing := []string{}
+	// Ensure that all inCluster rules exist
+	for _, ipn := range inCluster {
+		if _, ok := existingRules[ipn.String()]; !ok {
+			missing = append(missing, ipn.String())
+		}
+	}
+
+	if len(missing) > 0 {
+		return false, fmt.Errorf("missing in-cluster rules for subnets %v", missing)
+	}
+
+	return true, nil
+}
+
+func getDefaultGlobalDst(family int) *net.IPNet {
+	if family == netlink.FAMILY_V6 {
+		return defaultIPv6GW
+	}
+	return defaultIPv4GW
+}
+
 func (n *NatClient) addRoute(link netlink.Link, ipn *net.IPNet) error {
 	var inCluster []*net.IPNet
 	if ipn.IP.To4() != nil {
 		if n.ipv4 == nil {
 			return nil
 		}
-		inCluster = n.v4InCluster
+		inCluster = n.inCluster.v4
 	} else {
 		if n.ipv6 == nil {
 			return nil
 		}
-		inCluster = n.v6InCluster
+		inCluster = n.inCluster.v6
 	}
 
 	// link up here to minimize the down time
@@ -343,7 +560,7 @@ func (n *NatClient) addRoute(link netlink.Link, ipn *net.IPNet) error {
 	}
 
 	for _, cipn := range inCluster {
-		if !cipn.Contains(ipn.IP) {
+		if !ipnetContains(cipn, ipn) {
 			continue
 		}
 
@@ -380,16 +597,16 @@ func (n *NatClient) deleteRoute(r *netlink.Route) error {
 	return nil
 }
 
-func collectRoutesBySubnet(linkIndex int) (map[string]netlink.Route, error) {
+func collectRoutesBySubnet(linkIndex int, family int) (map[string]netlink.Route, error) {
 	routes := make(map[string]netlink.Route)
-	for _, family := range []int{netlink.FAMILY_V4, netlink.FAMILY_V6} {
-		for _, table := range []int{ncNarrowTableID, ncWideTableID} {
-			res, err := collectRoutesFromTable(family, table, linkIndex)
-			if err != nil {
-				return nil, fmt.Errorf("failed to collect route %d %d %d: %w", family, table, linkIndex, err)
-			}
-			maps.Copy(routes, res)
+	for _, table := range []int{ncNarrowTableID, ncWideTableID} {
+		res, err := collectRoutesFromTable(family, table, linkIndex)
+		if err != nil {
+			return nil, fmt.Errorf("failed to collect route %d %d %d: %w", family, table, linkIndex, err)
 		}
+
+		maps.Copy(routes, res)
+
 	}
 	return routes, nil
 }
@@ -402,20 +619,21 @@ func collectRoutesFromTable(family, table, linkIndex int) (map[string]netlink.Ro
 	}
 
 	for _, r := range rs {
-		if r.LinkIndex == linkIndex && r.Dst != nil {
+		if r.LinkIndex == linkIndex {
 			res[r.Dst.String()] = r
 		}
 	}
 	return res, nil
 }
 
-func diffRoutes(routes map[string]netlink.Route, subnets []*net.IPNet) (adds []*net.IPNet, dels []*netlink.Route) {
+func diffRoutes(routes map[string]netlink.Route, subnets []*net.IPNet) (adds []*net.IPNet, dels []*netlink.Route, keeps []netlink.Route) {
 	rs := make(map[string]netlink.Route)
 	maps.Copy(rs, routes)
 	for _, subnet := range subnets {
-		if _, ok := rs[subnet.String()]; !ok {
+		if r, ok := rs[subnet.String()]; !ok {
 			adds = append(adds, subnet)
 		} else {
+			keeps = append(keeps, r)
 			delete(rs, subnet.String())
 		}
 	}

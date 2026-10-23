@@ -53,12 +53,15 @@ type NATSetup interface {
 
 // NewNATSetup creates a NATSetup using fou and nat/netfilter packages.
 // `port` is the UDP port number to accept Foo-over-UDP packets.
-func NewNATSetup(port int) NATSetup {
-	return natSetup{port: port}
+// `clusterNetworks` overrides the default in-cluster networks excluded from
+// egress NAT. It may be nil to keep the defaults.
+func NewNATSetup(port int, clusterNetworks *netfilter.ClusterNetworks) NATSetup {
+	return natSetup{port: port, clusterNetworks: clusterNetworks}
 }
 
 type natSetup struct {
-	port int
+	port            int
+	clusterNetworks *netfilter.ClusterNetworks
 }
 
 func (n natSetup) Hook(l []GWNets, backend string, log *zap.Logger) func(ipv4, ipv6 net.IP) error {
@@ -70,9 +73,12 @@ func (n natSetup) Hook(l []GWNets, backend string, log *zap.Logger) func(ipv4, i
 			return err
 		}
 
-		cl := netfilter.NewNatClient(ipv4, ipv6, nil, backend, func(message string) {
+		cl, err := netfilter.NewNatClient(ipv4, ipv6, n.clusterNetworks, backend, func(message string) {
 			log.Sugar().Info(message)
 		})
+		if err != nil {
+			return err
+		}
 		if err := cl.Init(); err != nil {
 			return err
 		}
@@ -87,9 +93,11 @@ func (n natSetup) Hook(l []GWNets, backend string, log *zap.Logger) func(ipv4, i
 			if err != nil {
 				return err
 			}
+
 			if err := cl.SyncNat(link, gwn.Networks, gwn.OriginatingOnly); err != nil {
 				return err
 			}
+
 		}
 
 		return nil

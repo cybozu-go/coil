@@ -28,6 +28,7 @@ type EgressWatcher struct {
 	EgressPort      int
 	Backend         string
 	OriginatingOnly bool
+	ClusterNetworks *netfilter.ClusterNetworks
 }
 
 // +kubebuilder:rbac:groups=coil.cybozu.com,resources=egresses,verbs=get;list;watch
@@ -160,7 +161,6 @@ type gwNets struct {
 }
 
 func (r *EgressWatcher) getHooks(ctx context.Context, eg *coilv2.Egress, logger *logr.Logger) ([]nodenet.SetupHook, error) {
-	var gw gwNets
 	svc := &corev1.Service{}
 
 	if err := r.Get(ctx, client.ObjectKey{Namespace: eg.Namespace, Name: eg.Name}, svc); err != nil {
@@ -185,10 +185,8 @@ func (r *EgressWatcher) getHooks(ctx context.Context, eg *coilv2.Egress, logger 
 			}
 		}
 
-		if len(subnets) > 0 {
-			gw = gwNets{gateway: svcIP, networks: subnets, sportAuto: eg.Spec.FouSourcePortAuto, originatingOnly: r.OriginatingOnly}
-			hooks = append(hooks, r.hook(gw, logger))
-		}
+		gw := gwNets{gateway: svcIP, networks: subnets, sportAuto: eg.Spec.FouSourcePortAuto, originatingOnly: r.OriginatingOnly}
+		hooks = append(hooks, r.hook(gw, logger))
 	}
 
 	return hooks, nil
@@ -204,12 +202,25 @@ func (r *EgressWatcher) hook(gwn gwNets, log *logr.Logger) func(ipv4, ipv6 net.I
 		if !ft.IsInitialized() {
 			return errors.New("fouTunnel hasn't been initialized")
 		}
-		cl := netfilter.NewNatClient(ipv4, ipv6, nil, r.Backend, func(message string) {
+		cl, err := netfilter.NewNatClient(ipv4, ipv6, r.ClusterNetworks, r.Backend, func(message string) {
 			log.Info(message)
 		})
+		if err != nil {
+			return fmt.Errorf("unable to create natClient: %w", err)
+		}
+
 		initialized, err := cl.IsInitialized()
 		if !initialized {
 			return fmt.Errorf("natClient hasn't been initialized: %w", err)
+		}
+
+		if err := cl.SyncInClusterRules(); err != nil {
+			return fmt.Errorf("natClient was unable to sync in-cluster rules: %w", err)
+		}
+
+		inClusterInitialized, err := cl.IsInClusterInitialized()
+		if !inClusterInitialized {
+			return fmt.Errorf("natClient's in-cluster rules haven't been initialized: %w", err)
 		}
 
 		link, err := ft.AddPeer(gwn.gateway, gwn.sportAuto)
@@ -221,6 +232,7 @@ func (r *EgressWatcher) hook(gwn gwNets, log *logr.Logger) func(ipv4, ipv6 net.I
 		if err != nil {
 			return err
 		}
+
 		if err := cl.SyncNat(link, gwn.networks, gwn.originatingOnly); err != nil {
 			return err
 		}
