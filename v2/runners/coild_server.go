@@ -304,6 +304,9 @@ func (s *coildServer) Add(ctx context.Context, args *cnirpc.CNIArgs) (*cnirpc.Ad
 
 		hook, err := s.getHook(ctx, pod)
 		if err != nil {
+			if s.cfg.EnableIPAM {
+				s.cleanupIPAM(ctx, logger, args.ContainerId, args.Ifname)
+			}
 			logger.Sugar().Errorw("failed to setup NAT hook", "error", err)
 			return nil, newInternalError(err, "failed to setup NAT hook")
 		}
@@ -311,6 +314,9 @@ func (s *coildServer) Add(ctx context.Context, args *cnirpc.CNIArgs) (*cnirpc.Ad
 		if hook != nil {
 			logger.Sugar().Info("enabling NAT")
 			if err := s.podNet.SetupEgress(args.Netns, config, hook); err != nil {
+				if s.cfg.EnableIPAM {
+					s.cleanupIPAM(ctx, logger, args.ContainerId, args.Ifname)
+				}
 				return nil, newInternalError(err, "failed to setup pod network egress")
 			}
 		}
@@ -319,17 +325,21 @@ func (s *coildServer) Add(ctx context.Context, args *cnirpc.CNIArgs) (*cnirpc.Ad
 	data, err := json.Marshal(result)
 	if err != nil {
 		if s.cfg.EnableIPAM {
-			if err := s.podNet.Destroy(args.ContainerId, args.Ifname); err != nil {
-				logger.Sugar().Warnw("failed to destroy pod network", "error", err)
-			}
-			if err := s.nodeIPAM.Free(ctx, args.ContainerId, args.Ifname); err != nil {
-				logger.Sugar().Warnw("failed to deallocate address", "error", err)
-			}
+			s.cleanupIPAM(ctx, logger, args.ContainerId, args.Ifname)
 		}
 		logger.Sugar().Errorw("failed to marshal the result", "error", err)
 		return nil, newInternalError(err, "failed to marshal the result")
 	}
 	return &cnirpc.AddResponse{Result: data}, nil
+}
+
+func (s *coildServer) cleanupIPAM(ctx context.Context, logger *zap.Logger, containerID, iface string) {
+	if err := s.podNet.Destroy(containerID, iface); err != nil {
+		logger.Sugar().Warnw("failed to destroy pod network", "error", err)
+	}
+	if err := s.nodeIPAM.Free(ctx, containerID, iface); err != nil {
+		logger.Sugar().Warnw("failed to deallocate address", "error", err)
+	}
 }
 
 func (s *coildServer) setCoilInterfaceAlias(interfaces map[string]bool, conf *nodenet.PodNetConf) error {
