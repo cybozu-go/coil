@@ -21,10 +21,17 @@ const (
 	ipv6SrcLen    = 16
 
 	// Rule identifiers for deduplication
-	nftRuleIDInputPrefix   = "coil-input-"
-	nftRuleIDOutputPrefix  = "coil-output-"
-	nftRuleIDPeerSrcPrefix = "coil-peer-src-"
-	nftRuleIDFlowBasedDev  = "coil-flow-based-dev-new-drop"
+	nftRuleIDInputPrefix  = "coil-input-"
+	nftRuleIDOutputPrefix = "coil-output-"
+	nftRuleIDFlowBasedDev = "coil-flow-based-dev-new-drop"
+)
+
+// Rule tags to identify rules set by NatServer.  They are set as UserData
+// for nftables and as comments for iptables, and are used by the metrics
+// collector to find the rules.
+const (
+	RuleTagInvalidDrop   = "coil-invalid-drop"
+	RuleTagPeerSrcPrefix = "coil-peer-src-"
 )
 
 func setNFTablesMasqRules(family int, iface string, ip net.IP) (err error) {
@@ -126,8 +133,9 @@ func setNFTablesMasqRules(family int, iface string, ip net.IP) (err error) {
 	// Drop invalid or malformed packets from passing through the network.
 	// ex. nft add rule ip filter FORWARD oifname "eth0" ct state invalid counter drop
 	dropRule := &nftables.Rule{
-		Table: t,
-		Chain: c,
+		Table:    t,
+		Chain:    c,
+		UserData: []byte(RuleTagInvalidDrop),
 		Exprs: []expr.Any{
 			&expr.Meta{
 				Key:      expr.MetaKeyOIFNAME,
@@ -173,10 +181,6 @@ func setNFTablesMasqRules(family int, iface string, ip net.IP) (err error) {
 // clients from spoofing the source address of the tunneled packets.
 // The rule is set in both FORWARD and INPUT chains to cover packets
 // forwarded by and delivered to the egress Pod.
-//
-// NOTE: The metrics collector takes the counter of the first rule in the
-// FORWARD chain as the one for invalid packets.  This rule must be appended
-// after that rule.
 func setNFTablesPeerSrcRule(family int, linkName string, ip net.IP) error {
 	conn, err := nftables.New()
 	if err != nil {
@@ -212,7 +216,7 @@ func setNFTablesPeerSrcRule(family int, linkName string, ip net.IP) error {
 		rule := &nftables.Rule{
 			Table:    t,
 			Chain:    c,
-			UserData: []byte(nftRuleIDPeerSrcPrefix + linkName),
+			UserData: []byte(RuleTagPeerSrcPrefix + linkName),
 			Exprs: []expr.Any{
 				&expr.Meta{
 					Key:      expr.MetaKeyIIFNAME,
@@ -266,7 +270,7 @@ func removeNFTablesPeerSrcRule(family int, linkName string) error {
 	t, forward := nftFilterForwardChain(nf)
 	_, input := nftFilterInputChain(nf)
 
-	id := []byte(nftRuleIDPeerSrcPrefix + linkName)
+	id := []byte(RuleTagPeerSrcPrefix + linkName)
 	for _, c := range []*nftables.Chain{forward, input} {
 		rs, err := conn.GetRules(t, c)
 		if err != nil {

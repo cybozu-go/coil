@@ -28,7 +28,7 @@ func setIPTablesMasqRules(family int, iface string, ip net.IP) error {
 	}
 
 	// drop invalid packets
-	spec = []string{"-o", iface, "-m", "state", "--state", "INVALID", "-j", "DROP"}
+	spec = []string{"-o", iface, "-m", "state", "--state", "INVALID", "-m", "comment", "--comment", RuleTagInvalidDrop, "-j", "DROP"}
 	if err := ipt.AppendUnique(filterTable, filterChain, spec...); err != nil {
 		return fmt.Errorf("failed to setup drop rule for invalid packets: %w", err)
 	}
@@ -40,10 +40,6 @@ func setIPTablesMasqRules(family int, iface string, ip net.IP) error {
 // clients from spoofing the source address of the tunneled packets.
 // The rule is set in both FORWARD and INPUT chains to cover packets
 // forwarded by and delivered to the egress Pod.
-//
-// NOTE: The metrics collector takes the counter of the first rule in the
-// FORWARD chain as the one for invalid packets.  This rule must be appended
-// after that rule.
 func setIPTablesPeerSrcRule(family int, linkName string, ip net.IP) error {
 	ipt, err := newIPTables(family)
 	if err != nil {
@@ -75,7 +71,7 @@ func removeIPTablesPeerSrcRule(family int, linkName string, ip net.IP) error {
 }
 
 func peerSrcRuleSpec(linkName string, ip net.IP) []string {
-	return []string{"-i", linkName, "!", "-s", netlink.NewIPNet(ip).String(), "-j", "DROP"}
+	return []string{"-i", linkName, "!", "-s", netlink.NewIPNet(ip).String(), "-m", "comment", "--comment", RuleTagPeerSrcPrefix + linkName, "-j", "DROP"}
 }
 
 // setIPTablesFlowBasedDevNewDropRule drops new flows from the flow based

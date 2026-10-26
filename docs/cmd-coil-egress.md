@@ -123,3 +123,27 @@ This value is from the result of `iptables -t filter -L -vn` or nftables equival
 | `pod`       | The pod name                  |
 | `protocol`  | The protocol name                 |
 
+### `coil_egress_nftables_peer_src_dropped_packets_total`
+
+This is the total number of packets from clients dropped by iptables/nftables in a egress NAT pod because their source addresses are not the IP addresses of the clients.
+This value is the sum of the counters of the rules commented as `coil-peer-src-*` in the result of `iptables -t filter -L FORWARD -vn` and `iptables -t filter -L INPUT -vn` or nftables equivalent.
+
+| Label       | Description                   |
+| ----------- | ----------------------------- |
+| `namespace` | The egress resource namespace |
+| `egress`    | The egress resource name      |
+| `pod`       | The pod name                  |
+| `protocol`  | The protocol name                 |
+
+### `coil_egress_nftables_peer_src_dropped_bytes_total`
+
+This is the total bytes of packets from clients dropped by iptables/nftables in a egress NAT pod because their source addresses are not the IP addresses of the clients.
+This value is the sum of the counters of the rules commented as `coil-peer-src-*` in the result of `iptables -t filter -L FORWARD -vn` and `iptables -t filter -L INPUT -vn` or nftables equivalent.
+
+| Label       | Description                   |
+| ----------- | ----------------------------- |
+| `namespace` | The egress resource namespace |
+| `egress`    | The egress resource name      |
+| `pod`       | The pod name                  |
+| `protocol`  | The protocol name                 |
+

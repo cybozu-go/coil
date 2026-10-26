@@ -10,9 +10,11 @@ import (
 
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
+	"github.com/google/nftables/xt"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/cybozu-go/coil/v2/pkg/constants"
+	"github.com/cybozu-go/coil/v2/pkg/nat/netfilter"
 )
 
 const (
@@ -62,6 +64,20 @@ var (
 		Name:      "nftables_invalid_bytes_total",
 		Help:      "the number of bytes that are dropped as invalid packets by nftables",
 	}, []string{"namespace", "pod", "egress", "protocol"})
+
+	NfTablePeerSrcDroppedPackets = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: constants.MetricsNS,
+		Subsystem: "egress",
+		Name:      "nftables_peer_src_dropped_packets_total",
+		Help:      "the number of packets from clients that are dropped by nftables because of unexpected source addresses",
+	}, []string{"namespace", "pod", "egress", "protocol"})
+
+	NfTablePeerSrcDroppedBytes = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: constants.MetricsNS,
+		Subsystem: "egress",
+		Name:      "nftables_peer_src_dropped_bytes_total",
+		Help:      "the number of bytes from clients that are dropped by nftables because of unexpected source addresses",
+	}, []string{"namespace", "pod", "egress", "protocol"})
 )
 
 type egressCollector struct {
@@ -72,18 +88,22 @@ type egressCollector struct {
 }
 
 type nfTablesPerProtocolMetrics struct {
-	NATPackets     prometheus.Gauge
-	NATBytes       prometheus.Gauge
-	InvalidPackets prometheus.Gauge
-	InvalidBytes   prometheus.Gauge
+	NATPackets            prometheus.Gauge
+	NATBytes              prometheus.Gauge
+	InvalidPackets        prometheus.Gauge
+	InvalidBytes          prometheus.Gauge
+	PeerSrcDroppedPackets prometheus.Gauge
+	PeerSrcDroppedBytes   prometheus.Gauge
 }
 
 func newNfTablesPerProtocolMetrics(ns, pod, egress, protocol string) *nfTablesPerProtocolMetrics {
 	return &nfTablesPerProtocolMetrics{
-		NATPackets:     NfTableMasqueradePackets.WithLabelValues(ns, pod, egress, protocol),
-		NATBytes:       NfTableMasqueradeBytes.WithLabelValues(ns, pod, egress, protocol),
-		InvalidPackets: NfTableInvalidPackets.WithLabelValues(ns, pod, egress, protocol),
-		InvalidBytes:   NfTableInvalidBytes.WithLabelValues(ns, pod, egress, protocol),
+		NATPackets:            NfTableMasqueradePackets.WithLabelValues(ns, pod, egress, protocol),
+		NATBytes:              NfTableMasqueradeBytes.WithLabelValues(ns, pod, egress, protocol),
+		InvalidPackets:        NfTableInvalidPackets.WithLabelValues(ns, pod, egress, protocol),
+		InvalidBytes:          NfTableInvalidBytes.WithLabelValues(ns, pod, egress, protocol),
+		PeerSrcDroppedPackets: NfTablePeerSrcDroppedPackets.WithLabelValues(ns, pod, egress, protocol),
+		PeerSrcDroppedBytes:   NfTablePeerSrcDroppedBytes.WithLabelValues(ns, pod, egress, protocol),
 	}
 }
 
@@ -94,6 +114,8 @@ func NewEgressCollector(ns, pod, egress string, protocols []string) (Collector, 
 	NfTableMasqueradePackets.Reset()
 	NfTableInvalidPackets.Reset()
 	NfTableInvalidBytes.Reset()
+	NfTablePeerSrcDroppedPackets.Reset()
+	NfTablePeerSrcDroppedBytes.Reset()
 
 	c, err := nftables.New()
 	if err != nil {
@@ -145,6 +167,12 @@ func (c *egressCollector) Update(ctx context.Context) error {
 		nfTablesMetrics.InvalidPackets.Set(float64(invalidPackets))
 		nfTablesMetrics.InvalidBytes.Set(float64(invalidBytes))
 
+		peerSrcDroppedPackets, peerSrcDroppedBytes, err := c.getNfTablesPeerSrcDroppedCounter(protocol)
+		if err != nil {
+			return err
+		}
+		nfTablesMetrics.PeerSrcDroppedPackets.Set(float64(peerSrcDroppedPackets))
+		nfTablesMetrics.PeerSrcDroppedBytes.Set(float64(peerSrcDroppedBytes))
 	}
 
 	return nil
@@ -191,15 +219,83 @@ func (c *egressCollector) getNfTablesInvalidCounter(protocol string) (uint64, ui
 	if err != nil {
 		return 0, 0, err
 	}
+	packets, bytes, found := sumCounters(rules, func(tag string) bool {
+		return tag == netfilter.RuleTagInvalidDrop
+	})
+	if !found {
+		return 0, 0, errors.New("a rule for invalid packets is not found")
+	}
+	return packets, bytes, nil
+}
+
+// getNfTablesPeerSrcDroppedCounter sums the counters of the rules that drop
+// packets from clients with unexpected source addresses.  The rules exist
+// in FORWARD and INPUT chains for each client, and there are none if
+// no client has been added.
+func (c *egressCollector) getNfTablesPeerSrcDroppedCounter(protocol string) (uint64, uint64, error) {
+	family, err := stringToTableFamily(protocol)
+	if err != nil {
+		return 0, 0, err
+	}
+	// GetRules fails if the chain does not exist, e.g. INPUT chain before
+	// any client is added, so get rules only from existing chains.
+	chains, err := c.conn.ListChainsOfTableFamily(family)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	var packets, bytes uint64
+	for _, chain := range chains {
+		if chain.Table.Name != "filter" || (chain.Name != "FORWARD" && chain.Name != "INPUT") {
+			continue
+		}
+		rules, err := c.conn.GetRules(chain.Table, chain)
+		if err != nil {
+			return 0, 0, err
+		}
+		p, b, _ := sumCounters(rules, func(tag string) bool {
+			return strings.HasPrefix(tag, netfilter.RuleTagPeerSrcPrefix)
+		})
+		packets += p
+		bytes += b
+	}
+	return packets, bytes, nil
+}
+
+// sumCounters sums the counters of the rules whose tags satisfy match.
+// found reports whether any rule satisfies match.
+func sumCounters(rules []*nftables.Rule, match func(tag string) bool) (packets, bytes uint64, found bool) {
 	for _, rule := range rules {
+		if !match(ruleTag(rule)) {
+			continue
+		}
+		found = true
 		for _, e := range rule.Exprs {
 			if counter, ok := e.(*expr.Counter); ok {
-				// A rule in the egress pod must be only one, so we can return by finding a first one.
-				return counter.Packets, counter.Bytes, nil
+				packets += counter.Packets
+				bytes += counter.Bytes
 			}
 		}
 	}
-	return 0, 0, errors.New("a rule for invalid packets is not found")
+	return packets, bytes, found
+}
+
+// ruleTag returns the tag of a rule set by coil.  The tag is stored as
+// UserData for nftables, and as a comment match for iptables-nft.
+func ruleTag(rule *nftables.Rule) string {
+	if len(rule.UserData) != 0 {
+		return string(rule.UserData)
+	}
+	for _, e := range rule.Exprs {
+		m, ok := e.(*expr.Match)
+		if !ok || m.Name != "comment" {
+			continue
+		}
+		if c, ok := m.Info.(*xt.Comment); ok {
+			return string(*c)
+		}
+	}
+	return ""
 }
 
 func readUintFromFile(path string) (uint64, error) {
