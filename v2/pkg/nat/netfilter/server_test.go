@@ -240,7 +240,7 @@ func checkIptablesRules(iface string, ip string, family iptables.Protocol) error
 	}
 
 	// check drop invalid packets rule
-	exist, err = ipt.Exists(filterTable, filterChain, "-o", iface, "-m", "state", "--state", "INVALID", "-j", "DROP")
+	exist, err = ipt.Exists(filterTable, filterChain, "-o", iface, "-m", "state", "--state", "INVALID", "-m", "comment", "--comment", RuleTagInvalidDrop, "-j", "DROP")
 	if err != nil {
 		return err
 	}
@@ -504,8 +504,8 @@ func TestNat_PeerSrcRule(t *testing.T) {
 					if err := expectPeerSrcRules(backend, c.family, c.linkName, c.ip, 1); err != nil {
 						return err
 					}
-					// the metrics collector expects the rule for invalid packets comes first
-					if err := expectInvalidRuleFirst(backend, c.family); err != nil {
+					// the metrics collector finds the rule for invalid packets by its tag
+					if err := expectInvalidRuleTagged(backend, c.family); err != nil {
 						return err
 					}
 				}
@@ -599,7 +599,7 @@ func expectPeerSrcRules(backend string, family int, linkName string, ip net.IP, 
 				return err
 			}
 			for _, r := range rules {
-				if string(r.UserData) == nftRuleIDPeerSrcPrefix+linkName {
+				if string(r.UserData) == RuleTagPeerSrcPrefix+linkName {
 					got++
 				}
 			}
@@ -612,7 +612,8 @@ func expectPeerSrcRules(backend string, family int, linkName string, ip net.IP, 
 	return nil
 }
 
-func expectInvalidRuleFirst(backend string, family int) error {
+func expectInvalidRuleTagged(backend string, family int) error {
+	var got int
 	switch backend {
 	case constants.EgressBackendIPTables:
 		ipt, err := newIPTables(family)
@@ -623,18 +624,24 @@ func expectInvalidRuleFirst(backend string, family int) error {
 		if err != nil {
 			return err
 		}
-		// rules[0] is the chain policy
-		if len(rules) < 2 || !strings.Contains(rules[1], "INVALID") {
-			return fmt.Errorf("the first rule is not for invalid packets: %v", rules)
+		for _, r := range rules {
+			if strings.Contains(r, "INVALID") && strings.Contains(r, "--comment "+RuleTagInvalidDrop) {
+				got++
+			}
 		}
 	default:
 		rules, err := listNFTablesForwardRules(family)
 		if err != nil {
 			return err
 		}
-		if len(rules) == 0 || len(rules[0].UserData) != 0 {
-			return fmt.Errorf("the first rule is not for invalid packets: %v", rules)
+		for _, r := range rules {
+			if string(r.UserData) == RuleTagInvalidDrop {
+				got++
+			}
 		}
+	}
+	if got != 1 {
+		return fmt.Errorf("unexpected number of tagged rules for invalid packets: got %d, want 1", got)
 	}
 	return nil
 }

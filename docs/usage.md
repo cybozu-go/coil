@@ -328,6 +328,8 @@ NAT servers forward packets from a client only when their source address is
 the IP address of the client Pod.  Other packets from the client are dropped.
 This prevents a client from spoofing the source address to make the NAT server
 deliver reply packets to another Pod.
+The number of dropped packets is exported as
+`coil_egress_nftables_peer_src_dropped_packets_total` metrics.
 
 If a client Pod forwards traffic of nested network namespaces or containers
 through Egress, the traffic must be SNATed to the Pod IP address before it
