@@ -23,6 +23,15 @@ const (
 	// Rule identifiers for deduplication
 	nftRuleIDInputPrefix  = "coil-input-"
 	nftRuleIDOutputPrefix = "coil-output-"
+	nftRuleIDFlowBasedDev = "coil-flow-based-dev-new-drop"
+)
+
+// Rule tags to identify rules set by NatServer.  They are set as UserData
+// for nftables and as comments for iptables, and are used by the metrics
+// collector to find the rules.
+const (
+	RuleTagInvalidDrop   = "coil-invalid-drop"
+	RuleTagPeerSrcPrefix = "coil-peer-src-"
 )
 
 func setNFTablesMasqRules(family int, iface string, ip net.IP) (err error) {
@@ -124,8 +133,9 @@ func setNFTablesMasqRules(family int, iface string, ip net.IP) (err error) {
 	// Drop invalid or malformed packets from passing through the network.
 	// ex. nft add rule ip filter FORWARD oifname "eth0" ct state invalid counter drop
 	dropRule := &nftables.Rule{
-		Table: t,
-		Chain: c,
+		Table:    t,
+		Chain:    c,
+		UserData: []byte(RuleTagInvalidDrop),
 		Exprs: []expr.Any{
 			&expr.Meta{
 				Key:      expr.MetaKeyOIFNAME,
@@ -164,6 +174,219 @@ func setNFTablesMasqRules(family int, iface string, ip net.IP) (err error) {
 		return fmt.Errorf("failed to flush nftables rules: %w", err)
 	}
 	return nil
+}
+
+// setNFTablesPeerSrcRule drops packets from the FoU tunnel link of a client
+// unless their source address is the client's address.  This prevents
+// clients from spoofing the source address of the tunneled packets.
+// The rule is set in both FORWARD and INPUT chains to cover packets
+// forwarded by and delivered to the egress Pod.
+func setNFTablesPeerSrcRule(family int, linkName string, ip net.IP) error {
+	conn, err := nftables.New()
+	if err != nil {
+		return fmt.Errorf("failed to create nftables connection: %w", err)
+	}
+
+	nf, err := netlinkToNFTablesFamily(family)
+	if err != nil {
+		return err
+	}
+
+	var offset, length uint32
+	var ipData []byte
+	switch nf {
+	case nftables.TableFamilyIPv4:
+		offset = ipv4SrcOffset
+		length = ipv4SrcLen
+		ipData = ip.To4()
+	case nftables.TableFamilyIPv6:
+		offset = ipv6SrcOffset
+		length = ipv6SrcLen
+		ipData = ip.To16()
+	}
+
+	t, forward := nftFilterForwardChain(nf)
+	_, input := nftFilterInputChain(nf)
+	conn.AddTable(t)
+
+	for _, c := range []*nftables.Chain{forward, input} {
+		conn.AddChain(c)
+
+		// ex. nft add rule ip filter FORWARD iifname "fou4_0a000001" ip saddr != 10.0.0.1 counter drop
+		rule := &nftables.Rule{
+			Table:    t,
+			Chain:    c,
+			UserData: []byte(RuleTagPeerSrcPrefix + linkName),
+			Exprs: []expr.Any{
+				&expr.Meta{
+					Key:      expr.MetaKeyIIFNAME,
+					Register: nftRegister,
+				},
+				&expr.Cmp{
+					Op:       expr.CmpOpEq,
+					Register: nftRegister,
+					Data:     []byte(linkName + "\x00"),
+				},
+				&expr.Payload{
+					DestRegister: nftRegister,
+					Base:         expr.PayloadBaseNetworkHeader,
+					Offset:       offset,
+					Len:          length,
+				},
+				&expr.Cmp{
+					Op:       expr.CmpOpNeq,
+					Register: nftRegister,
+					Data:     ipData,
+				},
+				&expr.Counter{},
+				&expr.Verdict{
+					Kind: expr.VerdictDrop,
+				},
+			},
+		}
+
+		if _, err := addNFTablesRuleIfNotExists(conn, rule); err != nil {
+			return fmt.Errorf("failed to check peer source rule existence in chain %s: %w", c.Name, err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("failed to flush nftables rules: %w", err)
+	}
+	return nil
+}
+
+func removeNFTablesPeerSrcRule(family int, linkName string) error {
+	conn, err := nftables.New()
+	if err != nil {
+		return fmt.Errorf("failed to create nftables connection: %w", err)
+	}
+
+	nf, err := netlinkToNFTablesFamily(family)
+	if err != nil {
+		return err
+	}
+
+	t, forward := nftFilterForwardChain(nf)
+	_, input := nftFilterInputChain(nf)
+
+	id := []byte(RuleTagPeerSrcPrefix + linkName)
+	for _, c := range []*nftables.Chain{forward, input} {
+		rs, err := conn.GetRules(t, c)
+		if err != nil {
+			return fmt.Errorf("failed to get rules in chain %s: %w", c.Name, err)
+		}
+
+		for _, r := range rs {
+			if !bytes.Equal(r.UserData, id) {
+				continue
+			}
+			if err := conn.DelRule(r); err != nil {
+				return fmt.Errorf("failed to delete peer source rule for %s in chain %s: %w", linkName, c.Name, err)
+			}
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("failed to flush nftables rules: %w", err)
+	}
+	return nil
+}
+
+// setNFTablesFlowBasedDevNewDropRule drops new flows from the flow based
+// tunnel device of NAT clients, both forwarded ones and ones destined to
+// the client itself.
+func setNFTablesFlowBasedDevNewDropRule(family int) error {
+	conn, err := nftables.New()
+	if err != nil {
+		return fmt.Errorf("failed to create nftables connection: %w", err)
+	}
+
+	nf, err := netlinkToNFTablesFamily(family)
+	if err != nil {
+		return err
+	}
+
+	t, forward := nftFilterForwardChain(nf)
+	_, input := nftFilterInputChain(nf)
+	conn.AddTable(t)
+
+	for _, c := range []*nftables.Chain{forward, input} {
+		conn.AddChain(c)
+
+		// ex. nft add rule ip filter FORWARD iifname "coil_ipip4" ct state new counter drop
+		rule := &nftables.Rule{
+			Table:    t,
+			Chain:    c,
+			UserData: []byte(nftRuleIDFlowBasedDev),
+			Exprs: []expr.Any{
+				&expr.Meta{
+					Key:      expr.MetaKeyIIFNAME,
+					Register: nftRegister,
+				},
+				&expr.Cmp{
+					Op:       expr.CmpOpEq,
+					Register: nftRegister,
+					Data:     []byte(flowBasedDevice(family) + "\x00"),
+				},
+				&expr.Ct{
+					Register: nftRegister,
+					Key:      expr.CtKeySTATE,
+				},
+				&expr.Bitwise{
+					SourceRegister: nftRegister,
+					DestRegister:   nftRegister,
+					Len:            4,
+					Mask:           binaryutil.NativeEndian.PutUint32(expr.CtStateBitNEW),
+					Xor:            binaryutil.NativeEndian.PutUint32(0),
+				},
+				&expr.Cmp{
+					Op:       expr.CmpOpNeq,
+					Register: nftRegister,
+					Data:     binaryutil.NativeEndian.PutUint32(0),
+				},
+				&expr.Counter{},
+				&expr.Verdict{
+					Kind: expr.VerdictDrop,
+				},
+			},
+		}
+
+		if _, err := addNFTablesRuleIfNotExists(conn, rule); err != nil {
+			return fmt.Errorf("failed to check flow based device rule existence in chain %s: %w", c.Name, err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("failed to flush nftables rules: %w", err)
+	}
+	return nil
+}
+
+// nftFilterForwardChain returns the FORWARD chain in the filter table.
+func nftFilterForwardChain(nf nftables.TableFamily) (*nftables.Table, *nftables.Chain) {
+	t := &nftables.Table{Family: nf, Name: filterTable}
+	c := &nftables.Chain{
+		Name:     filterChain,
+		Table:    t,
+		Type:     nftables.ChainTypeFilter,
+		Hooknum:  nftables.ChainHookForward,
+		Priority: nftables.ChainPriorityFilter,
+	}
+	return t, c
+}
+
+// nftFilterInputChain returns the INPUT chain in the filter table.
+func nftFilterInputChain(nf nftables.TableFamily) (*nftables.Table, *nftables.Chain) {
+	t := &nftables.Table{Family: nf, Name: filterTable}
+	c := &nftables.Chain{
+		Name:     inputChain,
+		Table:    t,
+		Type:     nftables.ChainTypeFilter,
+		Hooknum:  nftables.ChainHookInput,
+		Priority: nftables.ChainPriorityFilter,
+	}
+	return t, c
 }
 
 func setNFTablesConnmarkRules(family int, link netlink.Link) error {

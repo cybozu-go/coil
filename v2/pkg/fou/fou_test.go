@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/containernetworking/plugins/pkg/testutils"
+	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/vishvananda/netlink"
 )
 
@@ -15,6 +17,7 @@ func TestFoU(t *testing.T) {
 	t.Run("Dual", testFoUDual)
 	t.Run("IPv4", testFoUV4)
 	t.Run("IPv6", testFoUV6)
+	t.Run("Server", testFoUServer)
 }
 
 func testFoUDual(t *testing.T) {
@@ -50,7 +53,15 @@ func testFoUDual(t *testing.T) {
 			return fmt.Errorf("netlink: failed to add an IPv6 address: %w", err)
 		}
 
-		fou := NewFoUTunnel(5555, net.ParseIP("127.0.0.1"), net.ParseIP("::1"), nil)
+		// IPv4 forwarding of a new netns is inherited from the host.
+		// Reset it to check that Init does not enable forwarding.
+		for _, key := range []string{"net.ipv4.ip_forward", "net.ipv6.conf.all.forwarding"} {
+			if _, err := sysctl.Sysctl(key, "0"); err != nil {
+				return fmt.Errorf("failed to set %s: %w", key, err)
+			}
+		}
+
+		fou := NewClientFoUTunnel(5555, net.ParseIP("127.0.0.1"), net.ParseIP("::1"), nil)
 		if fou.IsInitialized() {
 			return errors.New("expect not to be initialized, but it's already been done")
 		}
@@ -66,6 +77,14 @@ func testFoUDual(t *testing.T) {
 		// test initialization twice
 		if err := fou.Init(); err != nil {
 			return fmt.Errorf("fou.Init again failed: %w", err)
+		}
+
+		// NAT clients do not forward packets
+		if err := expectSysctl("net.ipv4.ip_forward", "0"); err != nil {
+			return err
+		}
+		if err := expectSysctl("net.ipv6.conf.all.forwarding", "0"); err != nil {
+			return err
 		}
 
 		fous, err := netlink.FouList(0)
@@ -261,7 +280,7 @@ func testFoUV4(t *testing.T) {
 			return err
 		}
 
-		fou := NewFoUTunnel(5555, net.ParseIP("127.0.0.1"), nil, nil)
+		fou := NewClientFoUTunnel(5555, net.ParseIP("127.0.0.1"), nil, nil)
 		if fou.IsInitialized() {
 			return errors.New("expect not to be initialized, but it's already been done")
 		}
@@ -358,7 +377,7 @@ func testFoUV6(t *testing.T) {
 			return err
 		}
 
-		fou := NewFoUTunnel(5555, nil, net.ParseIP("::1"), nil)
+		fou := NewClientFoUTunnel(5555, nil, net.ParseIP("::1"), nil)
 		if fou.IsInitialized() {
 			return errors.New("expect not to be initialized, but it's already been done")
 		}
@@ -426,4 +445,62 @@ func testFoUV6(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func testFoUServer(t *testing.T) {
+	t.Parallel()
+
+	fNS, err := testutils.NewNS()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fNS.Close()
+
+	err = fNS.Do(func(ns.NetNS) error {
+		fou := NewServerFoUTunnel(5555, net.ParseIP("127.0.0.1"), net.ParseIP("::1"), nil)
+		if err := fou.Init(); err != nil {
+			return fmt.Errorf("fou.Init failed: %w", err)
+		}
+
+		// NAT servers forward packets from clients
+		if err := expectSysctl("net.ipv4.ip_forward", "1"); err != nil {
+			return err
+		}
+		if err := expectSysctl("net.ipv6.conf.all.forwarding", "1"); err != nil {
+			return err
+		}
+
+		if _, err := fou.AddPeer(net.ParseIP("10.1.1.1"), true); err != nil {
+			return fmt.Errorf("failed to call AddPeer with 10.1.1.1: %w", err)
+		}
+		if _, err := fou.AddPeer(net.ParseIP("fd02::101"), true); err != nil {
+			return fmt.Errorf("failed to call AddPeer with fd02::101: %w", err)
+		}
+
+		// NAT servers must not accept packets from unknown peers
+		for _, name := range []string{"coil_ipip4", "coil_ipip6"} {
+			_, err := netlink.LinkByName(name)
+			if err == nil {
+				return fmt.Errorf("unexpected flow based device: %s", name)
+			}
+			if !errors.As(err, new(netlink.LinkNotFoundError)) {
+				return fmt.Errorf("failed to get %s: %w", name, err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func expectSysctl(key, want string) error {
+	got, err := sysctl.Sysctl(key)
+	if err != nil {
+		return fmt.Errorf("failed to get %s: %w", key, err)
+	}
+	if got != want {
+		return fmt.Errorf("unexpected %s: got %s, want %s", key, got, want)
+	}
+	return nil
 }

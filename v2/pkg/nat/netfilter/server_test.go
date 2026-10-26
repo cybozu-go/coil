@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -53,7 +54,7 @@ func TestNewNat(t *testing.T) {
 				ipv4:    ipv4,
 				ipv6:    ipv6,
 				backend: constants.EgressBackendIPTables,
-				clients: make(map[string]struct{}),
+				clients: make(map[string]string),
 			},
 			wantErr: false,
 		}, {
@@ -69,7 +70,7 @@ func TestNewNat(t *testing.T) {
 				ipv4:    ipv4,
 				ipv6:    ipv6,
 				backend: constants.EgressBackendNFTables,
-				clients: make(map[string]struct{}),
+				clients: make(map[string]string),
 			},
 			wantErr: false,
 		},
@@ -86,7 +87,7 @@ func TestNewNat(t *testing.T) {
 				ipv4:    ipv4,
 				ipv6:    nil,
 				backend: constants.EgressBackendIPTables,
-				clients: make(map[string]struct{}),
+				clients: make(map[string]string),
 			},
 			wantErr: false,
 		},
@@ -103,7 +104,7 @@ func TestNewNat(t *testing.T) {
 				ipv4:    ipv4,
 				ipv6:    nil,
 				backend: constants.EgressBackendNFTables,
-				clients: make(map[string]struct{}),
+				clients: make(map[string]string),
 			},
 			wantErr: false,
 		},
@@ -120,7 +121,7 @@ func TestNewNat(t *testing.T) {
 				ipv4:    nil,
 				ipv6:    ipv6,
 				backend: constants.EgressBackendIPTables,
-				clients: make(map[string]struct{}),
+				clients: make(map[string]string),
 			},
 			wantErr: false,
 		},
@@ -137,7 +138,7 @@ func TestNewNat(t *testing.T) {
 				ipv4:    nil,
 				ipv6:    ipv6,
 				backend: constants.EgressBackendNFTables,
-				clients: make(map[string]struct{}),
+				clients: make(map[string]string),
 			},
 			wantErr: false,
 		},
@@ -239,7 +240,7 @@ func checkIptablesRules(iface string, ip string, family iptables.Protocol) error
 	}
 
 	// check drop invalid packets rule
-	exist, err = ipt.Exists(filterTable, filterChain, "-o", iface, "-m", "state", "--state", "INVALID", "-j", "DROP")
+	exist, err = ipt.Exists(filterTable, filterChain, "-o", iface, "-m", "state", "--state", "INVALID", "-m", "comment", "--comment", RuleTagInvalidDrop, "-j", "DROP")
 	if err != nil {
 		return err
 	}
@@ -446,4 +447,218 @@ func checkIPRoutes(ipv4, ipv6 net.IP) error {
 		}
 	}
 	return nil
+}
+
+func TestNat_PeerSrcRule(t *testing.T) {
+	ipv4 := net.ParseIP("127.0.0.1")
+	ipv6 := net.ParseIP("::1")
+
+	clients := []struct {
+		family   int
+		ip       net.IP
+		linkName string
+	}{
+		{family: netlink.FAMILY_V4, ip: net.ParseIP("10.1.2.3"), linkName: "fou4_test"},
+		{family: netlink.FAMILY_V6, ip: net.ParseIP("fd02::1"), linkName: "fou6_test"},
+	}
+
+	for _, backend := range []string{constants.EgressBackendIPTables, constants.EgressBackendNFTables} {
+		t.Run(backend, func(t *testing.T) {
+			t.Parallel()
+
+			tns, err := testutils.NewNS()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer tns.Close()
+
+			if err := tns.Do(func(ns ns.NetNS) error {
+				n, err := NewNatServer("lo", ipv4, ipv6, backend)
+				if err != nil {
+					return fmt.Errorf("NewNatServer() error = %w", err)
+				}
+
+				links := make(map[string]netlink.Link)
+				for _, c := range clients {
+					attrs := netlink.NewLinkAttrs()
+					attrs.Name = c.linkName
+					if err := netlink.LinkAdd(&netlink.Dummy{LinkAttrs: attrs}); err != nil {
+						return err
+					}
+					l, err := netlink.LinkByName(c.linkName)
+					if err != nil {
+						return err
+					}
+					links[c.linkName] = l
+				}
+
+				// to check idempotency, call AddClient twice
+				for i := 0; i < 2; i++ {
+					for _, c := range clients {
+						if err := n.AddClient(c.ip, links[c.linkName]); err != nil {
+							return fmt.Errorf("failed to call AddClient for %s: %w", c.ip, err)
+						}
+					}
+				}
+				for _, c := range clients {
+					if err := expectPeerSrcRules(backend, c.family, c.linkName, c.ip, 1); err != nil {
+						return err
+					}
+					// the metrics collector finds the rule for invalid packets by its tag
+					if err := expectInvalidRuleTagged(backend, c.family); err != nil {
+						return err
+					}
+				}
+
+				// AddClient restores the rule even if the route already exists
+				c := clients[0]
+				if err := removePeerSrcRule(backend, c.family, c.linkName, c.ip); err != nil {
+					return err
+				}
+				if err := expectPeerSrcRules(backend, c.family, c.linkName, c.ip, 0); err != nil {
+					return err
+				}
+				if err := n.AddClient(c.ip, links[c.linkName]); err != nil {
+					return fmt.Errorf("failed to call AddClient for %s: %w", c.ip, err)
+				}
+				if err := expectPeerSrcRules(backend, c.family, c.linkName, c.ip, 1); err != nil {
+					return err
+				}
+
+				// to check idempotency, call DelClient twice
+				for i := 0; i < 2; i++ {
+					for _, c := range clients {
+						if err := n.DelClient(c.ip); err != nil {
+							return fmt.Errorf("failed to call DelClient for %s: %w", c.ip, err)
+						}
+					}
+				}
+				for _, c := range clients {
+					if err := expectPeerSrcRules(backend, c.family, c.linkName, c.ip, 0); err != nil {
+						return err
+					}
+				}
+				if got := n.GetClients(); len(got) != 0 {
+					return fmt.Errorf("unexpected clients: %v", got)
+				}
+				return nil
+			}); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+}
+
+func removePeerSrcRule(backend string, family int, linkName string, ip net.IP) error {
+	switch backend {
+	case constants.EgressBackendIPTables:
+		return removeIPTablesPeerSrcRule(family, linkName, ip)
+	default:
+		return removeNFTablesPeerSrcRule(family, linkName)
+	}
+}
+
+func expectPeerSrcRules(backend string, family int, linkName string, ip net.IP, want int) error {
+	chains := []struct {
+		name string
+		nft  func(nftables.TableFamily) (*nftables.Table, *nftables.Chain)
+	}{
+		{filterChain, nftFilterForwardChain},
+		{inputChain, nftFilterInputChain},
+	}
+
+	for _, chain := range chains {
+		var got int
+		switch backend {
+		case constants.EgressBackendIPTables:
+			ipt, err := newIPTables(family)
+			if err != nil {
+				return err
+			}
+			rules, err := ipt.List(filterTable, chain.name)
+			if err != nil {
+				return err
+			}
+			for _, r := range rules {
+				if strings.Contains(r, "-i "+linkName+" ") {
+					got++
+				}
+			}
+			if want > 0 {
+				exist, err := ipt.Exists(filterTable, chain.name, peerSrcRuleSpec(linkName, ip)...)
+				if err != nil {
+					return err
+				}
+				if !exist {
+					return fmt.Errorf("peer source rule for %s not found in %s: %v", linkName, chain.name, rules)
+				}
+			}
+		default:
+			rules, err := listNFTablesFilterRules(family, chain.nft)
+			if err != nil {
+				return err
+			}
+			for _, r := range rules {
+				if string(r.UserData) == RuleTagPeerSrcPrefix+linkName {
+					got++
+				}
+			}
+		}
+
+		if got != want {
+			return fmt.Errorf("unexpected number of peer source rules for %s in %s: got %d, want %d", linkName, chain.name, got, want)
+		}
+	}
+	return nil
+}
+
+func expectInvalidRuleTagged(backend string, family int) error {
+	var got int
+	switch backend {
+	case constants.EgressBackendIPTables:
+		ipt, err := newIPTables(family)
+		if err != nil {
+			return err
+		}
+		rules, err := ipt.List(filterTable, filterChain)
+		if err != nil {
+			return err
+		}
+		for _, r := range rules {
+			if strings.Contains(r, "INVALID") && strings.Contains(r, "--comment "+RuleTagInvalidDrop) {
+				got++
+			}
+		}
+	default:
+		rules, err := listNFTablesForwardRules(family)
+		if err != nil {
+			return err
+		}
+		for _, r := range rules {
+			if string(r.UserData) == RuleTagInvalidDrop {
+				got++
+			}
+		}
+	}
+	if got != 1 {
+		return fmt.Errorf("unexpected number of tagged rules for invalid packets: got %d, want 1", got)
+	}
+	return nil
+}
+
+func listNFTablesForwardRules(family int) ([]*nftables.Rule, error) {
+	return listNFTablesFilterRules(family, nftFilterForwardChain)
+}
+
+func listNFTablesFilterRules(family int, chain func(nftables.TableFamily) (*nftables.Table, *nftables.Chain)) ([]*nftables.Rule, error) {
+	conn, err := nftables.New()
+	if err != nil {
+		return nil, err
+	}
+	nf, err := netlinkToNFTablesFamily(family)
+	if err != nil {
+		return nil, err
+	}
+	t, c := chain(nf)
+	return conn.GetRules(t, c)
 }
