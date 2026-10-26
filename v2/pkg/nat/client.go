@@ -19,6 +19,10 @@ type Client interface {
 	// IP families configured on this client.
 	IsInitialized() (bool, error)
 
+	// IsInClusterInitialized reports whether Init has been completed for the
+	// in-cluster networks of IP families configured on this client.
+	IsInClusterInitialized() (bool, error)
+
 	// SyncNat reconciles the egress routes on link to match subnets.
 	// Subnets present in the destination tables but absent from the
 	// argument are removed; subnets in the argument that are not yet
@@ -27,4 +31,7 @@ type Client interface {
 	// from the egress namespace is NAT'd; when false, those rules are
 	// removed. Init must have been called beforehand.
 	SyncNat(link netlink.Link, subnets []*net.IPNet, originatingOnly bool) error
+
+	// SyncInClusterRules configures the InCluster rules on the pod.
+	SyncInClusterRules() error
 }
