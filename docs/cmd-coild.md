@@ -40,8 +40,7 @@ Calico needs to be configured to set [`FELIX_INTERFACEPREFIX`](https://github.co
 
 ## In-cluster networks for egress NAT
 
-For each Pod using egress NAT, `coild` (and `coil-egress-controller`'s
-per-node `EgressWatcher`) install `ip rule`s that route traffic to
+For each Pod using egress NAT, `coild` installs `ip rule`s that route traffic to
 in-cluster destinations through the normal (non-NAT) path, bypassing the
 FoU tunnel even if an `Egress` resource's `spec.destinations` would
 otherwise match them (e.g. a wide destination such as `0.0.0.0/0` or

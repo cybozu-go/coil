@@ -202,12 +202,9 @@ func (r *EgressWatcher) hook(gwn gwNets, log *logr.Logger) func(ipv4, ipv6 net.I
 		if !ft.IsInitialized() {
 			return errors.New("fouTunnel hasn't been initialized")
 		}
-		cl, err := netfilter.NewNatClient(ipv4, ipv6, r.ClusterNetworks, r.Backend, func(message string) {
+		cl := netfilter.NewNatClient(ipv4, ipv6, r.ClusterNetworks, r.Backend, func(message string) {
 			log.Info(message)
 		})
-		if err != nil {
-			return fmt.Errorf("unable to create natClient: %w", err)
-		}
 
 		initialized, err := cl.IsInitialized()
 		if !initialized {

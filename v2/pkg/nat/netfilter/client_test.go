@@ -172,10 +172,7 @@ func TestNewNatClient(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := NewNatClient(tt.args.ipv4, tt.args.ipv6, tt.args.cNets, tt.args.backend, tt.args.logFunc)
-			if err != nil {
-				t.Errorf("NewNatClient() returned err = %v", err)
-			}
+			got := NewNatClient(tt.args.ipv4, tt.args.ipv6, tt.args.cNets, tt.args.backend, tt.args.logFunc)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewNatClient() got = %v, want %v", got, tt.want)
 			}
@@ -276,10 +273,7 @@ func TestNatClient_Init(t *testing.T) {
 			defer tns.Close()
 
 			if err := tns.Do(func(ns ns.NetNS) error {
-				nc, err := NewNatClient(tt.args.ipv4, tt.args.ipv6, tt.args.cNets, tt.args.backend, tt.args.logFunc)
-				if err != nil {
-					return fmt.Errorf("NewNatClient() returned err = %w", err)
-				}
+				nc := NewNatClient(tt.args.ipv4, tt.args.ipv6, tt.args.cNets, tt.args.backend, tt.args.logFunc)
 				if err := nc.Init(); (err != nil) != tt.wantErr {
 					return fmt.Errorf("Init() error = %w, wantErr %v", err, tt.wantErr)
 				}
@@ -378,10 +372,7 @@ func TestNatClient_IsInitialized(t *testing.T) {
 			defer tns.Close()
 
 			if err := tns.Do(func(ns ns.NetNS) error {
-				nc, err := NewNatClient(tt.args.ipv4, tt.args.ipv6, tt.args.cNets, tt.args.backend, tt.args.logFunc)
-				if err != nil {
-					return fmt.Errorf("NewNatClient() returned err = %w", err)
-				}
+				nc := NewNatClient(tt.args.ipv4, tt.args.ipv6, tt.args.cNets, tt.args.backend, tt.args.logFunc)
 
 				got, err := nc.IsInitialized()
 				if (err != nil) != tt.wantErr {
@@ -539,10 +530,7 @@ func TestNatClient_SyncNat(t *testing.T) {
 					defer tns.Close()
 
 					if err := tns.Do(func(ns ns.NetNS) error {
-						nc, err := NewNatClient(tt.fields.ipv4, tt.fields.ipv6, tt.fields.podNodeNet, backend, tt.fields.logFunc)
-						if err != nil {
-							return fmt.Errorf("NewNatClient() returned err = %w", err)
-						}
+						nc := NewNatClient(tt.fields.ipv4, tt.fields.ipv6, tt.fields.podNodeNet, backend, tt.fields.logFunc)
 
 						if err := nc.Init(); err != nil {
 							return fmt.Errorf("Init() error = %w", err)
@@ -1152,10 +1140,7 @@ func syncMigrationConfig(family int, clusterCIDR string, link netlink.Link, rout
 	} else {
 		ipv6 = net.ParseIP("fd02::1")
 	}
-	client, err := NewNatClient(ipv4, ipv6, clusterNetworks, constants.EgressBackendIPTables, nil)
-	if err != nil {
-		return err
-	}
+	client := NewNatClient(ipv4, ipv6, clusterNetworks, constants.EgressBackendIPTables, nil)
 	if err := client.SyncInClusterRules(); err != nil {
 		return fmt.Errorf("sync in-cluster rules: %w", err)
 	}
@@ -1215,10 +1200,7 @@ func TestNatClient_SyncInClusterRules(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		client, err = NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), next, constants.EgressBackendIPTables, nil)
-		if err != nil {
-			return err
-		}
+		client = NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), next, constants.EgressBackendIPTables, nil)
 		if err := client.SyncInClusterRules(); err != nil {
 			return err
 		}
@@ -1258,12 +1240,6 @@ func TestNatClient_SyncInClusterRulesDuplicateCIDRs(t *testing.T) {
 		t.Fatal(err)
 	}
 	client := newTestClient(t, networks)
-	toDelete := []*netlink.Rule{
-		newRule(netlink.FAMILY_V4, mainTableID, 2000),
-		newRule(netlink.FAMILY_V6, mainTableID, 2000),
-	}
-	toDelete[0].Dst = testCIDR(t, "10.20.0.0/16")
-	toDelete[1].Dst = testCIDR(t, "fd20::/64")
 	if err := tns.Do(func(ns.NetNS) error {
 		if err := client.SyncInClusterRules(); err != nil {
 			return err
@@ -1358,10 +1334,7 @@ func TestNatClient_SyncInClusterRulesDefaultExclusions(t *testing.T) {
 				if err := assertClusterRules(wantInitial); err != nil {
 					return err
 				}
-				client, err = NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), nil, constants.EgressBackendIPTables, nil)
-				if err != nil {
-					return err
-				}
+				client = NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), nil, constants.EgressBackendIPTables, nil)
 				if err := client.SyncInClusterRules(); err != nil {
 					return err
 				}
@@ -1431,10 +1404,7 @@ func TestNatClient_IsInClusterInitialized(t *testing.T) {
 
 func newTestClient(t *testing.T, networks *ClusterNetworks) *NatClient {
 	t.Helper()
-	client, err := NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), networks, constants.EgressBackendIPTables, nil)
-	if err != nil {
-		t.Fatalf("NewNatClient: %v", err)
-	}
+	client := NewNatClient(net.ParseIP("10.1.1.1"), net.ParseIP("fd02::1"), networks, constants.EgressBackendIPTables, nil)
 	return client
 }
 

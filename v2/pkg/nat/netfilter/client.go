@@ -79,13 +79,10 @@ type NatClient struct {
 }
 
 // NewNatClient creates a new NatClient.
-func NewNatClient(ipv4, ipv6 net.IP, clusterNetworks *ClusterNetworks, backend string, logFunc func(string)) (*NatClient, error) {
+func NewNatClient(ipv4, ipv6 net.IP, clusterNetworks *ClusterNetworks, backend string, logFunc func(string)) *NatClient {
 	inCluster := &ClusterNetworks{v4PrivateList, v6PrivateList}
 
 	if clusterNetworks != nil {
-		if err := clusterNetworks.Validate(); err != nil {
-			return nil, fmt.Errorf("failed to validate cluster-networks: %w", err)
-		}
 		if len(clusterNetworks.v4) > 0 {
 			inCluster.v4 = clusterNetworks.v4
 		}
@@ -94,14 +91,13 @@ func NewNatClient(ipv4, ipv6 net.IP, clusterNetworks *ClusterNetworks, backend s
 		}
 	}
 
-	nc := &NatClient{
+	return &NatClient{
 		ipv4:      ipv4,
 		ipv6:      ipv6,
 		inCluster: inCluster,
 		backend:   backend,
 		logFunc:   logFunc,
 	}
-	return nc, nil
 }
 
 func (n *NatClient) Init() error {
@@ -123,7 +119,7 @@ func (n *NatClient) Init() error {
 	}
 
 	if err := n.SyncInClusterRules(); err != nil {
-		return fmt.Errorf("failed to init in-CLuster rules: %w", err)
+		return fmt.Errorf("failed to init in-cluster rules: %w", err)
 	}
 
 	return nil

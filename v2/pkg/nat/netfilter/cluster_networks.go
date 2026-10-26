@@ -28,15 +28,22 @@ func ParseClusterNetworks(cidrs []string) (*ClusterNetworks, error) {
 			v6 = append(v6, n)
 		}
 	}
-	return &ClusterNetworks{
+
+	cn := &ClusterNetworks{
 		v4: v4,
 		v6: v6,
-	}, nil
+	}
+
+	if err := cn.validate(); err != nil {
+		return nil, fmt.Errorf("cluster networks validation failed: %w", err)
+	}
+
+	return cn, nil
 }
 
 // ValidateClusterNetworks checks that clusterNetworks does not exceed
 // MaxInClusterNetworks entries per IP family.
-func (cn *ClusterNetworks) Validate() error {
+func (cn *ClusterNetworks) validate() error {
 	if len(cn.v4) > MaxInClusterNetworks {
 		return fmt.Errorf("too many IPv4 cluster networks: %d (max %d)", len(cn.v4), MaxInClusterNetworks)
 	}

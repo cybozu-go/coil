@@ -11,7 +11,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 
@@ -687,8 +686,7 @@ func testEgress() {
 		Expect(customNetwork).ToNot(BeEmpty())
 
 		patchClusterNetworks(customNetwork)
-		var unpatchOnce sync.Once
-		defer unpatchClusterNetworks(&unpatchOnce)
+		defer unpatchClusterNetworks()
 
 		By("creating a dedicated Egress resource and NAT client for the custom cluster network")
 		_, err := kubectl(nil, "apply", "-f", "manifests/egress-cluster-networks.yaml")
@@ -765,7 +763,7 @@ func testEgress() {
 
 		testClusterNetworks(opts, v4, v6, port, true)
 
-		unpatchClusterNetworks(&unpatchOnce)
+		unpatchClusterNetworks()
 
 		testClusterNetworks(opts, v4, v6, port, false)
 	})
@@ -844,7 +842,7 @@ func testEgress() {
 		Expect(customNetwork).ToNot(BeEmpty())
 
 		patchClusterNetworks(customNetwork)
-		defer unpatchClusterNetworks(&sync.Once{})
+		defer unpatchClusterNetworks()
 
 		By("starting echo-server on the node")
 		port := "12347"
@@ -1291,7 +1289,6 @@ func patchClusterNetworks(customNetwork string) {
 		return true
 	}).Should(BeTrue())
 	time.Sleep(time.Second * 10)
-	By("successfully patched coild with cluster networks: " + customNetwork)
 }
 
 func getCoildPods() []corev1.Pod {
@@ -1301,64 +1298,62 @@ func getCoildPods() []corev1.Pod {
 	return pods.Items
 }
 
-func unpatchClusterNetworks(once *sync.Once) {
-	once.Do(func() {
-		By("restoring the default coild configuration")
+func unpatchClusterNetworks() {
+	By("restoring the default coild configuration")
 
-		ds := &appsv1.DaemonSet{}
-		err := getResource("kube-system", "ds", "coild", "", ds)
-		Expect(err).ToNot(HaveOccurred())
+	ds := &appsv1.DaemonSet{}
+	err := getResource("kube-system", "ds", "coild", "", ds)
+	Expect(err).ToNot(HaveOccurred())
 
-		index := 0
-		isPresent := slices.ContainsFunc(ds.Spec.Template.Spec.Containers[0].Args, func(s string) bool {
-			if strings.Contains(s, "cluster-network") {
-				return true
-			}
-			index++
+	index := 0
+	isPresent := slices.ContainsFunc(ds.Spec.Template.Spec.Containers[0].Args, func(s string) bool {
+		if strings.Contains(s, "cluster-network") {
+			return true
+		}
+		index++
+		return false
+	})
+
+	if !isPresent {
+		return
+	}
+
+	oldPods := getCoildPods()
+
+	type PatchOp struct {
+		Op   string `json:"op"`
+		Path string `json:"path"`
+	}
+
+	patchBytes, err := json.Marshal([]PatchOp{
+		{
+			Op:   "remove",
+			Path: fmt.Sprintf("/spec/template/spec/containers/0/args/%d", index),
+		},
+	})
+	Expect(err).ToNot(HaveOccurred())
+
+	_, err = kubectl(nil, "-n", "kube-system", "patch", "daemonset", "coild", "--type=json", "--patch", string(patchBytes))
+	Expect(err).ShouldNot(HaveOccurred())
+	Eventually(func() bool {
+		newPods := getCoildPods()
+		if len(newPods) != 4 {
 			return false
-		})
-
-		if !isPresent {
-			return
 		}
-
-		oldPods := getCoildPods()
-
-		type PatchOp struct {
-			Op   string `json:"op"`
-			Path string `json:"path"`
-		}
-
-		patchBytes, err := json.Marshal([]PatchOp{
-			{
-				Op:   "remove",
-				Path: fmt.Sprintf("/spec/template/spec/containers/0/args/%d", index),
-			},
-		})
-		Expect(err).ToNot(HaveOccurred())
-
-		_, err = kubectl(nil, "-n", "kube-system", "patch", "daemonset", "coild", "--type=json", "--patch", string(patchBytes))
-		Expect(err).ShouldNot(HaveOccurred())
-		Eventually(func() bool {
-			newPods := getCoildPods()
-			if len(newPods) != 4 {
-				return false
-			}
-			for _, np := range newPods {
-				for _, op := range oldPods {
-					if np.Name == op.Name {
-						return false
-					}
-				}
-			}
-			for _, np := range newPods {
-				if np.Status.Phase != corev1.PodRunning {
+		for _, np := range newPods {
+			for _, op := range oldPods {
+				if np.Name == op.Name {
 					return false
 				}
 			}
-			return true
-		}).Should(BeTrue())
-	})
+		}
+		for _, np := range newPods {
+			if np.Status.Phase != corev1.PodRunning {
+				return false
+			}
+		}
+		return true
+	}).Should(BeTrue())
 }
 
 func prepareCustomNetworks() (v4, v6, customNetwork string) {

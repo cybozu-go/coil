@@ -68,7 +68,7 @@ func TestParseClusterNetworks(t *testing.T) {
 				}
 
 				if len(cn.v6) != tt.v6Size {
-					t.Errorf("ParseClusterNetworks() invalid size of V4 slice, want %d, got %d", tt.v6Size, len(cn.v6))
+					t.Errorf("ParseClusterNetworks() invalid size of V6 slice, want %d, got %d", tt.v6Size, len(cn.v6))
 				}
 			}
 		})
@@ -134,7 +134,7 @@ func TestClusterNetworksValidate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			cn := tt.cn
-			err := cn.Validate()
+			err := cn.validate()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateClusterNetworks() error = %v, wantErr %v", err, tt.wantErr)
 			}

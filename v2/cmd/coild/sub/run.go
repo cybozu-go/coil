@@ -66,9 +66,7 @@ func subMain() error {
 	if err != nil {
 		return fmt.Errorf("invalid --cluster-networks: %w", err)
 	}
-	if err := clusterNetworks.Validate(); err != nil {
-		return fmt.Errorf("invalid --cluster-networks: %w", err)
-	}
+
 	if !clusterNetworks.IsEmpty() {
 		setupLog.Info("using custom in-cluster networks for egress NAT", "networks", cfg.ClusterNetworks)
 	}
