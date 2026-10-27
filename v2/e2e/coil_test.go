@@ -788,10 +788,9 @@ func testNAT(data []byte, clientPod, fakeURL string, natAddresses []string, ipam
 	ExpectWithOffset(1, err).ShouldNot(HaveOccurred(), "kubectl exec curl failed or timed out for %s", fakeURL)
 
 	if !ipamEnabled {
-		respStr := string(resp)
-		idx := strings.Index(respStr, "|")
-		ipAddr := respStr[:idx]
-		resp = []byte(respStr[idx+1:])
+		ipAddr, body, found := strings.Cut(string(resp), "|")
+		ExpectWithOffset(1, found).To(BeTrue(), "response from %s does not contain the source address", fakeURL)
+		resp = []byte(body)
 		ExpectWithOffset(1, natAddresses).To(ContainElement(ipAddr))
 	}
 	ExpectWithOffset(1, resp).To(HaveLen(1 << 20))

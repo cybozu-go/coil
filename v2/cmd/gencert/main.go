@@ -104,8 +104,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	outputPEM(filepath.Join(*outDir, *outCert), "CERTIFICATE", certBytes)
-	outputPEM(filepath.Join(*outDir, *outKey), "PRIVATE KEY", privBytes)
+	certFile := filepath.Join(*outDir, *outCert)
+	if err := outputPEM(certFile, "CERTIFICATE", certBytes); err != nil {
+		slog.Error("failed to output certificate", "file", certFile, "err", err)
+		os.Exit(1)
+	}
+	keyFile := filepath.Join(*outDir, *outKey)
+	if err := outputPEM(keyFile, "PRIVATE KEY", privBytes); err != nil {
+		slog.Error("failed to output private key", "file", keyFile, "err", err)
+		os.Exit(1)
+	}
 }
 
 func dnsAliases(host string) []string {
@@ -117,25 +125,23 @@ func dnsAliases(host string) []string {
 	return aliases
 }
 
-func outputPEM(fname string, pemType string, data []byte) {
+func outputPEM(fname string, pemType string, data []byte) error {
 	f, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
-		slog.Error("failed to open", "file", fname, "err", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to open: %w", err)
 	}
 	defer f.Close()
 
 	err = pem.Encode(f, &pem.Block{Type: pemType, Bytes: data})
 	if err != nil {
-		slog.Error("failed to encode", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to encode: %w", err)
 	}
 
 	err = f.Sync()
 	if err != nil {
-		slog.Error("failed to fsync", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to fsync: %w", err)
 	}
+	return nil
 }
 
 func readCA(certPath, keyPath string) (*x509.Certificate, *rsa.PrivateKey, error) {
