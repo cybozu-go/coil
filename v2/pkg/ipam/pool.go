@@ -204,7 +204,7 @@ func (p *pool) SyncBlocks(ctx context.Context) error {
 	var allocatedBlocks int
 	for _, b := range blocks.Items {
 		p.allocated.Set(uint(b.Index))
-		allocatedBlocks += 1
+		allocatedBlocks++
 	}
 	p.allocatedBlocks.Set(float64(allocatedBlocks))
 
