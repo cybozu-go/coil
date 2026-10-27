@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -166,7 +167,7 @@ func readCA(certPath, keyPath string) (*x509.Certificate, *rsa.PrivateKey, error
 
 	privateKey, ok := key.(*rsa.PrivateKey)
 	if !ok {
-		return nil, nil, fmt.Errorf("type assertion error - object is not of type *rsa.PrivateKey")
+		return nil, nil, errors.New("type assertion error - object is not of type *rsa.PrivateKey")
 	}
 
 	return ca, privateKey, nil

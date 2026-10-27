@@ -320,7 +320,7 @@ func testFoUV4(t *testing.T) {
 			}
 		}
 
-		if _, err := fou.AddPeer(net.ParseIP("fd02::101"), true); err != ErrIPFamilyMismatch {
+		if _, err := fou.AddPeer(net.ParseIP("fd02::101"), true); !errors.Is(err, ErrIPFamilyMismatch) {
 			return fmt.Errorf("error is not ErrIPFamilyMismatch: %w", err)
 		}
 
@@ -384,7 +384,7 @@ func testFoUV6(t *testing.T) {
 			}
 		}
 
-		if _, err := fou.AddPeer(net.ParseIP("10.1.1.1"), true); err != ErrIPFamilyMismatch {
+		if _, err := fou.AddPeer(net.ParseIP("10.1.1.1"), true); !errors.Is(err, ErrIPFamilyMismatch) {
 			return fmt.Errorf("error is not ErrIPFamilyMismatch: %w", err)
 		}
 

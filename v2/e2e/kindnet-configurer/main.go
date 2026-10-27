@@ -38,9 +38,9 @@ func main() {
 
 	containers := []string{}
 	for i := range numOfNodes {
-		c := fmt.Sprintf("%s-worker", *container)
+		c := *container + "-worker"
 		if i == 0 {
-			c = fmt.Sprintf("%s-control-plane", *container)
+			c = *container + "-control-plane"
 		}
 		if i > 1 {
 			c = fmt.Sprintf("%s%d", c, i)
@@ -115,7 +115,7 @@ func get(conflistName, protoVer, tmpFilename string, containers []string) error 
 	return nil
 }
 
-func set(conflistName, protoVer, tmpFilename string, contianers []string) error {
+func set(conflistName, protoVer, tmpFilename string, containers []string) error {
 	f, err := os.Open(filepath.Join("tmp", fmt.Sprintf("%s-%s", tmpFilename, protoVer)))
 	if err != nil {
 		return err
@@ -124,7 +124,7 @@ func set(conflistName, protoVer, tmpFilename string, contianers []string) error 
 
 	scanner := bufio.NewScanner(f)
 
-	for _, container := range contianers {
+	for _, container := range containers {
 		scanner.Scan()
 		network := scanner.Text()
 		reg := fmt.Sprintf("s/10\\.244\\.0\\.0/%s/", network)

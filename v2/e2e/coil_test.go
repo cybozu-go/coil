@@ -333,7 +333,7 @@ func testIPAM() {
 			if len(apList.Items) == 1 {
 				return nil
 			}
-			return fmt.Errorf("the number of AddressPool must be 1")
+			return errors.New("the number of AddressPool must be 1")
 		}).Should(Succeed())
 	})
 }
@@ -616,7 +616,7 @@ func testEgress() {
 					}
 				}
 				if !found {
-					return fmt.Errorf("fou tunnel device not found")
+					return errors.New("fou tunnel device not found")
 				}
 
 				out, err = kubectl(nil, "exec", "nat-client", "--", "ip", o.ipOpt, "-j", "route", "show", "table", "118")
@@ -893,7 +893,7 @@ func checkEgressConnection(address string, pod *corev1.Pod, port string) error {
 
 	By("get node's IP addresses")
 	var nodeIP string
-	command := fmt.Sprintf("ip -j addr show dev eth0 | jq '.[].addr_info[] | .local' | grep %s", addr[0])
+	command := "ip -j addr show dev eth0 | jq '.[].addr_info[] | .local' | grep " + addr[0]
 	nodeByte, err := runOnNode("coil-control-plane", "bash", "-c", command)
 	Expect(err).ToNot(HaveOccurred())
 	nodeIP = strings.ReplaceAll(strings.Trim(string(nodeByte), " \n"), "\"", "")
@@ -983,7 +983,7 @@ func deployEgress(egressData egressTemplateData, curDir, tmpDir string) {
 	egressTemplateExec, err := template.New("egress.yaml.tmpl").ParseFiles(egressTemplate)
 	Expect(err).ToNot(HaveOccurred())
 
-	egressFilepath := filepath.Join(tmpDir, fmt.Sprintf("%s.yaml", egressData.EgressName))
+	egressFilepath := filepath.Join(tmpDir, egressData.EgressName+".yaml")
 	egressFile, err := os.Create(egressFilepath)
 	Expect(err).ToNot(HaveOccurred())
 	defer egressFile.Close()
@@ -1017,7 +1017,7 @@ func deployClient(egressData egressTemplateData, curDir, tmpDir string) *corev1.
 		Expect(err).ToNot(HaveOccurred())
 	}
 
-	podFilepath := filepath.Join(tmpDir, fmt.Sprintf("%s.yaml", egressData.PodName))
+	podFilepath := filepath.Join(tmpDir, egressData.PodName+".yaml")
 	podFile, err := os.Create(podFilepath)
 	Expect(err).ToNot(HaveOccurred())
 	defer podFile.Close()
@@ -1041,7 +1041,7 @@ func deployClient(egressData egressTemplateData, curDir, tmpDir string) *corev1.
 	By(fmt.Sprintf("get %q pod's data", egressData.PodName))
 	pods := &corev1.PodList{}
 	Eventually(func() bool {
-		err := getResource("internet", "pods", "", fmt.Sprintf("app.kubernetes.io/instance=%s", egressData.EgressName), pods)
+		err := getResource("internet", "pods", "", "app.kubernetes.io/instance="+egressData.EgressName, pods)
 		if err != nil {
 			return false
 		}

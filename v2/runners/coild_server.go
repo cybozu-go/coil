@@ -227,11 +227,11 @@ func (s *coildServer) Add(ctx context.Context, args *cnirpc.CNIArgs) (*cnirpc.Ad
 
 	isChained, err := getSettings(args)
 	if err != nil {
-		return nil, newInternalError(fmt.Errorf("runtime error"), "failed to get CNI arguments")
+		return nil, newInternalError(errors.New("runtime error"), "failed to get CNI arguments")
 	}
 
 	if s.cfg.EnableIPAM && isChained {
-		return nil, newInternalError(fmt.Errorf("configuration error"), "coil must be called as the first plugin when IPAM related features are enabled")
+		return nil, newInternalError(errors.New("configuration error"), "coil must be called as the first plugin when IPAM related features are enabled")
 	}
 
 	pod, err := s.getPodFromArgs(ctx, args, logger)

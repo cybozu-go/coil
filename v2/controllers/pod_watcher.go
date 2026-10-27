@@ -142,7 +142,7 @@ func (r *podWatcher) ReadyzCheck(req *http.Request) error {
 	case <-r.initDone:
 		return nil
 	default:
-		return fmt.Errorf("initial pod sync not yet complete")
+		return errors.New("initial pod sync not yet complete")
 	}
 }
 

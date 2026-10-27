@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"maps"
 	"net"
 	"sync"
@@ -110,11 +110,11 @@ var _ = Describe("Egress watcher", func() {
 			updated := podNetwork.getPodIPCount()
 			updatedIPv4, ok := updated["10.1.1.2"]
 			if !ok || updatedIPv4 != 1 {
-				return fmt.Errorf("pod1's IPv4 address is not updated")
+				return errors.New("pod1's IPv4 address is not updated")
 			}
 			updatedIPv6, ok := updated["fd01::2"]
 			if !ok || updatedIPv6 != 1 {
-				return fmt.Errorf("pod1's IPv4 address is not updated")
+				return errors.New("pod1's IPv4 address is not updated")
 			}
 			return nil
 		}).Should(Succeed())
@@ -123,11 +123,11 @@ var _ = Describe("Egress watcher", func() {
 			updated := podNetwork.getPodIPCount()
 			updatedIPv4, ok := updated["10.1.1.2"]
 			if !ok || updatedIPv4 != 1 {
-				return fmt.Errorf("pod1's IPv4 address is not updated")
+				return errors.New("pod1's IPv4 address is not updated")
 			}
 			updatedIPv6, ok := updated["fd01::2"]
 			if !ok || updatedIPv6 != 1 {
-				return fmt.Errorf("pod1's IPv4 address is not updated")
+				return errors.New("pod1's IPv4 address is not updated")
 			}
 			return nil
 		}, 5*time.Second, 1*time.Second).Should(Succeed())
@@ -157,11 +157,11 @@ var _ = Describe("Egress watcher", func() {
 			updated := podNetwork.getPodIPCount()
 			_, ok := updated["10.1.1.3"]
 			if ok {
-				return fmt.Errorf("pod2 and pod5 should not be updated")
+				return errors.New("pod2 and pod5 should not be updated")
 			}
 			_, ok = updated["fd01::3"]
 			if ok {
-				return fmt.Errorf("pod2 and pod5 should not be updated")
+				return errors.New("pod2 and pod5 should not be updated")
 			}
 			return nil
 		}, 5*time.Second, 1*time.Second).Should(Succeed())
