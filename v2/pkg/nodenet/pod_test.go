@@ -2,6 +2,7 @@ package nodenet
 
 import (
 	"encoding/json"
+	"errors"
 	"net"
 	"os"
 	"os/exec"
@@ -70,7 +71,6 @@ func TestPodNetwork(t *testing.T) {
 	var givenIPv4, givenIPv6 net.IP
 
 	for name, conf := range podConfMap {
-
 		result, err := pn.SetupIPAM(nsPath(name), name, "ns1", &conf)
 		if err != nil {
 			t.Fatal(err)
@@ -409,7 +409,7 @@ func TestPodNetwork(t *testing.T) {
 
 	// check pod2 network
 	err = pn.Check(podConfMap["pod2"].ContainerId, podConfMap["pod2"].IFace)
-	if err != errNotFound {
+	if !errors.Is(err, errNotFound) {
 		t.Fatal("pn.Check must return error because pod2 network doesn't exist")
 	}
 }

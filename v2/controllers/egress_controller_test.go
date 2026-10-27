@@ -555,7 +555,7 @@ var _ = Describe("Egress reconciler", func() {
 				Backend: backend,
 			}
 
-			eg := makeEgress(fmt.Sprintf("eg-backend-%s", backend))
+			eg := makeEgress("eg-backend-" + backend)
 			depl := &appsv1.Deployment{}
 			depl.Namespace = eg.Namespace
 			depl.Name = eg.Name
@@ -572,7 +572,7 @@ var _ = Describe("Egress reconciler", func() {
 			}
 
 			Expect(egressContainer).NotTo(BeNil())
-			Expect(egressContainer.Args).To(ContainElement(fmt.Sprintf("--backend=%s", backend)))
+			Expect(egressContainer.Args).To(ContainElement("--backend=" + backend))
 		}
 	})
 })

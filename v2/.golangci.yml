@@ -2,10 +2,22 @@ version: "2"
 linters:
   default: standard
   enable:
+    - copyloopvar
     - depguard
+    - errorlint
     - ginkgolinter
+    - gocritic
+    - misspell
     - modernize
+    - nakedret
     - nilerr
+    - nolintlint
+    - perfsprint
+    - revive
+    - thelper
+    - unconvert
+    - unparam
+    - whitespace
   exclusions:
     generated: lax
     presets:
@@ -24,6 +36,33 @@ linters:
               desc: html/template must not be used
             - pkg: log$
               desc: log must not be used
+    nolintlint:
+      require-specific: true
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+          arguments:
+            - allowed-packages:
+                - github.com/onsi/ginkgo/v2
+                - github.com/onsi/gomega
+        - name: empty-block
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+        - name: time-naming
+        - name: unexported-return
+        - name: unreachable-code
+        - name: var-declaration
 formatters:
   enable:
     - gofumpt

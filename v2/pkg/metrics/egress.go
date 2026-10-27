@@ -144,7 +144,6 @@ func (c *egressCollector) Update(ctx context.Context) error {
 		}
 		nfTablesMetrics.InvalidPackets.Set(float64(invalidPackets))
 		nfTablesMetrics.InvalidBytes.Set(float64(invalidBytes))
-
 	}
 
 	return nil
