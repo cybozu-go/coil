@@ -61,7 +61,7 @@ func (a *allocator) register(ipv4, ipv6 net.IP) (uint, bool) {
 			panic(fmt.Sprintf("ip: %v, base: %v, offset: %v", ipv4, a.ipv4.IP, offset))
 		}
 		a.usage.Set(uint(offset))
-		a.lastAllocIdx = int64(offset)
+		a.lastAllocIdx = offset
 		return uint(offset), true
 	}
 	if a.ipv6 != nil && a.ipv6.Contains(ipv6) {
@@ -70,7 +70,7 @@ func (a *allocator) register(ipv4, ipv6 net.IP) (uint, bool) {
 			panic(fmt.Sprintf("ip: %v, base: %v, offset: %v", ipv6, a.ipv6.IP, offset))
 		}
 		a.usage.Set(uint(offset))
-		a.lastAllocIdx = int64(offset)
+		a.lastAllocIdx = offset
 		return uint(offset), true
 	}
 	return 0, false

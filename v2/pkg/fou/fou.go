@@ -90,7 +90,7 @@ func (t *fouTunnel) Init() error {
 	if err == nil {
 		return nil
 	}
-	if _, ok := err.(netlink.LinkNotFoundError); !ok {
+	if _, ok := errors.AsType[netlink.LinkNotFoundError](err); !ok {
 		return err
 	}
 
@@ -201,7 +201,7 @@ func (t *fouTunnel) addOrRecreatePeer4(addr net.IP, sportAuto bool) (string, err
 			// netlink.LinkModify doesn't support updating the encap sport setting (operation not supported),
 			// So we recreate the fou link.
 			if t.logFunc != nil {
-				t.logFunc(fmt.Sprintf("removing a fou tunnel device link: %s", linkName))
+				t.logFunc("removing a fou tunnel device link: " + linkName)
 			}
 			if err := netlink.LinkDel(link); err != nil {
 				return "", fmt.Errorf("netlink: failed to delete fou link: %w", err)
@@ -209,7 +209,7 @@ func (t *fouTunnel) addOrRecreatePeer4(addr net.IP, sportAuto bool) (string, err
 		} else {
 			return linkName, nil
 		}
-	} else if _, ok := err.(netlink.LinkNotFoundError); !ok {
+	} else if _, ok := errors.AsType[netlink.LinkNotFoundError](err); !ok {
 		return "", fmt.Errorf("netlink: failed to get link: %w", err)
 	}
 
@@ -230,7 +230,7 @@ func (t *fouTunnel) addOrRecreatePeer4(addr net.IP, sportAuto bool) (string, err
 	}
 
 	if t.logFunc != nil {
-		t.logFunc(fmt.Sprintf("add a new FoU device: %s", linkName))
+		t.logFunc("add a new FoU device: " + linkName)
 	}
 	if err := netlink.LinkAdd(link); err != nil {
 		return "", fmt.Errorf("netlink: failed to add fou link: %w", err)
@@ -278,7 +278,7 @@ func (t *fouTunnel) addOrRecreatePeer6(addr net.IP, sportAuto bool) (string, err
 		} else {
 			return linkName, nil
 		}
-	} else if _, ok := err.(netlink.LinkNotFoundError); !ok {
+	} else if _, ok := errors.AsType[netlink.LinkNotFoundError](err); !ok {
 		return "", fmt.Errorf("netlink: failed to get link: %w", err)
 	}
 
@@ -298,7 +298,7 @@ func (t *fouTunnel) addOrRecreatePeer6(addr net.IP, sportAuto bool) (string, err
 		Local:      t.local6,
 	}
 	if t.logFunc != nil {
-		t.logFunc(fmt.Sprintf("add a new FoU device: %s", linkName))
+		t.logFunc("add a new FoU device: " + linkName)
 	}
 	if err := netlink.LinkAdd(link); err != nil {
 		return "", fmt.Errorf("netlink: failed to add fou6 link: %w", err)
@@ -428,7 +428,7 @@ func (t *fouTunnel) DelPeer(addr net.IP) error {
 		return netlink.LinkDel(link)
 	}
 
-	if _, ok := err.(netlink.LinkNotFoundError); ok {
+	if _, ok := errors.AsType[netlink.LinkNotFoundError](err); ok {
 		return nil
 	}
 	return err

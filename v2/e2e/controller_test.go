@@ -34,12 +34,12 @@ var _ = Describe("coil controllers", func() {
 
 func testCoilIPAMController() {
 	It("should elect a leader instance of coil-ipam-controller", func() {
-		kubectlSafe(nil, "-n", "kube-system", "get", "leases", "coil-ipam-leader")
+		kubectlSafe("-n", "kube-system", "get", "leases", "coil-ipam-leader")
 	})
 
 	It("should run the admission webhook", func() {
 		By("trying to create an invalid AddressPool")
-		_, err := kubectl(nil, "apply", "-f", "manifests/invalid_pool.yaml")
+		_, err := kubectl("apply", "-f", "manifests/invalid_pool.yaml")
 		Expect(err).Should(HaveOccurred())
 	})
 
@@ -60,7 +60,7 @@ func testCoilIPAMController() {
 
 	It("should run garbage collector", func() {
 		By("creating an orphaned AddressBlock")
-		kubectlSafe(nil, "apply", "-f", "manifests/orphaned.yaml")
+		kubectlSafe("apply", "-f", "manifests/orphaned.yaml")
 
 		By("checking the AddressBlock gets removed")
 		Eventually(func() any {
@@ -77,7 +77,7 @@ func testCoilIPAMController() {
 func testCoilEgressController() {
 	Context("when the egress features are enabled", func() {
 		It("should elect a leader instance of coil-egress-controller", func() {
-			kubectlSafe(nil, "-n", "kube-system", "get", "leases", "coil-egress-leader")
+			kubectlSafe("-n", "kube-system", "get", "leases", "coil-egress-leader")
 		})
 
 		It("should export metrics", func() {

@@ -245,10 +245,8 @@ func testSubnetSetGetBlock(t *testing.T) {
 			if tc.ipv4 != nil {
 				if ipv4 == nil {
 					t.Error("ipv4 must be returned")
-				} else {
-					if tc.ipv4.String() != ipv4.String() {
-						t.Errorf("ipv4 mismatch: expected=%s, actual=%s", tc.ipv4.String(), ipv4.String())
-					}
+				} else if tc.ipv4.String() != ipv4.String() {
+					t.Errorf("ipv4 mismatch: expected=%s, actual=%s", tc.ipv4.String(), ipv4.String())
 				}
 			}
 			if tc.ipv6 == nil && ipv6 != nil {
@@ -257,10 +255,8 @@ func testSubnetSetGetBlock(t *testing.T) {
 			if tc.ipv6 != nil {
 				if ipv6 == nil {
 					t.Error("ipv6 must be returned")
-				} else {
-					if tc.ipv6.String() != ipv6.String() {
-						t.Errorf("ipv4 mismatch: expected=%s, actual=%s", tc.ipv6.String(), ipv6.String())
-					}
+				} else if tc.ipv6.String() != ipv6.String() {
+					t.Errorf("ipv4 mismatch: expected=%s, actual=%s", tc.ipv6.String(), ipv6.String())
 				}
 			}
 		})

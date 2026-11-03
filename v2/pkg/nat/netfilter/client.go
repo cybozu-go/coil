@@ -102,18 +102,18 @@ func NewNatClient(ipv4, ipv6 net.IP, podNodeNet []*net.IPNet, backend string, lo
 func (n *NatClient) Init() error {
 	if n.ipv4 != nil {
 		if err := n.clear(netlink.FAMILY_V4); err != nil {
-			return fmt.Errorf("failed to clear IPv4 table: %v", err)
+			return fmt.Errorf("failed to clear IPv4 table: %w", err)
 		}
 		if err := n.initRules(netlink.FAMILY_V4); err != nil {
-			return fmt.Errorf("failed to Init IPv4 table: %v", err)
+			return fmt.Errorf("failed to Init IPv4 table: %w", err)
 		}
 	}
 	if n.ipv6 != nil {
 		if err := n.clear(netlink.FAMILY_V6); err != nil {
-			return fmt.Errorf("failed to clear IPv6 table: %v", err)
+			return fmt.Errorf("failed to clear IPv6 table: %w", err)
 		}
 		if err := n.initRules(netlink.FAMILY_V6); err != nil {
-			return fmt.Errorf("failed to Init IPv6 table: %v", err)
+			return fmt.Errorf("failed to Init IPv6 table: %w", err)
 		}
 	}
 	return nil
@@ -371,7 +371,7 @@ func (n *NatClient) addRoute(link netlink.Link, ipn *net.IPNet) error {
 
 func (n *NatClient) deleteRoute(r *netlink.Route) error {
 	if n.logFunc != nil {
-		n.logFunc(fmt.Sprintf("removing a destination %s", r.Dst.String()))
+		n.logFunc("removing a destination " + r.Dst.String())
 	}
 
 	if err := netlink.RouteDel(r); err != nil {

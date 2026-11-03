@@ -16,6 +16,7 @@ const (
 )
 
 func getRoutes(t *testing.T) map[string]bool {
+	t.Helper()
 	h, err := netlink.NewHandle()
 	if err != nil {
 		t.Fatal(err)

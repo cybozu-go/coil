@@ -115,7 +115,7 @@ func (r *BlockRequestReconciler) updateStatus(ctx context.Context, br *coilv2.Bl
 			Type:               coilv2.BlockRequestComplete,
 			Status:             corev1.ConditionTrue,
 			Reason:             "allocated",
-			Message:            fmt.Sprintf("allocated a block %s", blockName),
+			Message:            "allocated a block " + blockName,
 			LastProbeTime:      now,
 			LastTransitionTime: now,
 		},

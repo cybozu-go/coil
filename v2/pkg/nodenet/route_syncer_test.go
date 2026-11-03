@@ -14,6 +14,7 @@ import (
 )
 
 func setupFake(t *testing.T) {
+	t.Helper()
 	dummy := &netlink.Dummy{}
 	dummy.Name = "dummy"
 	if err := netlink.LinkAdd(dummy); err != nil {

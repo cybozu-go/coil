@@ -281,9 +281,9 @@ func (pn *podNetwork) SetupIPAM(nsPath, podName, podNS string, conf *PodNetConf)
 	}
 
 	// cleanup garbage veth
-	switch l, err := lookup(conf.ContainerId, conf.IFace); err {
-	case errNotFound:
-	case nil:
+	switch l, err := lookup(conf.ContainerId, conf.IFace); {
+	case errors.Is(err, errNotFound):
+	case err == nil:
 		// remove garbage link, if any
 		if err := netlink.LinkDel(l); err != nil {
 			return nil, fmt.Errorf("netlink: failed to delete broken link: %w", err)
@@ -689,7 +689,7 @@ func (pn *podNetwork) Destroy(containerId, iface string) error {
 	}()
 
 	l, err := lookup(containerId, iface)
-	if err == errNotFound {
+	if errors.Is(err, errNotFound) {
 		return nil
 	}
 	if err != nil {

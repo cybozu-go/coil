@@ -142,7 +142,7 @@ func (ss SubnetSet) GetBlock(n uint, sizeBits int) (ipv4 *net.IPNet, ipv6 *net.I
 		}
 	}
 
-	return
+	return ipv4, ipv6
 }
 
 // AddressPoolSpec defines the desired state of AddressPool

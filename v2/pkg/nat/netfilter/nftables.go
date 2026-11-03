@@ -186,9 +186,7 @@ func setNFTablesConnmarkRules(family int, link netlink.Link) error {
 		return fmt.Errorf("failed to configure NFT input rules: %w", err)
 	}
 
-	if err := setNFTablesOutputConnmarkRules(conn, mangle, link); err != nil {
-		return fmt.Errorf("failed to configure NFT output rules: %w", err)
-	}
+	setNFTablesOutputConnmarkRules(conn, mangle, link)
 
 	if err := conn.Flush(); err != nil {
 		return fmt.Errorf("failed to flush nftables rules: %w", err)
@@ -207,10 +205,7 @@ func setNFTablesInputConnmarkRules(conn *nftables.Conn, table *nftables.Table, l
 		Policy:   func() *nftables.ChainPolicy { p := nftables.ChainPolicyAccept; return &p }(),
 	}
 
-	input, err := addNFTablesChainIfNotExists(conn, input)
-	if err != nil {
-		return fmt.Errorf("failed to add chain: %w", err)
-	}
+	input = addNFTablesChainIfNotExists(conn, input)
 
 	devices := &nftables.Set{
 		Table:        table,
@@ -225,7 +220,7 @@ func setNFTablesInputConnmarkRules(conn *nftables.Conn, table *nftables.Table, l
 		},
 	}
 
-	devices, err = addNFTablesSetIfNotExists(conn, devices, elements)
+	devices, err := addNFTablesSetIfNotExists(conn, devices, elements)
 	if err != nil {
 		return fmt.Errorf("failed to add set: %w", err)
 	}
@@ -274,13 +269,11 @@ func setNFTablesInputConnmarkRules(conn *nftables.Conn, table *nftables.Table, l
 		},
 	}
 
-	if _, err := addNFTablesRuleIfNotExists(conn, mark); err != nil {
-		return fmt.Errorf("failed to check input rule existence: %w", err)
-	}
+	addNFTablesRuleIfNotExists(conn, mark)
 	return nil
 }
 
-func setNFTablesOutputConnmarkRules(conn *nftables.Conn, table *nftables.Table, link netlink.Link) error {
+func setNFTablesOutputConnmarkRules(conn *nftables.Conn, table *nftables.Table, link netlink.Link) {
 	output := &nftables.Chain{
 		Name:     strings.ToLower(outputChain),
 		Table:    table,
@@ -290,10 +283,7 @@ func setNFTablesOutputConnmarkRules(conn *nftables.Conn, table *nftables.Table, 
 		Policy:   func() *nftables.ChainPolicy { p := nftables.ChainPolicyAccept; return &p }(),
 	}
 
-	output, err := addNFTablesChainIfNotExists(conn, output)
-	if err != nil {
-		return fmt.Errorf("failed to add chain: %w", err)
-	}
+	output = addNFTablesChainIfNotExists(conn, output)
 
 	ruleID := nftRuleIDOutputPrefix + link.Attrs().Name
 	restoreMark := &nftables.Rule{
@@ -323,10 +313,7 @@ func setNFTablesOutputConnmarkRules(conn *nftables.Conn, table *nftables.Table, 
 		},
 	}
 
-	if _, err := addNFTablesRuleIfNotExists(conn, restoreMark); err != nil {
-		return fmt.Errorf("failed to check output rule existence: %w", err)
-	}
-	return nil
+	addNFTablesRuleIfNotExists(conn, restoreMark)
 }
 
 func removeNFTablesConnmarkRules(family int) error {
@@ -368,13 +355,12 @@ func removeNFTablesConnmarkRules(family int) error {
 	return nil
 }
 
-func addNFTablesChainIfNotExists(conn *nftables.Conn, chain *nftables.Chain) (*nftables.Chain, error) {
+func addNFTablesChainIfNotExists(conn *nftables.Conn, chain *nftables.Chain) *nftables.Chain {
 	// AddChain is idempotent - it will create the chain if it doesn't exist,
 	// or return a reference to add to the existing chain if it does.
 	// Reading the chain first (with ListChain) fails in fresh namespaces
 	// before any flush has happened, so we just add directly.
-	c := conn.AddChain(chain)
-	return c, nil
+	return conn.AddChain(chain)
 }
 
 func addNFTablesSetIfNotExists(conn *nftables.Conn, set *nftables.Set, elements []nftables.SetElement) (*nftables.Set, error) {
@@ -388,7 +374,7 @@ func addNFTablesSetIfNotExists(conn *nftables.Conn, set *nftables.Set, elements 
 	return set, nil
 }
 
-func addNFTablesRuleIfNotExists(conn *nftables.Conn, target *nftables.Rule) (*nftables.Rule, error) {
+func addNFTablesRuleIfNotExists(conn *nftables.Conn, target *nftables.Rule) {
 	rs, err := conn.GetRules(target.Table, target.Chain)
 	if err != nil {
 		// In fresh namespaces (before any flush), GetRules may fail with
@@ -397,17 +383,17 @@ func addNFTablesRuleIfNotExists(conn *nftables.Conn, target *nftables.Rule) (*nf
 		// We proceed to add the rule in this case.
 		// On subsequent calls (after flush), GetRules should succeed
 		// and we can properly deduplicate.
-		//nolint:nilerr
-		return conn.AddRule(target), nil
+		conn.AddRule(target)
+		return
 	}
 
 	for _, r := range rs {
 		if same := compareNFTRules(r, target); same {
-			return r, nil
+			return
 		}
 	}
 
-	return conn.AddRule(target), nil
+	conn.AddRule(target)
 }
 
 func compareNFTRules(a, b *nftables.Rule) bool {

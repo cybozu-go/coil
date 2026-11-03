@@ -109,13 +109,13 @@ func testIPAM() {
 		}
 
 		Eventually(func() error {
-			_, err := kubectl(nil, "apply", "-f", manifest)
+			_, err := kubectl("apply", "-f", manifest)
 			return err
 		}).WithTimeout(5 * time.Minute).WithPolling(100 * time.Millisecond).ShouldNot(HaveOccurred())
 
 		By("creating pods")
-		kubectlSafe(nil, "apply", "-f", "manifests/httpd.yaml")
-		kubectlSafe(nil, "apply", "-f", "manifests/ubuntu.yaml")
+		kubectlSafe("apply", "-f", "manifests/httpd.yaml")
+		kubectlSafe("apply", "-f", "manifests/ubuntu.yaml")
 		var httpdNode, ubuntuNode string
 		httpdIP := []corev1.PodIP{}
 		Eventually(func() error {
@@ -164,7 +164,7 @@ func testIPAM() {
 			}
 			if testURL != "" {
 				Expect(ubuntuNode).NotTo(Equal(httpdNode))
-				out := kubectlSafe(nil, "exec", "ubuntu", "--", "curl", "-s", testURL)
+				out := kubectlSafe("exec", "ubuntu", "--", "curl", "-s", testURL)
 				Expect(string(out)).To(Equal("Hello"))
 			}
 		}
@@ -178,7 +178,7 @@ func testIPAM() {
 		for _, pod := range oldPods.Items {
 			oldUIDs[string(pod.UID)] = struct{}{}
 		}
-		kubectlSafe(nil, "-n", "kube-system", "delete", "pods", "-l", "app.kubernetes.io/component=coild")
+		kubectlSafe("-n", "kube-system", "delete", "pods", "-l", "app.kubernetes.io/component=coild")
 		Eventually(func() error {
 			ds := &appsv1.DaemonSet{}
 			if err := getResource("kube-system", "daemonsets", "coild", "", ds); err != nil {
@@ -225,7 +225,7 @@ func testIPAM() {
 		}).Should(Succeed())
 
 		By("confirming a new AddressBlock is allocated for a new pod")
-		kubectlSafe(nil, "apply", "-f", "manifests/another_httpd.yaml")
+		kubectlSafe("apply", "-f", "manifests/another_httpd.yaml")
 		Eventually(func() int {
 			abl := &coilv2.AddressBlockList{}
 			err := getResource("", "addressblocks", "", "", abl)
@@ -270,7 +270,7 @@ func testIPAM() {
 
 	It("should free unused AddressBlocks", func() {
 		By("deleting pods")
-		kubectlSafe(nil, "delete", "pods", "--all")
+		kubectlSafe("delete", "pods", "--all")
 
 		By("counting AddressBlocks")
 		Eventually(func() error {
@@ -302,12 +302,12 @@ func testIPAM() {
 
 	It("should delete address pool", func() {
 		By("creating a dummy address pool")
-		_, err := kubectl(nil, "apply", "-f", "manifests/dummy_pool.yaml")
+		_, err := kubectl("apply", "-f", "manifests/dummy_pool.yaml")
 		Expect(err).NotTo(HaveOccurred())
 
 		Eventually(func() error {
 			ap := coilv2.AddressPool{}
-			out, err := kubectl(nil, "get", "addresspool", "dummy", "-o", "json")
+			out, err := kubectl("get", "addresspool", "dummy", "-o", "json")
 			if err != nil {
 				return err
 			}
@@ -318,12 +318,12 @@ func testIPAM() {
 		}).Should(Succeed())
 
 		By("deleting the dummy address pool")
-		_, err = kubectl(nil, "delete", "-f", "manifests/dummy_pool.yaml")
+		_, err = kubectl("delete", "-f", "manifests/dummy_pool.yaml")
 		Expect(err).NotTo(HaveOccurred())
 
 		Consistently(func() error {
 			apList := coilv2.AddressPoolList{}
-			out, err := kubectl(nil, "get", "addresspool", "-o", "json")
+			out, err := kubectl("get", "addresspool", "-o", "json")
 			if err != nil {
 				return err
 			}
@@ -333,7 +333,7 @@ func testIPAM() {
 			if len(apList.Items) == 1 {
 				return nil
 			}
-			return fmt.Errorf("the number of AddressPool must be 1")
+			return errors.New("the number of AddressPool must be 1")
 		}).Should(Succeed())
 	})
 }
@@ -343,7 +343,7 @@ func testEgress() {
 		By("defining Egress in the internet namespace")
 
 		Eventually(func() error {
-			_, err := kubectl(nil, "apply", "-f", "manifests/egress.yaml")
+			_, err := kubectl("apply", "-f", "manifests/egress.yaml")
 			return err
 		}).WithTimeout(5 * time.Minute).WithPolling(100 * time.Millisecond).ShouldNot(HaveOccurred())
 
@@ -370,7 +370,7 @@ func testEgress() {
 		By("defining Egress with fouSourcePortAuto in the internet namespace")
 
 		Eventually(func() error {
-			_, err := kubectl(nil, "apply", "-f", "manifests/egress-sport-auto.yaml")
+			_, err := kubectl("apply", "-f", "manifests/egress-sport-auto.yaml")
 			return err
 		}).WithTimeout(5 * time.Minute).WithPolling(100 * time.Millisecond).ShouldNot(HaveOccurred())
 
@@ -385,7 +385,7 @@ func testEgress() {
 		}).Should(Equal(2))
 
 		By("deleting Egress")
-		kubectlSafe(nil, "delete", "egress", "-n", "internet", "egress")
+		kubectlSafe("delete", "egress", "-n", "internet", "egress")
 
 		By("checking PDB deletion")
 		Eventually(func() error {
@@ -402,12 +402,12 @@ func testEgress() {
 		By("defining Egress in the internet namespace")
 
 		Eventually(func() error {
-			_, err := kubectl(nil, "apply", "-f", "manifests/egress.yaml")
+			_, err := kubectl("apply", "-f", "manifests/egress.yaml")
 			return err
 		}).WithTimeout(5 * time.Minute).WithPolling(100 * time.Millisecond).ShouldNot(HaveOccurred())
 
 		By("creating a NAT client pod")
-		kubectlSafe(nil, "apply", "-f", "manifests/nat-client.yaml")
+		kubectlSafe("apply", "-f", "manifests/nat-client.yaml")
 
 		By("checking the pod status")
 		Eventually(func() error {
@@ -429,12 +429,12 @@ func testEgress() {
 		By("defining Egress with fouSourcePortAuto in the internet namespace")
 
 		Eventually(func() error {
-			_, err := kubectl(nil, "apply", "-f", "manifests/egress-sport-auto.yaml")
+			_, err := kubectl("apply", "-f", "manifests/egress-sport-auto.yaml")
 			return err
 		}).WithTimeout(5 * time.Minute).WithPolling(100 * time.Millisecond).ShouldNot(HaveOccurred())
 
 		By("creating a NAT client pod for fouSourcePortAuto")
-		kubectlSafe(nil, "apply", "-f", "manifests/nat-client-sport-auto.yaml")
+		kubectlSafe("apply", "-f", "manifests/nat-client-sport-auto.yaml")
 
 		By("checking the pod status for fouSourcePortAuto")
 		Eventually(func() error {
@@ -557,13 +557,13 @@ func testEgress() {
 
 		By("creating a dummy pod don't use egress")
 		// dummy pod must be created after creating a net-client pod
-		kubectlSafe(nil, "apply", "-f", "manifests/dummy_pod.yaml")
+		kubectlSafe("apply", "-f", "manifests/dummy_pod.yaml")
 
 		By("updating Egress in the internet namespace")
-		kubectlSafe(nil, "apply", "-f", "manifests/egress-updated.yaml")
+		kubectlSafe("apply", "-f", "manifests/egress-updated.yaml")
 
 		By("waiting for the Egress rollout restart")
-		kubectlSafe(nil, "-n", "internet", "rollout", "status", "deploy", "egress")
+		kubectlSafe("-n", "internet", "rollout", "status", "deploy", "egress")
 
 		By("checking the NAT setup in the nat-client Pod")
 		type link struct {
@@ -596,7 +596,7 @@ func testEgress() {
 
 		for _, o := range opts {
 			Eventually(func() error {
-				out, err := kubectl(nil, "exec", "nat-client", "--", "ip", o.ipOpt, "-d", "-j", "link", "show")
+				out, err := kubectl("exec", "nat-client", "--", "ip", o.ipOpt, "-d", "-j", "link", "show")
 				if err != nil {
 					return err
 				}
@@ -616,10 +616,10 @@ func testEgress() {
 					}
 				}
 				if !found {
-					return fmt.Errorf("fou tunnel device not found")
+					return errors.New("fou tunnel device not found")
 				}
 
-				out, err = kubectl(nil, "exec", "nat-client", "--", "ip", o.ipOpt, "-j", "route", "show", "table", "118")
+				out, err = kubectl("exec", "nat-client", "--", "ip", o.ipOpt, "-j", "route", "show", "table", "118")
 				if err != nil {
 					return err
 				}
@@ -645,7 +645,7 @@ func testEgress() {
 			expectedFouCount = 2
 		}
 		Eventually(func() error {
-			out, err := kubectl(nil, "exec", "dummy", "--", "ip", "-j", "link", "show")
+			out, err := kubectl("exec", "dummy", "--", "ip", "-j", "link", "show")
 			if err != nil {
 				return err
 			}
@@ -656,7 +656,7 @@ func testEgress() {
 			fouCount := 0
 			for _, l := range dummyPodLinks {
 				if strings.HasPrefix(l.Ifname, "fou") && l.Ifname != "fou-dummy" {
-					fouCount += 1
+					fouCount++
 				}
 			}
 			if fouCount != expectedFouCount {
@@ -788,10 +788,9 @@ func testNAT(data []byte, clientPod, fakeURL string, natAddresses []string, ipam
 	ExpectWithOffset(1, err).ShouldNot(HaveOccurred(), "kubectl exec curl failed or timed out for %s", fakeURL)
 
 	if !ipamEnabled {
-		respStr := string(resp)
-		idx := strings.Index(respStr, "|")
-		ipAddr := respStr[:idx]
-		resp = []byte(respStr[idx+1:])
+		ipAddr, body, found := strings.Cut(string(resp), "|")
+		ExpectWithOffset(1, found).To(BeTrue(), "response from %s does not contain the source address", fakeURL)
+		resp = []byte(body)
 		ExpectWithOffset(1, natAddresses).To(ContainElement(ipAddr))
 	}
 	ExpectWithOffset(1, resp).To(HaveLen(1 << 20))
@@ -821,10 +820,10 @@ func getNATAddresses(name string) []string {
 	return natAddresses
 }
 
-func getLocalIP(ifName string, family int) (*net.IP, *net.IPNet, error) {
+func getLocalNetwork(ifName string, family int) (*net.IPNet, error) {
 	links, err := netlink.LinkList()
 	if err != nil {
-		return nil, nil, fmt.Errorf("netlink: failed to list links: %w", err)
+		return nil, fmt.Errorf("netlink: failed to list links: %w", err)
 	}
 
 	for _, link := range links {
@@ -838,11 +837,11 @@ func getLocalIP(ifName string, family int) (*net.IP, *net.IPNet, error) {
 			if ip == nil {
 				continue
 			}
-			return ip, ipnet, nil
+			return ipnet, nil
 		}
 	}
 
-	return nil, nil, fmt.Errorf("netlink: failed to find suitable %d addresses on interfaces matching %q", family, ifName)
+	return nil, fmt.Errorf("netlink: failed to find suitable %d addresses on interfaces matching %q", family, ifName)
 }
 
 func getNetwork(link netlink.Link, family int) (*net.IP, *net.IPNet, error) {
@@ -893,7 +892,7 @@ func checkEgressConnection(address string, pod *corev1.Pod, port string) error {
 
 	By("get node's IP addresses")
 	var nodeIP string
-	command := fmt.Sprintf("ip -j addr show dev eth0 | jq '.[].addr_info[] | .local' | grep %s", addr[0])
+	command := "ip -j addr show dev eth0 | jq '.[].addr_info[] | .local' | grep " + addr[0]
 	nodeByte, err := runOnNode("coil-control-plane", "bash", "-c", command)
 	Expect(err).ToNot(HaveOccurred())
 	nodeIP = strings.ReplaceAll(strings.Trim(string(nodeByte), " \n"), "\"", "")
@@ -963,13 +962,13 @@ func prepareEgressData(port, postfix string) egressTemplateData {
 	}
 
 	if enableIPv4Tests {
-		_, ipv4net, err := getLocalIP(testIf, netlink.FAMILY_V4)
+		ipv4net, err := getLocalNetwork(testIf, netlink.FAMILY_V4)
 		Expect(err).ToNot(HaveOccurred())
 		egressData.IPv4Addr = ipv4net.String()
 	}
 
 	if enableIPv6Tests {
-		_, ipv6net, err := getLocalIP(testIf, netlink.FAMILY_V6)
+		ipv6net, err := getLocalNetwork(testIf, netlink.FAMILY_V6)
 		Expect(err).ToNot(HaveOccurred())
 		egressData.IPv6Addr = ipv6net.String()
 	}
@@ -983,7 +982,7 @@ func deployEgress(egressData egressTemplateData, curDir, tmpDir string) {
 	egressTemplateExec, err := template.New("egress.yaml.tmpl").ParseFiles(egressTemplate)
 	Expect(err).ToNot(HaveOccurred())
 
-	egressFilepath := filepath.Join(tmpDir, fmt.Sprintf("%s.yaml", egressData.EgressName))
+	egressFilepath := filepath.Join(tmpDir, egressData.EgressName+".yaml")
 	egressFile, err := os.Create(egressFilepath)
 	Expect(err).ToNot(HaveOccurred())
 	defer egressFile.Close()
@@ -992,7 +991,7 @@ func deployEgress(egressData egressTemplateData, curDir, tmpDir string) {
 	Expect(err).ToNot(HaveOccurred())
 
 	By(fmt.Sprintf("creating egress %q", egressData.EgressName))
-	kubectlSafe(nil, "apply", "-f", egressFilepath)
+	kubectlSafe("apply", "-f", egressFilepath)
 
 	By(fmt.Sprintf("checking if %q is ready", egressData.EgressName))
 	Eventually(func() int {
@@ -1017,7 +1016,7 @@ func deployClient(egressData egressTemplateData, curDir, tmpDir string) *corev1.
 		Expect(err).ToNot(HaveOccurred())
 	}
 
-	podFilepath := filepath.Join(tmpDir, fmt.Sprintf("%s.yaml", egressData.PodName))
+	podFilepath := filepath.Join(tmpDir, egressData.PodName+".yaml")
 	podFile, err := os.Create(podFilepath)
 	Expect(err).ToNot(HaveOccurred())
 	defer podFile.Close()
@@ -1026,7 +1025,7 @@ func deployClient(egressData egressTemplateData, curDir, tmpDir string) *corev1.
 	Expect(err).ToNot(HaveOccurred())
 
 	By(fmt.Sprintf("creating pod %q", egressData.PodName))
-	kubectlSafe(nil, "apply", "-f", podFilepath)
+	kubectlSafe("apply", "-f", podFilepath)
 
 	By(fmt.Sprintf("waiting for %q pod start", egressData.PodName))
 	Eventually(func() bool {
@@ -1041,7 +1040,7 @@ func deployClient(egressData egressTemplateData, curDir, tmpDir string) *corev1.
 	By(fmt.Sprintf("get %q pod's data", egressData.PodName))
 	pods := &corev1.PodList{}
 	Eventually(func() bool {
-		err := getResource("internet", "pods", "", fmt.Sprintf("app.kubernetes.io/instance=%s", egressData.EgressName), pods)
+		err := getResource("internet", "pods", "", "app.kubernetes.io/instance="+egressData.EgressName, pods)
 		if err != nil {
 			return false
 		}

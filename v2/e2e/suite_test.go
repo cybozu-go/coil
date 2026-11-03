@@ -25,8 +25,8 @@ func TestE2e(t *testing.T) {
 
 var kubectlCmd = os.Getenv("KUBECTL")
 
-func kubectl(input []byte, args ...string) (stdout []byte, err error) {
-	return kubectlWithTimeout(0, input, args...)
+func kubectl(args ...string) (stdout []byte, err error) {
+	return kubectlWithTimeout(0, nil, args...)
 }
 
 // kubectlWithTimeout runs kubectl with a hard wall-clock timeout. A timeout of
@@ -53,8 +53,8 @@ func kubectlWithTimeout(timeout time.Duration, input []byte, args ...string) (st
 	return cmd.Output()
 }
 
-func kubectlSafe(input []byte, args ...string) []byte {
-	stdout, err := kubectl(input, args...)
+func kubectlSafe(args ...string) []byte {
+	stdout, err := kubectl(args...)
 	ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
 	return stdout
 }
@@ -73,7 +73,7 @@ func getResource(ns, resource, name, label string, obj any) error {
 		args = append(args, "-l", label)
 	}
 	args = append(args, "-o", "json")
-	data, err := kubectl(nil, args...)
+	data, err := kubectl(args...)
 	if err != nil {
 		return err
 	}
@@ -94,5 +94,5 @@ func runOnNode(node, cmd string, args ...string) (stdout []byte, err error) {
 func runOnPod(namespace, name string, args ...string) []byte {
 	command := []string{"exec", "-i", "-n", namespace, name, "--"}
 	command = append(command, args...)
-	return kubectlSafe(nil, command...)
+	return kubectlSafe(command...)
 }
