@@ -225,7 +225,43 @@ func (n *NatClient) initRules(family int) error {
 			return fmt.Errorf("netlink: failed to add %s to rule: %w", ipn.String(), err)
 		}
 	}
+
+	return n.setFlowBasedDevRules(family)
+}
+
+// EnsureFlowBasedDevRules sets up the netfilter rules for the flow based
+// tunnel devices.  This is idempotent and intended for clients that have
+// been initialized by an older version which did not set up these rules.
+func (n *NatClient) EnsureFlowBasedDevRules() error {
+	if n.ipv4 != nil {
+		if err := n.setFlowBasedDevRules(netlink.FAMILY_V4); err != nil {
+			return fmt.Errorf("failed to set up IPv4 rules: %w", err)
+		}
+	}
+	if n.ipv6 != nil {
+		if err := n.setFlowBasedDevRules(netlink.FAMILY_V6); err != nil {
+			return fmt.Errorf("failed to set up IPv6 rules: %w", err)
+		}
+	}
 	return nil
+}
+
+// setFlowBasedDevRules drops new flows from the flow based tunnel device.
+//
+// The device accepts packets from any source, and IPv4 forwarding is usually
+// enabled as it is inherited from the host.  Dropping new flows prevents this
+// client from being used as a relay and from accepting packets with spoofed
+// source addresses.  Only returning packets from egress Pods are accepted or
+// forwarded.
+func (n *NatClient) setFlowBasedDevRules(family int) error {
+	switch n.backend {
+	case constants.EgressBackendIPTables:
+		return setIPTablesFlowBasedDevNewDropRule(family)
+	case constants.EgressBackendNFTables:
+		return setNFTablesFlowBasedDevNewDropRule(family)
+	default:
+		return fmt.Errorf("invalid nat backend: %s", n.backend)
+	}
 }
 
 func (n *NatClient) clear(family int) error {

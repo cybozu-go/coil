@@ -34,6 +34,14 @@ func (n *NatServer) AddClient(ip net.IP, _ netlink.Link) error {
 	return nil
 }
 
+func (n *NatServer) DelClient(ip net.IP) error {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	delete(n.ips, ip.String())
+	return nil
+}
+
 func (n *NatServer) GetClients() map[string]struct{} {
 	n.mu.RLock()
 	defer n.mu.RUnlock()

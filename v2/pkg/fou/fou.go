@@ -19,6 +19,13 @@ const (
 	FoU6LinkPrefix = "fou6_"
 )
 
+// Names of the flow based IPIP tunnel devices created for NAT clients.
+// See setupFlowBasedIP4TunDevice.
+const (
+	FlowBasedIP4TunDevice = "coil_ipip4"
+	FlowBasedIP6TunDevice = "coil_ipip6"
+)
+
 const fouDummy = "fou-dummy"
 
 func fouName(addr net.IP) string {
@@ -56,11 +63,41 @@ type FoUTunnel interface {
 	DelPeer(net.IP) error
 }
 
-// NewFoUTunnel creates a new FoUTunnel.
+// tunnelRole represents which side of the egress NAT a FoUTunnel works for.
+type tunnelRole int
+
+const (
+	// roleClient is for NAT clients, i.e. Pods using Egress.
+	roleClient tunnelRole = iota
+	// roleServer is for NAT servers, i.e. egress Pods.
+	roleServer
+)
+
+// NewClientFoUTunnel creates a new FoUTunnel for NAT clients.
+//
+// The tunnel sets up flow based IPIP tunnel devices to receive returning
+// packets from egress Pods, and does not enable IP forwarding.
+// See setupFlowBasedIP4TunDevice for details.
+//
 // port is the UDP port to receive FoU packets.
 // localIPv4 is the local IPv4 address of the IPIP tunnel.  This can be nil.
 // localIPv6 is the same as localIPv4 for IPv6.
-func NewFoUTunnel(port int, localIPv4, localIPv6 net.IP, logFunc func(string)) FoUTunnel {
+func NewClientFoUTunnel(port int, localIPv4, localIPv6 net.IP, logFunc func(string)) FoUTunnel {
+	return newFoUTunnel(roleClient, port, localIPv4, localIPv6, logFunc)
+}
+
+// NewServerFoUTunnel creates a new FoUTunnel for NAT servers.
+//
+// The tunnel enables IP forwarding to route packets from clients, and does not
+// set up flow based IPIP tunnel devices so that only packets from registered
+// peers are decapsulated.
+//
+// The parameters are the same as NewClientFoUTunnel.
+func NewServerFoUTunnel(port int, localIPv4, localIPv6 net.IP, logFunc func(string)) FoUTunnel {
+	return newFoUTunnel(roleServer, port, localIPv4, localIPv6, logFunc)
+}
+
+func newFoUTunnel(role tunnelRole, port int, localIPv4, localIPv6 net.IP, logFunc func(string)) FoUTunnel {
 	if localIPv4 != nil && localIPv4.To4() == nil {
 		panic("invalid IPv4 address")
 	}
@@ -68,6 +105,7 @@ func NewFoUTunnel(port int, localIPv4, localIPv6 net.IP, logFunc func(string)) F
 		panic("invalid IPv6 address")
 	}
 	return &fouTunnel{
+		role:    role,
 		port:    port,
 		local4:  localIPv4,
 		local6:  localIPv6,
@@ -76,6 +114,7 @@ func NewFoUTunnel(port int, localIPv4, localIPv6 net.IP, logFunc func(string)) F
 }
 
 type fouTunnel struct {
+	role    tunnelRole
 	port    int
 	local4  net.IP
 	local6  net.IP
@@ -113,8 +152,11 @@ func (t *fouTunnel) Init() error {
 		if _, err := sysctl.Sysctl("net.ipv4.conf.all.rp_filter", "0"); err != nil {
 			return fmt.Errorf("setting net.ipv4.conf.all.rp_filter=0 failed: %w", err)
 		}
-		if err := ip.EnableIP4Forward(); err != nil {
-			return fmt.Errorf("failed to enable IPv4 forwarding: %w", err)
+		// NAT clients only send and receive their own packets.
+		if t.role == roleServer {
+			if err := ip.EnableIP4Forward(); err != nil {
+				return fmt.Errorf("failed to enable IPv4 forwarding: %w", err)
+			}
 		}
 	}
 	if t.local6 != nil {
@@ -130,8 +172,10 @@ func (t *fouTunnel) Init() error {
 		if err != nil {
 			return fmt.Errorf("netlink: fou add failed: %w", err)
 		}
-		if err := ip.EnableIP6Forward(); err != nil {
-			return fmt.Errorf("failed to enable IPv6 forwarding: %w", err)
+		if t.role == roleServer {
+			if err := ip.EnableIP6Forward(); err != nil {
+				return fmt.Errorf("failed to enable IPv6 forwarding: %w", err)
+			}
 		}
 
 		// avoid any existing DROP rule by rpfilter extension.
@@ -175,8 +219,10 @@ func (t *fouTunnel) addPeer4(addr net.IP, sportAuto bool) (netlink.Link, error) 
 		return nil, err
 	}
 
-	if err := setupFlowBasedIP4TunDevice(); err != nil {
-		return nil, fmt.Errorf("netlink: failed to setup ipip device: %w", err)
+	if t.role == roleClient {
+		if err := setupFlowBasedIP4TunDevice(); err != nil {
+			return nil, fmt.Errorf("netlink: failed to setup ipip device: %w", err)
+		}
 	}
 
 	return netlink.LinkByName(linkName)
@@ -249,8 +295,10 @@ func (t *fouTunnel) addPeer6(addr net.IP, sportAuto bool) (netlink.Link, error) 
 		return nil, err
 	}
 
-	if err := setupFlowBasedIP6TunDevice(); err != nil {
-		return nil, fmt.Errorf("netlink: failed to setup ipip device: %w", err)
+	if t.role == roleClient {
+		if err := setupFlowBasedIP6TunDevice(); err != nil {
+			return nil, fmt.Errorf("netlink: failed to setup ipip device: %w", err)
+		}
 	}
 
 	return netlink.LinkByName(linkName)
@@ -312,6 +360,14 @@ func (t *fouTunnel) addOrRecreatePeer6(addr net.IP, sportAuto bool) (string, err
 // This flow based IPIP tunnel device is used to decapsulate packets from
 // the router Pods.
 //
+// It is needed only for NAT clients.  A client sends packets to the Service's
+// ClusterIP, but the returning packets come from the router Pod's IP address,
+// so they do not match the IPIP tunnel device configured for the ClusterIP.
+// Since this device accepts packets from any source, NAT servers must not
+// create it; packets from clients always match the per-peer tunnel devices.
+// On NAT servers, the fallback devices are left as they are.  They are down
+// and never used for decapsulation.
+//
 // Calling this function may result in tunl0 (v4) or ip6tnl0 (v6)
 // fallback interface being renamed to coil_tunl or coil_ip6tnl.
 // This is to communicate to the user that this plugin has taken
@@ -326,7 +382,7 @@ func (t *fouTunnel) addOrRecreatePeer6(addr net.IP, sportAuto bool) (string, err
 // By default, these interfaces will be created in new network namespaces,
 // but this behavior can be disabled by setting net.core.fb_tunnels_only_for_init_net = 2.
 func setupFlowBasedIP4TunDevice() error {
-	ipip4Device := "coil_ipip4"
+	ipip4Device := FlowBasedIP4TunDevice
 	// Set up IPv4 tunnel device if requested.
 	if err := setupDevice(&netlink.Iptun{
 		Name:      ipip4Device,
@@ -346,7 +402,7 @@ func setupFlowBasedIP4TunDevice() error {
 
 // See setupFlowBasedIP4TunDevice
 func setupFlowBasedIP6TunDevice() error {
-	ipip6Device := "coil_ipip6"
+	ipip6Device := FlowBasedIP6TunDevice
 
 	// Set up IPv6 tunnel device if requested.
 	if err := setupDevice(&netlink.Ip6tnl{
