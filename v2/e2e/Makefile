@@ -1,4 +1,4 @@
-KUBERNETES_VERSION ?= 1.35.1
+KUBERNETES_VERSION ?= 1.36.4
 
 ARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')

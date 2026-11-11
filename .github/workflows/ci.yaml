@@ -15,9 +15,9 @@ env:
   cache-version: 1
   # Supported Kubernetes versions. Bump these three values when adding/dropping
   # versions; all matrix entries below reference the YAML anchors.
-  K8S_LATEST: &k8s-latest "1.35.1"
-  K8S_PREV1:  &k8s-prev1  "1.34.3"
-  K8S_PREV2:  &k8s-prev2  "1.33.7"
+  K8S_LATEST: &k8s-latest "1.36.4"
+  K8S_PREV1:  &k8s-prev1  "1.35.8"
+  K8S_PREV2:  &k8s-prev2  "1.34.11"
 jobs:
   test:
     name: Small test
