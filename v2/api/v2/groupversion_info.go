@@ -4,8 +4,9 @@
 package v2
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
 var (
@@ -13,8 +14,17 @@ var (
 	GroupVersion = schema.GroupVersion{Group: "coil.cybozu.com", Version: "v2"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
-	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
+	SchemeBuilder runtime.SchemeBuilder
 
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
 )
+
+// registerTypes adds the given types to SchemeBuilder under GroupVersion.
+func registerTypes(objects ...runtime.Object) {
+	SchemeBuilder.Register(func(s *runtime.Scheme) error {
+		s.AddKnownTypes(GroupVersion, objects...)
+		metav1.AddToGroupVersion(s, GroupVersion)
+		return nil
+	})
+}

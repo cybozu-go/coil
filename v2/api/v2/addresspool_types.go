@@ -229,5 +229,5 @@ type AddressPoolList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&AddressPool{}, &AddressPoolList{})
+	registerTypes(&AddressPool{}, &AddressPoolList{})
 }

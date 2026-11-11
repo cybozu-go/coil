@@ -244,5 +244,5 @@ type EgressList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&Egress{}, &EgressList{})
+	registerTypes(&Egress{}, &EgressList{})
 }

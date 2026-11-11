@@ -111,5 +111,5 @@ type BlockRequestList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&BlockRequest{}, &BlockRequestList{})
+	registerTypes(&BlockRequest{}, &BlockRequestList{})
 }
