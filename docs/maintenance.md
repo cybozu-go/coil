@@ -56,14 +56,25 @@ Keep these three in sync:
 1. Bump `k8s.io/api`, `k8s.io/apimachinery`, `k8s.io/client-go`, and related
    `k8s.io/*`/`sigs.k8s.io/*` modules in `go.mod`, then follow the "Update Go
    module dependencies" steps above.
-2. Update `KUBERNETES_VERSION` in `v2/e2e/Makefile`.
-3. Update the `kindest-node` matrix in `.github/workflows/ci.yaml` (both the
-   e2e test job and the cert generation test job). Coil supports three minor
-   versions at a time, so drop the oldest when adding the newest.
-4. Update the "Kubernetes Version" line under `## Dependencies` in
+2. Bump `kubernetes-sigs/kind` in `v2/aqua.yaml` to a release that ships a
+   node image for the new version, and bump `kubernetes/kubernetes/kubectl`
+   to the new Kubernetes version. Also bump `kubernetes-sigs/kustomize` if a
+   newer release is needed. Then regenerate `v2/aqua-checksums.json` (do not
+   edit it by hand):
+
+   ```console
+   $ aqua update-checksum -prune
+   ```
+
+3. Update `K8S_LATEST`, `K8S_PREV1` and `K8S_PREV2` under `env` in
+   `.github/workflows/ci.yaml`; every matrix entry refers to them through
+   YAML anchors. Coil supports three minor versions at a time, so drop the
+   oldest when adding the newest. Take the patch versions from the node
+   images listed in the release notes of the kind version chosen in step 2.
+4. Update `KUBERNETES_VERSION` in `v2/e2e/Makefile` to the same value as
+   `K8S_LATEST`.
+5. Update the "Kubernetes Version" line under `## Dependencies` in
    `README.md`.
-5. Also bump `KIND_VERSION` / `KUSTOMIZE_VERSION` in `v2/e2e/Makefile` if
-   newer releases are needed to support the new node image.
 
 ## Verify
 

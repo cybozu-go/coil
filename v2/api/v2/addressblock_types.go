@@ -42,5 +42,5 @@ type AddressBlockList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&AddressBlock{}, &AddressBlockList{})
+	registerTypes(&AddressBlock{}, &AddressBlockList{})
 }
