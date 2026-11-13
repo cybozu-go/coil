@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- coild: add `--cluster-networks` flag to override the default in-cluster networks (RFC1918 for IPv4, `fc00::/7` for IPv6) excluded from egress NAT, per IP family. This allows clusters using globally routable IPv6 addresses to keep intra-cluster traffic out of the NAT tunnel even when an `Egress` destination such as `::/0` is configured.
+
 ## [2.15.0] - 2026-07-09
 
 ### Changed
